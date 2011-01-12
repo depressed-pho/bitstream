@@ -1,0 +1,29 @@
+<!-- -*- xml -*-
+
+Haskell のパッケージ "bitvector" はパブリックドメインに在ります。
+The Haskell package "bitvector" is in the public domain.
+
+See http://creativecommons.org/licenses/publicdomain/
+
+-->
+
+<rdf:RDF xmlns="http://web.resource.org/cc/"
+	     xmlns:dc="http://purl.org/dc/elements/1.1/"
+	     xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
+  <Work rdf:about="http://cielonegro.org/BitVector.html">
+	<dc:title>bitvector</dc:title>
+	<dc:rights>
+      <Agent>
+	    <dc:title>PHO</dc:title>
+	  </Agent>
+    </dc:rights>
+	<license rdf:resource="http://web.resource.org/cc/PublicDomain" />
+  </Work>
+      
+  <License rdf:about="http://web.resource.org/cc/PublicDomain">
+	<permits rdf:resource="http://web.resource.org/cc/Reproduction" />
+	<permits rdf:resource="http://web.resource.org/cc/Distribution" />
+	<permits rdf:resource="http://web.resource.org/cc/DerivativeWorks" />
+  </License>
+
+</rdf:RDF>

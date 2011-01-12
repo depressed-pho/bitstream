@@ -1,0 +1,37 @@
+Name: bitvector
+Synopsis: Fast, packed, strict and lazy bit vectors
+Description:
+
+        Fast, packed, strict and lazy bit vectors with a list
+        interface. This is like @bytestring@ but stores bits instead
+        of bytes.
+
+Version: 0.1
+License: PublicDomain
+License-File: COPYING
+Author: PHO <pho at cielonegro dot org>
+Maintainer: PHO <pho at cielonegro dot org>
+Stability: experimental
+Homepage: http://cielonegro.org/BitVector.html
+Category: Data
+Tested-With: GHC == 7.0.1
+Cabal-Version: >= 1.6
+Build-Type: Simple
+Extra-Source-Files:
+    COPYING
+
+Source-Repository head
+    Type: git
+    Location: git://git.cielonegro.org/bitvector.git
+
+Library
+    Build-Depends:
+        base                 == 4.*,
+        base-unicode-symbols == 0.2.*,
+        storablevector       == 0.2.*
+
+    Exposed-Modules:
+        Data.BitVector
+
+    GHC-Options:
+        -Wall
