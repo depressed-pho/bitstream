@@ -23,11 +23,14 @@ module Data.BitVector.BitChunk
     , unsafeTail
     , unsafeInit
     , null
+    , length
+
+    , map
     )
     where
 import Data.Bits
 import Data.Word
-import Prelude hiding (null)
+import Prelude hiding (length, map, null)
 
 data Chunk d = Chunk {-# UNPACK #-} !Int 
                      {-# UNPACK #-} !Word8
@@ -46,6 +49,8 @@ class BitChunk α where
     unsafeLast   ∷ α → Bool
     unsafeTail   ∷ α → α
 
+    map ∷ (Bool → Bool) → α → α
+
 (∅) ∷ Chunk d
 (∅) = Chunk 0 0
 
@@ -54,10 +59,6 @@ fromOctet = Chunk 8
 
 toOctet ∷ Chunk d → Word8
 toOctet (Chunk _ b) = b
-
-null ∷ Chunk d → Bool
-null (Chunk 0 _) = True
-null _           = False
 
 instance BitChunk (Chunk Left) where
     singleton True  = Chunk 1 1
@@ -81,6 +82,16 @@ instance BitChunk (Chunk Left) where
     unsafeTail (Chunk n b)
         = Chunk (n-1) (b `shiftR` 1)
 
+    map f (Chunk n b) = Chunk n (map' b n)
+        where
+          map' ∷ Word8 → Int → Word8
+          map' b' 0
+              | f (testBit b' 0) = setBit   b' 0
+              | otherwise        = clearBit b' 0
+          map' b' n'
+              | f (testBit b' n') = map' (setBit   b' n') (n'-1)
+              | otherwise         = map' (clearBit b' n') (n'-1)
+
 instance BitChunk (Chunk Right) where
     singleton True  = Chunk 1 0x80
     singleton False = Chunk 1 0
@@ -103,8 +114,26 @@ instance BitChunk (Chunk Right) where
     unsafeTail (Chunk n b)
         = Chunk (n-1) (b `shiftL` 1)
 
+    map f (Chunk n b) = Chunk n (map' b n)
+        where
+          map' ∷ Word8 → Int → Word8
+          map' b' 0
+              | f (testBit b' 7) = setBit   b' 7
+              | otherwise        = clearBit b' 7
+          map' b' n'
+              | f (testBit b' (7-n')) = map' (setBit   b' (7-n')) (n'-1)
+              | otherwise             = map' (clearBit b' (7-n')) (n'-1)
+
 unsafeInit ∷ Chunk d → Chunk d
 unsafeInit (Chunk n b) = Chunk (n-1) b
+
+null ∷ Chunk d → Bool
+null (Chunk 0 _) = True
+null _           = False
+
+{-# SPECIALISE length ∷ Chunk d → Int #-}
+length ∷ Integral n ⇒ Chunk d → n
+length (Chunk n _) = fromIntegral n
 
 {-# SPECIALISE append ∷ Chunk Left  → Chunk Left  → (# Chunk Left , Maybe (Chunk Left ) #) #-}
 {-# SPECIALISE append ∷ Chunk Right → Chunk Right → (# Chunk Right, Maybe (Chunk Right) #) #-}
