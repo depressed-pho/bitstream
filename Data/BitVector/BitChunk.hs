@@ -114,15 +114,15 @@ instance BitChunk (Chunk Right) where
     unsafeTail (Chunk n b)
         = Chunk (n-1) (b `shiftL` 1)
 
-    map f (Chunk n b) = Chunk n (map' b n)
+    map f (Chunk n b) = Chunk n (map' b (7-n))
         where
           map' ∷ Word8 → Int → Word8
-          map' b' 0
+          map' b' 7
               | f (testBit b' 7) = setBit   b' 7
               | otherwise        = clearBit b' 7
           map' b' n'
-              | f (testBit b' (7-n')) = map' (setBit   b' (7-n')) (n'-1)
-              | otherwise             = map' (clearBit b' (7-n')) (n'-1)
+              | f (testBit b' n') = map' (setBit   b' n') (n'+1)
+              | otherwise         = map' (clearBit b' n') (n'+1)
 
 unsafeInit ∷ Chunk d → Chunk d
 unsafeInit (Chunk n b) = Chunk (n-1) b
