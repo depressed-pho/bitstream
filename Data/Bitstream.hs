@@ -2,7 +2,7 @@
     UnicodeSyntax
   #-}
 -- | FIXME
-module Data.BitVector
+module Data.Bitstream
     (
     )
     where

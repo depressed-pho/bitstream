@@ -1,7 +1,7 @@
 <!-- -*- xml -*-
 
-Haskell のパッケージ "bitvector" はパブリックドメインに在ります。
-The Haskell package "bitvector" is in the public domain.
+Haskell のパッケージ "bitstream" はパブリックドメインに在ります。
+The Haskell package "bitstream" is in the public domain.
 
 See http://creativecommons.org/licenses/publicdomain/
 
@@ -10,8 +10,8 @@ See http://creativecommons.org/licenses/publicdomain/
 <rdf:RDF xmlns="http://web.resource.org/cc/"
 	     xmlns:dc="http://purl.org/dc/elements/1.1/"
 	     xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
-  <Work rdf:about="http://cielonegro.org/BitVector.html">
-	<dc:title>bitvector</dc:title>
+  <Work rdf:about="http://cielonegro.org/Bitstream.html">
+	<dc:title>bitstream</dc:title>
 	<dc:rights>
       <Agent>
 	    <dc:title>PHO</dc:title>

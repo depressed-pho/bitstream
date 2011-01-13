@@ -1,10 +1,10 @@
-Name: bitvector
-Synopsis: Fast, packed, strict and lazy bit vectors
+Name: bitstream
+Synopsis: Fast, packed, strict and lazy bit streams using stream fusion
 Description:
 
-        Fast, packed, strict and lazy bit vectors with a list
-        interface. This is like @bytestring@ but stores bits instead
-        of bytes.
+        Fast, packed, strict and lazy bit vectors using stream
+        fusion. This is like @bytestring@ but stores bits instead of
+        bytes.
 
 Version: 0.1
 License: PublicDomain
@@ -12,7 +12,7 @@ License-File: COPYING
 Author: PHO <pho at cielonegro dot org>
 Maintainer: PHO <pho at cielonegro dot org>
 Stability: experimental
-Homepage: http://cielonegro.org/BitVector.html
+Homepage: http://cielonegro.org/Bitstream.html
 Category: Data
 Tested-With: GHC == 7.0.1
 Cabal-Version: >= 1.6
@@ -22,19 +22,20 @@ Extra-Source-Files:
 
 Source-Repository head
     Type: git
-    Location: git://git.cielonegro.org/bitvector.git
+    Location: git://git.cielonegro.org/bitstream.git
 
 Library
     Build-Depends:
         base                 == 4.*,
         base-unicode-symbols == 0.2.*,
-        storablevector       == 0.2.*
+        storablevector       == 0.2.*,
+        stream-fusion        == 0.1.*
 
     Exposed-Modules:
-        Data.BitVector
+        Data.Bitstream
 
     Other-Modules:
-        Data.BitVector.BitChunk
+        Data.Bitstream.BitChunk
 
     GHC-Options:
         -Wall
