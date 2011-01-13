@@ -26,11 +26,12 @@ module Data.BitVector.BitChunk
     , length
 
     , map
+    , reverse
     )
     where
 import Data.Bits
 import Data.Word
-import Prelude hiding (length, map, null)
+import Prelude hiding (length, map, null, reverse)
 
 data Chunk d = Chunk {-# UNPACK #-} !Int 
                      {-# UNPACK #-} !Word8
@@ -49,7 +50,8 @@ class BitChunk α where
     unsafeLast   ∷ α → Bool
     unsafeTail   ∷ α → α
 
-    map ∷ (Bool → Bool) → α → α
+    map     ∷ (Bool → Bool) → α → α
+    reverse ∷ α → α
 
 (∅) ∷ Chunk d
 (∅) = Chunk 0 0
@@ -71,7 +73,7 @@ instance BitChunk (Chunk Left) where
     unsafeSnoc (Chunk n b) False = Chunk (n+1) b
 
     unsafeAppend (Chunk n b) (Chunk n' b')
-        = Chunk (n + n') ((b `shiftL` n') .|. b')
+        = Chunk (n' + n) ((b' `shiftL` n) .|. b)
 
     unsafeHead (Chunk _ b)
         = testBit b 0
@@ -82,7 +84,8 @@ instance BitChunk (Chunk Left) where
     unsafeTail (Chunk n b)
         = Chunk (n-1) (b `shiftR` 1)
 
-    map f (Chunk n b) = Chunk n (map' b n)
+    map _ (Chunk 0 _) = Chunk 0 0
+    map f (Chunk n b) = Chunk n (map' b (n-1))
         where
           map' ∷ Word8 → Int → Word8
           map' b' 0
@@ -91,6 +94,17 @@ instance BitChunk (Chunk Left) where
           map' b' n'
               | f (testBit b' n') = map' (setBit   b' n') (n'-1)
               | otherwise         = map' (clearBit b' n') (n'-1)
+
+    reverse (Chunk 0 _) = Chunk 0 0
+    reverse (Chunk n b) = Chunk n (rev' b (n-1))
+        where
+          rev' ∷ Word8 → Int → Word8
+          rev' b' 0
+              | testBit b 0 = setBit   b' (n-1)
+              | otherwise   = clearBit b' (n-1)
+          rev' b' n'
+              | testBit b n' = rev' (setBit   b' (n-1-n')) (n'-1)
+              | otherwise    = rev' (clearBit b' (n-1-n')) (n'-1)
 
 instance BitChunk (Chunk Right) where
     singleton True  = Chunk 1 0x80
@@ -109,12 +123,13 @@ instance BitChunk (Chunk Right) where
         = testBit b 7
 
     unsafeLast (Chunk n b)
-        = testBit b (7-n+1)
+        = testBit b (8-n)
 
     unsafeTail (Chunk n b)
         = Chunk (n-1) (b `shiftL` 1)
 
-    map f (Chunk n b) = Chunk n (map' b (7-n))
+    map _ (Chunk 0 _) = Chunk 0 0
+    map f (Chunk n b) = Chunk n (map' b (8-n))
         where
           map' ∷ Word8 → Int → Word8
           map' b' 7
@@ -123,6 +138,17 @@ instance BitChunk (Chunk Right) where
           map' b' n'
               | f (testBit b' n') = map' (setBit   b' n') (n'+1)
               | otherwise         = map' (clearBit b' n') (n'+1)
+
+    reverse (Chunk 0 _) = Chunk 0 0
+    reverse (Chunk n b) = Chunk n (rev' b (8-n))
+        where
+          rev' ∷ Word8 → Int → Word8
+          rev' b' 7
+              | testBit b 7 = setBit   b' (8-n)
+              | otherwise   = clearBit b' (8-n)
+          rev' b' n'
+              | testBit b n' = rev' (setBit   b' (n-1-n')) (n'+1)
+              | otherwise    = rev' (clearBit b' (n-1-n')) (n'+1)
 
 unsafeInit ∷ Chunk d → Chunk d
 unsafeInit (Chunk n b) = Chunk (n-1) b
