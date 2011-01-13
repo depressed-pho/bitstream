@@ -25,6 +25,7 @@ module Data.Bitstream.BitChunk
 import Data.Bits
 import qualified Data.Stream as S
 import Data.Word
+import Foreign.Storable
 import Prelude hiding (length, null)
 
 data Chunk d = Chunk {-# UNPACK #-} !Int 
@@ -33,6 +34,19 @@ data Chunk d = Chunk {-# UNPACK #-} !Int
 
 data Left
 data Right
+
+instance Storable (Chunk d) where
+    sizeOf _  = 2
+    alignment = sizeOf
+    {-# INLINE peek #-}
+    peek p
+        = do n ← peekByteOff p 0
+             o ← peekByteOff p 1
+             return $! Chunk (fromIntegral (n ∷ Word8)) o
+    {-# INLINE poke #-}
+    poke p (Chunk n o)
+        = do pokeByteOff p 0 (fromIntegral n ∷ Word8)
+             pokeByteOff p 1 o
 
 class BitChunk α where
     stream   ∷ α → S.Stream Bool
