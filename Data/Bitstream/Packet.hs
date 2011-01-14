@@ -7,58 +7,46 @@
   , UnboxedTuples
   , UnicodeSyntax
   #-}
-module Data.Bitstream.BitChunk
-    ( Chunk(..)
-    , Left
+module Data.Bitstream.Packet
+    ( Left
     , Right
 
-    , stream
-    , unstream
+    , Packet
 
     , fromOctet
     , toOctet
-
-    , length
-    , null
     )
     where
+import Data.Bitstream.Generic
 import Data.Bits
 import qualified Data.Stream as S
 import Data.Word
 import Foreign.Storable
 import Prelude hiding (length, null)
 
-data Chunk d = Chunk {-# UNPACK #-} !Int 
-                     {-# UNPACK #-} !Word8
-    deriving (Eq, Show)
-
 data Left
 data Right
 
-instance Storable (Chunk d) where
+data Packet d = Packet {-# UNPACK #-} !Int
+                       {-# UNPACK #-} !Word8
+    deriving (Eq, Show)
+
+instance Storable (Packet d) where
     sizeOf _  = 2
     alignment = sizeOf
     {-# INLINE peek #-}
     peek p
         = do n ← peekByteOff p 0
              o ← peekByteOff p 1
-             return $! Chunk (fromIntegral (n ∷ Word8)) o
+             return $! Packet (fromIntegral (n ∷ Word8)) o
     {-# INLINE poke #-}
-    poke p (Chunk n o)
+    poke p (Packet n o)
         = do pokeByteOff p 0 (fromIntegral n ∷ Word8)
              pokeByteOff p 1 o
 
-class BitChunk α where
-    stream   ∷ α → S.Stream Bool
-    unstream ∷ S.Stream Bool → α
-{-# RULES
-"BitChunk stream/unstream fusion"
-    ∀s. stream (unstream s) = s
-  #-}
-
-instance BitChunk (Chunk Left) where
+instance Bitstream (Packet Left) where
     {-# INLINE [0] stream #-}
-    stream (Chunk n o) = S.unfoldr produce 0
+    stream (Packet n o) = S.unfoldr produce 0
         where
           {-# INLINE produce #-}
           produce ∷ Int → Maybe (Bool, Int)
@@ -68,7 +56,7 @@ instance BitChunk (Chunk Left) where
 
     {-# INLINE [0] unstream #-}
     unstream (S.Stream next s0) = case consume (-1) 0 s0 of
-                                    (# p, o #) → Chunk (p+1) o
+                                    (# p, o #) → Packet (p+1) o
         where
           {-# INLINE consume #-}
           consume !p !o !s
@@ -81,9 +69,15 @@ instance BitChunk (Chunk Left) where
                                      else consume (p+1)  o             s'
                       | otherwise → error "bitchunk overflow"
 
-instance BitChunk (Chunk Right) where
+    {-# NOINLINE [1] empty #-}
+    empty = Packet 0 0
+
+    {-# NOINLINE [1] length #-}
+    length (Packet n _) = fromIntegral n
+
+instance Bitstream (Packet Right) where
     {-# INLINE [0] stream #-}
-    stream (Chunk n b) = S.unfoldr produce (n-1)
+    stream (Packet n b) = S.unfoldr produce (n-1)
         where
           {-# INLINE produce #-}
           produce ∷ Int → Maybe (Bool, Int)
@@ -93,7 +87,7 @@ instance BitChunk (Chunk Right) where
 
     {-# INLINE [0] unstream #-}
     unstream (S.Stream next s0) = case consume 7 0 s0 of
-                                    (# p, o #) → Chunk (7-p) o
+                                    (# p, o #) → Packet (7-p) o
         where
           {-# INLINE consume #-}
           consume !p !o !s
@@ -106,31 +100,30 @@ instance BitChunk (Chunk Right) where
                                      else consume (p-1)  o             s'
                       | otherwise → error "bitchunk overflow"
 
-fromOctet ∷ Word8 → Chunk d
-fromOctet = Chunk 8
-{-# INLINE fromOctet #-}
+    {-# NOINLINE [1] empty #-}
+    empty = Packet 0 0
 
-toOctet ∷ Chunk d → Word8
-toOctet (Chunk _ o) = o
-{-# INLINE toOctet #-}
+    {-# NOINLINE [1] length #-}
+    length (Packet n _) = fromIntegral n
 
-length ∷ BitChunk (Chunk d) ⇒ Chunk d → Int
-length (Chunk n _) = n
-{-# NOINLINE [1] length #-}
 {-# RULES
+
+"empty → fusible" [~1]
+    empty = unstream (S.stream [])
+"empty → unfused" [ 1]
+    unstream (S.stream []) = empty
+
 "length → fusible" [~1]
-    ∀c. length c = S.length (stream c)
+    ∀c. length c = fromIntegral (S.length (stream c))
 "length → unfused" [ 1]
     ∀c. S.length (stream c) = length c
+
   #-}
 
-null ∷ BitChunk (Chunk d) ⇒ Chunk d → Bool
-null (Chunk 0 _) = True
-null _           = False
-{-# NOINLINE [1] null #-}
-{-# RULES
-"null → fusible" [~1]
-    ∀c. null c = S.null (stream c)
-"null → unfused" [ 1]
-    ∀c. S.null (stream c) = null c
-  #-}
+fromOctet ∷ Word8 → Packet d
+fromOctet = Packet 8
+{-# INLINE fromOctet #-}
+
+toOctet ∷ Packet d → Word8
+toOctet (Packet _ o) = o
+{-# INLINE toOctet #-}

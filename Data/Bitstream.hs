@@ -15,9 +15,10 @@ module Data.Bitstream
     , Right
     )
     where
-import Data.Bitstream.BitChunk (Left, Right, Chunk)
+import Data.Bitstream.Packet (Left, Right, Packet)
 --import qualified Data.Bitstream.BitChunk as C
 import qualified Data.StorableVector as S
 
+-- | FIXME
 newtype Bitstream d
-    = BitStream (S.Vector (Chunk d))
+    = BitStream (S.Vector (Packet d))

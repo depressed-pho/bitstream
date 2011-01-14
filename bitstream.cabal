@@ -33,9 +33,8 @@ Library
 
     Exposed-Modules:
         Data.Bitstream
-
-    Other-Modules:
-        Data.Bitstream.BitChunk
+        Data.Bitstream.Generic
+        Data.Bitstream.Packet
 
     GHC-Options:
         -Wall
