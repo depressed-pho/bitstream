@@ -114,9 +114,9 @@ instance Bitstream (Packet Right) where
     unstream (S.stream []) = empty
 
 "length → fusible" [~1]
-    ∀c. length c = fromIntegral (S.length (stream c))
+    ∀c. length c = S.genericLength (stream c)
 "length → unfused" [ 1]
-    ∀c. S.length (stream c) = length c
+    ∀c. S.genericLength (stream c) = length c
 
   #-}
 
