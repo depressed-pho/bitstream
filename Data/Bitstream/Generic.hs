@@ -8,7 +8,9 @@ module Data.Bitstream.Generic
     where
 import qualified Data.List   as L
 import qualified Data.Stream as S
-import Prelude hiding (concat, foldr, head, length, map, null, tail)
+import Prelude hiding ( concat, foldr, head, length, map, null, scanr
+                      , scanr1, tail
+                      )
 import Prelude.Unicode hiding ((⧺))
 
 infixr 5 ⧺
@@ -152,6 +154,32 @@ class Bitstream α where
 
     all ∷ (Bool → Bool) → α → Bool
     all = (∘ stream) ∘ S.all
+    {-# INLINE all #-}
+
+    scanl ∷ (Bool → Bool → Bool) → Bool → α → α
+    scanl f z xs = unstream (S.scanl f z (S.snoc (stream xs) (⊥)))
+    {-# INLINE scanl #-}
+
+    scanl1 ∷ (Bool → Bool → Bool) → α → α
+    scanl1 f xs = unstream (S.scanl1 f (S.snoc (stream xs) (⊥)))
+    {-# INLINE scanl1 #-}
+
+    scanr ∷ (Bool → Bool → Bool) → Bool → α → α
+    scanr f z xs
+        | null xs   = singleton z
+        | otherwise = let xs' = scanr f z (tail xs)
+                      in
+                        f (head xs) (head xs') `cons` xs'
+    {-# INLINE scanr #-}
+
+    scanr1 ∷ (Bool → Bool → Bool) → α → α
+    scanr1 f xs
+        | null xs        = xs
+        | null (tail xs) = xs
+        | otherwise      = let xs' = scanr1 f (tail xs)
+                           in
+                             f (head xs) (head xs') `cons` xs'
+    {-# INLINE scanr1 #-}
 
 {-# RULES
 "Bitstream stream/unstream fusion"
