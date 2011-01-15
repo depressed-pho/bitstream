@@ -67,7 +67,7 @@ instance Bitstream (Packet Left) where
                       | p < 8     → if x
                                      then consume (p+1) (o `setBit` p) s'
                                      else consume (p+1)  o             s'
-                      | otherwise → error "bitchunk overflow"
+                      | otherwise → error "packet overflow"
 
     {-# NOINLINE [1] empty #-}
     empty = Packet 0 0
@@ -98,7 +98,7 @@ instance Bitstream (Packet Right) where
                       | p > 0     → if x
                                      then consume (p-1) (o `setBit` p) s'
                                      else consume (p-1)  o             s'
-                      | otherwise → error "bitchunk overflow"
+                      | otherwise → error "packet overflow"
 
     {-# NOINLINE [1] empty #-}
     empty = Packet 0 0

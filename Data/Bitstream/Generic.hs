@@ -181,6 +181,22 @@ class Bitstream α where
                              f (head xs) (head xs') `cons` xs'
     {-# INLINE scanr1 #-}
 
+    mapAccumL ∷ (β → Bool → (β, Bool)) → β → α → (β, α)
+    mapAccumL f s xs
+        | null xs   = (s, xs)
+        | otherwise = let (s' , y ) = f s (head xs)
+                          (s'', ys) = mapAccumL f s' (tail xs)
+                      in
+                        (s'', y `cons` ys)
+
+    mapAccumR ∷ (β → Bool → (β, Bool)) → β → α → (β, α)
+    mapAccumR f s xs
+        | null xs   = (s, xs)
+        | otherwise = let (s'', y ) = f s' (head xs)
+                          (s' , ys) = mapAccumR f s (tail xs)
+                      in
+                        (s'', y `cons` ys)
+
 {-# RULES
 "Bitstream stream/unstream fusion"
     ∀s. stream (unstream s) = s
