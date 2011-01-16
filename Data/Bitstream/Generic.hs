@@ -8,12 +8,14 @@ module Data.Bitstream.Generic
     where
 import qualified Data.List   as L
 import qualified Data.Stream as S
-import Prelude hiding ( concat, foldr, head, length, map, null, scanr
-                      , scanr1, tail
+import Prelude hiding ( concat, foldr, head, length, map, null, replicate
+                      , scanr, scanr1, tail
                       )
 import Prelude.Unicode hiding ((⧺))
 
 infixr 5 ⧺
+
+-- FIXME: use numeric-prelude
 
 class Bitstream α where
     stream   ∷ α → S.Stream Bool
@@ -196,6 +198,28 @@ class Bitstream α where
                           (s' , ys) = mapAccumR f s (tail xs)
                       in
                         (s'', y `cons` ys)
+
+    iterate ∷ (Bool → Bool) → Bool → α
+    iterate = (unstream ∘) ∘ S.iterate
+    {-# INLINE iterate #-}
+
+    repeat ∷ Bool → α
+    repeat = unstream ∘ S.repeat
+    {-# INLINE repeat #-}
+
+    replicate ∷ Integral n ⇒ n → Bool → α
+    replicate n x
+        | n ≤ 0     = (∅)
+        | otherwise = x `cons` replicate (n-1) x
+    {-# INLINE replicate #-}
+
+    cycle ∷ α → α
+    cycle = unstream ∘ S.cycle ∘ stream
+    {-# INLINE cycle #-}
+
+    unfoldr ∷ (β → Maybe (Bool, β)) → β → α
+    unfoldr = (unstream ∘) ∘ S.unfoldr
+    {-# INLINE unfoldr #-}
 
 {-# RULES
 "Bitstream stream/unstream fusion"
