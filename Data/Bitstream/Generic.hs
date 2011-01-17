@@ -8,8 +8,8 @@ module Data.Bitstream.Generic
     where
 import qualified Data.List   as L
 import qualified Data.Stream as S
-import Prelude hiding ( concat, foldr, head, length, map, null, replicate
-                      , scanr, scanr1, tail
+import Prelude hiding ( break, concat, foldr, head, length, map, null
+                      , replicate, scanr, scanr1, span, tail
                       )
 import Prelude.Unicode hiding ((⧺))
 
@@ -106,17 +106,17 @@ class Bitstream α where
 
     transpose ∷ [α] → [α]
     transpose []       = []
-    transpose (xs:xss)
-        | null xs      = transpose xss
-        | otherwise    = (head xs `cons` pack (L.map head xss))
-                         : transpose (tail xs : L.map tail xss)
+    transpose (α:αs)
+        | null α       = transpose αs
+        | otherwise    = (head α `cons` pack (L.map head αs))
+                         : transpose (tail α : L.map tail αs)
 
     foldl ∷ (β → Bool → β) → β → α → β
-    foldl f z = S.foldl f z ∘ stream
+    foldl f β = S.foldl f β ∘ stream
     {-# INLINE foldl #-}
 
     foldl' ∷ (β → Bool → β) → β → α → β
-    foldl' f z = S.foldl' f z ∘ stream
+    foldl' f β = S.foldl' f β ∘ stream
     {-# INLINE foldl' #-}
 
     foldl1 ∷ (Bool → Bool → Bool) → α → Bool
@@ -128,7 +128,7 @@ class Bitstream α where
     {-# INLINE foldl1' #-}
 
     foldr ∷ (Bool → β → β) → β → α → β
-    foldr f z = S.foldr f z ∘ stream
+    foldr f β = S.foldr f β ∘ stream
     {-# INLINE foldr #-}
 
     foldr1 ∷ (Bool → Bool → Bool) → α → Bool
@@ -160,45 +160,45 @@ class Bitstream α where
     {-# INLINE all #-}
 
     scanl ∷ (Bool → Bool → Bool) → Bool → α → α
-    scanl f z xs = unstream (S.scanl f z (S.snoc (stream xs) (⊥)))
+    scanl f β α = unstream (S.scanl f β (S.snoc (stream α) (⊥)))
     {-# INLINE scanl #-}
 
     scanl1 ∷ (Bool → Bool → Bool) → α → α
-    scanl1 f xs = unstream (S.scanl1 f (S.snoc (stream xs) (⊥)))
+    scanl1 f α = unstream (S.scanl1 f (S.snoc (stream α) (⊥)))
     {-# INLINE scanl1 #-}
 
     scanr ∷ (Bool → Bool → Bool) → Bool → α → α
-    scanr f z xs
-        | null xs   = singleton z
-        | otherwise = let xs' = scanr f z (tail xs)
+    scanr f β α
+        | null α    = singleton β
+        | otherwise = let α' = scanr f β (tail α)
                       in
-                        f (head xs) (head xs') `cons` xs'
+                        f (head α) (head α') `cons` α'
     {-# INLINE scanr #-}
 
     scanr1 ∷ (Bool → Bool → Bool) → α → α
-    scanr1 f xs
-        | null xs        = xs
-        | null (tail xs) = xs
-        | otherwise      = let xs' = scanr1 f (tail xs)
-                           in
-                             f (head xs) (head xs') `cons` xs'
+    scanr1 f α
+        | null α        = α
+        | null (tail α) = α
+        | otherwise     = let α' = scanr1 f (tail α)
+                          in
+                            f (head α) (head α') `cons` α'
     {-# INLINE scanr1 #-}
 
     mapAccumL ∷ (β → Bool → (β, Bool)) → β → α → (β, α)
-    mapAccumL f s xs
-        | null xs   = (s, xs)
-        | otherwise = let (s' , y ) = f s (head xs)
-                          (s'', ys) = mapAccumL f s' (tail xs)
+    mapAccumL f s α
+        | null α    = (s, α)
+        | otherwise = let (s' , a ) = f s (head α)
+                          (s'', α') = mapAccumL f s' (tail α)
                       in
-                        (s'', y `cons` ys)
+                        (s'', a `cons` α')
 
     mapAccumR ∷ (β → Bool → (β, Bool)) → β → α → (β, α)
-    mapAccumR f s xs
-        | null xs   = (s, xs)
-        | otherwise = let (s'', y ) = f s' (head xs)
-                          (s' , ys) = mapAccumR f s (tail xs)
+    mapAccumR f s α
+        | null α    = (s, α)
+        | otherwise = let (s'', a ) = f s' (head α)
+                          (s' , α') = mapAccumR f s (tail α)
                       in
-                        (s'', y `cons` ys)
+                        (s'', a `cons` α')
 
     iterate ∷ (Bool → Bool) → Bool → α
     iterate = (unstream ∘) ∘ S.iterate
@@ -209,9 +209,9 @@ class Bitstream α where
     {-# INLINE repeat #-}
 
     replicate ∷ Integral n ⇒ n → Bool → α
-    replicate n x
+    replicate n a
         | n ≤ 0     = (∅)
-        | otherwise = x `cons` replicate (n-1) x
+        | otherwise = a `cons` replicate (n-1) a
     {-# INLINE replicate #-}
 
     cycle ∷ α → α
@@ -244,6 +244,22 @@ class Bitstream α where
     dropWhile ∷ (Bool → Bool) → α → α
     dropWhile = (unstream ∘) ∘ (∘ stream) ∘ S.dropWhile
     {-# INLINE dropWhile #-}
+
+    span ∷ (Bool → Bool) → α → (α, α)
+    span f α
+        | null α     = (α, α)
+        | f (head α) = let (β, γ) = span f (tail α)
+                       in
+                         (head α `cons` β, γ)
+        | otherwise  = ((∅), α)
+
+    break ∷ (Bool → Bool) → α → (α, α)
+    break f α
+        | null α     = (α, α)
+        | f (head α) = ((∅), α)
+        | otherwise  = let (β, γ) = break f (tail α)
+                       in
+                         (head α `cons` β, γ)
 
 {-# RULES
 "Bitstream stream/unstream fusion"
