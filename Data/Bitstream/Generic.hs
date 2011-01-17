@@ -15,7 +15,8 @@ import Prelude.Unicode hiding ((⧺))
 
 infixr 5 ⧺
 
--- FIXME: use numeric-prelude
+-- THINKME: consider using numeric-prelude's non-negative numbers
+-- instead of Integral n.
 
 class Bitstream α where
     stream   ∷ α → S.Stream Bool
@@ -220,6 +221,29 @@ class Bitstream α where
     unfoldr ∷ (β → Maybe (Bool, β)) → β → α
     unfoldr = (unstream ∘) ∘ S.unfoldr
     {-# INLINE unfoldr #-}
+
+    take ∷ Integral n ⇒ n → α → α
+    take = (unstream ∘) ∘ (∘ stream) ∘ S.genericTake
+    {-# INLINE take #-}
+
+    drop ∷ Integral n ⇒ n → α → α
+    drop = (unstream ∘) ∘ (∘ stream) ∘ S.genericDrop
+    {-# INLINE drop #-}
+
+    splitAt ∷ Integral n ⇒ n → α → (α, α)
+    splitAt n α
+        = case S.genericSplitAt n (stream α) of
+            (xs, ys)
+                → (pack xs, pack ys)
+    {-# INLINE splitAt #-}
+
+    takeWhile ∷ (Bool → Bool) → α → α
+    takeWhile = (unstream ∘) ∘ (∘ stream) ∘ S.takeWhile
+    {-# INLINE takeWhile #-}
+
+    dropWhile ∷ (Bool → Bool) → α → α
+    dropWhile = (unstream ∘) ∘ (∘ stream) ∘ S.dropWhile
+    {-# INLINE dropWhile #-}
 
 {-# RULES
 "Bitstream stream/unstream fusion"
