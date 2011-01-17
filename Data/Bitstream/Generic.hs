@@ -6,13 +6,16 @@ module Data.Bitstream.Generic
     ( Bitstream(..)
     )
     where
-import qualified Data.List   as L
+import qualified Data.List.Stream as L
 import qualified Data.Stream as S
-import Prelude hiding ( break, concat, foldr, head, length, map, null
-                      , replicate, scanr, scanr1, span, tail
+import Prelude hiding ( break, concat, elem, foldr, head, length, map
+                      , null, replicate, reverse, scanr, scanr1, span
+                      , tail
                       )
 import Prelude.Unicode hiding ((⧺))
 
+infix  4 ∈
+infix  4 ∋
 infixr 5 ⧺
 
 -- THINKME: consider using numeric-prelude's non-negative numbers
@@ -260,6 +263,47 @@ class Bitstream α where
         | otherwise  = let (β, γ) = break f (tail α)
                        in
                          (head α `cons` β, γ)
+
+    group ∷ α → [α]
+    group α
+        | null α    = []
+        | otherwise = let (β, γ) = span (head α ≡) (tail α)
+                      in
+                        (head α `cons` β) : group γ
+
+    inits ∷ α → [α]
+    inits α
+        | null α    = α : []
+        | otherwise = (∅) : L.map (cons (head α)) (inits (tail α))
+
+    tails ∷ α → [α]
+    tails α
+        | null α    = α : []
+        | otherwise = α : tails (tail α)
+
+    isPrefixOf ∷ α → α → Bool
+    isPrefixOf x y = S.isPrefixOf (stream x) (stream y)
+    {-# INLINE isPrefixOf #-}
+
+    isSuffixOf ∷ α → α → Bool
+    isSuffixOf x y = reverse x `isPrefixOf` reverse y
+    {-# INLINE isSuffixOf #-}
+
+    isInfixOf ∷ α → α → Bool
+    isInfixOf x y = L.any (x `isPrefixOf`) (tails y)
+    {-# INLINE isInfixOf #-}
+
+    elem ∷ Bool → α → Bool
+    elem = (∘ stream) ∘ S.elem
+    {-# INLINE elem #-}
+
+    (∈) ∷ Bool → α → Bool
+    (∈) = elem
+    {-# INLINE (∈) #-}
+
+    (∋) ∷ α → Bool → Bool
+    (∋) = flip elem
+    {-# INLINE (∋) #-}
 
 {-# RULES
 "Bitstream stream/unstream fusion"
