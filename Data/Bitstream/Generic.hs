@@ -11,7 +11,7 @@ import Data.Maybe
 import qualified Data.Stream as S
 import Prelude hiding ( break, concat, elem, foldr, head, length, map
                       , notElem, null, replicate, reverse, scanr, scanr1
-                      , span, tail
+                      , span, tail, zipWith3
                       )
 import Prelude.Unicode hiding ((∈), (⧺))
 
@@ -357,7 +357,119 @@ class Bitstream α where
               | f (head α) = n : find' (n+1) (tail α)
               | otherwise  =     find' (n+1) (tail α)
 
+    zip ∷ α → α → [(Bool, Bool)]
+    zip a b = S.unstream (S.zip (stream a) (stream b))
+    {-# INLINE zip #-}
+
+    zip3 ∷ α → α → α → [(Bool, Bool, Bool)]
+    zip3 = zipWith3 (,,)
+    {-# INLINE zip3 #-}
+
+    zip4 ∷ α → α → α → α → [(Bool, Bool, Bool, Bool)]
+    zip4 = zipWith4 (,,,)
+    {-# INLINE zip4 #-}
+
+    zip5 ∷ α → α → α → α → α → [(Bool, Bool, Bool, Bool, Bool)]
+    zip5 = zipWith5 (,,,,)
+    {-# INLINE zip5 #-}
+
+    zip6 ∷ α → α → α → α → α → α → [(Bool, Bool, Bool, Bool, Bool, Bool)]
+    zip6 = zipWith6 (,,,,,)
+    {-# INLINE zip6 #-}
+
+    zip7 ∷ α → α → α → α → α → α → α → [(Bool, Bool, Bool, Bool, Bool, Bool, Bool)]
+    zip7 = zipWith7 (,,,,,,)
+    {-# INLINE zip7 #-}
+
+    zipWith ∷ (Bool → Bool → β) → α → α → [β]
+    zipWith f a b = S.unstream (S.zipWith f
+                                     (stream a)
+                                     (stream b))
+    {-# INLINE zipWith #-}
+
+    zipWith3 ∷ (Bool → Bool → Bool → β) → α → α → α → [β]
+    zipWith3 f a b c = S.unstream (S.zipWith3 f
+                                        (stream a)
+                                        (stream b)
+                                        (stream c))
+    {-# INLINE zipWith3 #-}
+
+    zipWith4 ∷ (Bool → Bool → Bool → Bool → β) → α → α → α → α → [β]
+    zipWith4 f a b c d = S.unstream (S.zipWith4 f
+                                          (stream a)
+                                          (stream b)
+                                          (stream c)
+                                          (stream d))
+    {-# INLINE zipWith4 #-}
+
+    zipWith5 ∷ (Bool → Bool → Bool → Bool → Bool → β) → α → α → α → α → α → [β]
+    zipWith5 p a b c d e
+        | null a ∨ null b ∨ null c ∨ null d ∨ null e = []
+        | otherwise = p (head a) (head b) (head c) (head d) (head e)
+                      : zipWith5 p (tail a) (tail b) (tail c) (tail d) (tail e)
+
+    zipWith6 ∷ (Bool → Bool → Bool → Bool → Bool → Bool → β) → α → α → α → α → α → α → [β]
+    zipWith6 p a b c d e f
+        | null a ∨ null b ∨ null c ∨ null d ∨ null e ∨ null f = []
+        | otherwise = p (head a) (head b) (head c) (head d) (head e) (head f)
+                      : zipWith6 p (tail a) (tail b) (tail c) (tail d) (tail e) (tail f)
+
+    zipWith7 ∷ (Bool → Bool → Bool → Bool → Bool → Bool → Bool → β) → α → α → α → α → α → α → α → [β]
+    zipWith7 p a b c d e f g
+        | null a ∨ null b ∨ null c ∨ null d ∨ null e ∨ null f ∨ null g = []
+        | otherwise = p (head a) (head b) (head c) (head d) (head e) (head f) (head g)
+                      : zipWith7 p (tail a) (tail b) (tail c) (tail d) (tail e) (tail f) (tail g)
+
+    unzip ∷ [(Bool, Bool)] → (α, α)
+    unzip = L.foldr (\(a, b) ~(as, bs) →
+                         ( a `cons` as
+                         , b `cons` bs )) ((∅), (∅))
+
+    unzip3 ∷ [(Bool, Bool, Bool)] → (α, α, α)
+    unzip3 = L.foldr (\(a, b, c) ~(as, bs, cs) →
+                          ( a `cons` as
+                          , b `cons` bs
+                          , c `cons` cs )) ((∅), (∅), (∅))
+
+    unzip4 ∷ [(Bool, Bool, Bool, Bool)] → (α, α, α, α)
+    unzip4 = L.foldr (\(a, b, c, d) ~(as, bs, cs, ds) →
+                          ( a `cons` as
+                          , b `cons` bs
+                          , c `cons` cs
+                          , d `cons` ds )) ((∅), (∅), (∅), (∅))
+
+    unzip5 ∷ [(Bool, Bool, Bool, Bool, Bool)] → (α, α, α, α, α)
+    unzip5 = L.foldr (\(a, b, c, d, e) ~(as, bs, cs, ds, es) →
+                          ( a `cons` as
+                          , b `cons` bs
+                          , c `cons` cs
+                          , d `cons` ds
+                          , e `cons` es )) ((∅), (∅), (∅), (∅), (∅))
+
+    unzip6 ∷ [(Bool, Bool, Bool, Bool, Bool, Bool)] → (α, α, α, α, α, α)
+    unzip6 = L.foldr (\(a, b, c, d, e, f) ~(as, bs, cs, ds, es, fs) →
+                          ( a `cons` as
+                          , b `cons` bs
+                          , c `cons` cs
+                          , d `cons` ds
+                          , e `cons` es
+                          , f `cons` fs )) ((∅), (∅), (∅), (∅), (∅), (∅))
+
+    unzip7 ∷ [(Bool, Bool, Bool, Bool, Bool, Bool, Bool)] → (α, α, α, α, α, α, α)
+    unzip7 = L.foldr (\(a, b, c, d, e, f, g) ~(as, bs, cs, ds, es, fs, gs) →
+                          ( a `cons` as
+                          , b `cons` bs
+                          , c `cons` cs
+                          , d `cons` ds
+                          , e `cons` es
+                          , f `cons` fs
+                          , g `cons` gs )) ((∅), (∅), (∅), (∅), (∅), (∅), (∅))
+
 {-# RULES
 "Bitstream stream/unstream fusion"
     ∀s. stream (unstream s) = s
+"Bitstream stream / List unstream fusion"
+    ∀s. stream (S.unstream s) = s
+"List stream / Bitstream unstream fusion"
+    ∀s. S.stream (unstream s) = s
   #-}
