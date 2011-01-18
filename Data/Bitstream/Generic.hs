@@ -7,6 +7,7 @@ module Data.Bitstream.Generic
     )
     where
 import qualified Data.List.Stream as L
+import Data.Maybe
 import qualified Data.Stream as S
 import Prelude hiding ( break, concat, elem, foldr, head, length, map
                       , notElem, null, replicate, reverse, scanr, scanr1
@@ -14,11 +15,9 @@ import Prelude hiding ( break, concat, elem, foldr, head, length, map
                       )
 import Prelude.Unicode hiding ((∈), (⧺))
 
-infix  4 ∈
-infix  4 ∋
-infix  4 ∉
-infix  4 ∌
+infix  4 ∈, ∋, ∉, ∌, `elem`, `notElem`
 infixr 5 ⧺
+infixl 9 !!
 
 -- THINKME: consider using numeric-prelude's non-negative numbers
 -- instead of Integral n.
@@ -333,6 +332,30 @@ class Bitstream α where
           select a ~(β, γ)
               | f a       = (a `cons` β, γ)
               | otherwise = (β, a `cons` γ)
+
+    (!!) ∷ Integral n ⇒ α → n → Bool
+    (!!) = S.genericIndex ∘ stream
+    {-# INLINE (!!) #-}
+
+    elemIndex ∷ Integral n ⇒ Bool → α → Maybe n
+    elemIndex = findIndex ∘ (≡)
+    {-# INLINE elemIndex #-}
+
+    elemIndices ∷ Integral n ⇒ Bool → α → [n]
+    elemIndices = findIndices ∘ (≡)
+    {-# INLINE elemIndices #-}
+
+    findIndex ∷ Integral n ⇒ (Bool → Bool) → α → Maybe n
+    findIndex = (listToMaybe ∘) ∘ findIndices
+    {-# INLINE findIndex #-}
+
+    findIndices ∷ Integral n ⇒ (Bool → Bool) → α → [n]
+    findIndices f = find' 0
+        where
+          find' n α
+              | null α     = []
+              | f (head α) = n : find' (n+1) (tail α)
+              | otherwise  =     find' (n+1) (tail α)
 
 {-# RULES
 "Bitstream stream/unstream fusion"
