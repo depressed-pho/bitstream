@@ -9,13 +9,15 @@ module Data.Bitstream.Generic
 import qualified Data.List.Stream as L
 import qualified Data.Stream as S
 import Prelude hiding ( break, concat, elem, foldr, head, length, map
-                      , null, replicate, reverse, scanr, scanr1, span
-                      , tail
+                      , notElem, null, replicate, reverse, scanr, scanr1
+                      , span, tail
                       )
-import Prelude.Unicode hiding ((⧺))
+import Prelude.Unicode hiding ((∈), (⧺))
 
 infix  4 ∈
 infix  4 ∋
+infix  4 ∉
+infix  4 ∌
 infixr 5 ⧺
 
 -- THINKME: consider using numeric-prelude's non-negative numbers
@@ -304,6 +306,33 @@ class Bitstream α where
     (∋) ∷ α → Bool → Bool
     (∋) = flip elem
     {-# INLINE (∋) #-}
+
+    notElem ∷ Bool → α → Bool
+    notElem = ((¬) ∘) ∘ (∈)
+    {-# INLINE notElem #-}
+
+    (∉) ∷ Bool → α → Bool
+    (∉) = notElem
+    {-# INLINE (∉) #-}
+
+    (∌) ∷ α → Bool → Bool
+    (∌) = flip notElem
+    {-# INLINE (∌) #-}
+
+    filter ∷ (Bool → Bool) → α → α
+    filter = (unstream ∘) ∘ (∘ stream) ∘ S.filter
+    {-# INLINE filter #-}
+
+    find ∷ (Bool → Bool) → α → Maybe Bool
+    find = (∘ stream) ∘ S.find
+    {-# INLINE find #-}
+
+    partition ∷ (Bool → Bool) → α → (α, α)
+    partition f α = foldr select ((∅), (∅)) α
+        where
+          select a ~(β, γ)
+              | f a       = (a `cons` β, γ)
+              | otherwise = (β, a `cons` γ)
 
 {-# RULES
 "Bitstream stream/unstream fusion"
