@@ -9,15 +9,17 @@ module Data.Bitstream.Generic
 import qualified Data.List.Stream as L
 import Data.Maybe
 import qualified Data.Stream as S
-import Prelude hiding ( break, concat, elem, foldr, head, length, map
-                      , notElem, null, replicate, reverse, scanr, scanr1
-                      , span, tail, zipWith3
+import Prelude hiding ( any, break, concat, elem, filter, foldl, foldr, head
+                      , length, map, notElem, null, replicate, reverse, scanr
+                      , scanr1, span, tail, zipWith3
                       )
 import Prelude.Unicode hiding ((∈), (⧺))
 
 infix  4 ∈, ∋, ∉, ∌, `elem`, `notElem`
-infixr 5 ⧺
-infixl 9 !!
+infixr 5 ⧺, `append`
+infixl 6 ∪, `union`
+infixr 6 ∩, `intersect`
+infixl 9 !!, ∖, \\, ∆
 
 -- THINKME: consider using numeric-prelude's non-negative numbers
 -- instead of Integral n.
@@ -464,6 +466,77 @@ class Bitstream α where
                           , e `cons` es
                           , f `cons` fs
                           , g `cons` gs )) ((∅), (∅), (∅), (∅), (∅), (∅), (∅))
+
+    nub ∷ α → α
+    nub = flip nub' (∅)
+        where
+          nub' ∷ Bitstream α ⇒ α → α → α
+          nub' α α'
+              | null α      = α
+              | head α ∈ α' = nub' (tail α) α'
+              | otherwise   = head α `cons` nub' (tail α) (head α `cons` α')
+
+    delete ∷ Bool → α → α
+    delete = deleteBy (≡)
+    {-# INLINE delete #-}
+
+    (\\) ∷ α → α → α
+    (\\) = foldl (flip delete)
+    {-# INLINE (\\) #-}
+
+    (∖) ∷ α → α → α
+    (∖) = (\\)
+    {-# INLINE (∖) #-}
+
+    union ∷ α → α → α
+    union = unionBy (≡)
+    {-# INLINE union #-}
+
+    (∪) ∷ α → α → α
+    (∪) = union
+    {-# INLINE (∪) #-}
+
+    intersect ∷ α → α → α
+    intersect = intersectBy (≡)
+    {-# INLINE intersect #-}
+
+    (∩) ∷ α → α → α
+    (∩) = intersect
+    {-# INLINE (∩) #-}
+
+    (∆) ∷ α → α → α
+    a ∆ b = (a ∖ b) ∪ (b ∖ a)
+    {-# INLINE (∆) #-}
+
+    nubBy ∷ (Bool → Bool → Bool) → α → α
+    nubBy f = flip nubBy' (∅)
+        where
+          nubBy' ∷ Bitstream α ⇒ α → α → α
+          nubBy' α α'
+              | null α              = α
+              | elemBy' (head α) α' = nubBy' (tail α) α'
+              | otherwise           = head α `cons` nubBy' (tail α) (head α `cons` α')
+
+          elemBy' ∷ Bitstream α ⇒ Bool → α → Bool
+          elemBy' a α
+              | null α       = False
+              | f a (head α) = True
+              | otherwise    = elemBy' a (tail α)
+
+    deleteBy ∷ (Bool → Bool → Bool) → Bool → α → α
+    deleteBy f a α
+        | null α       = α
+        | f a (head α) = tail α
+        | otherwise    = head α `cons` deleteBy f a (tail α)
+
+    deleteFirstsBy ∷ (Bool → Bool → Bool) → α → α → α
+    deleteFirstsBy = foldl ∘ flip ∘ deleteBy
+
+    unionBy ∷ (Bool → Bool → Bool) → α → α → α
+    unionBy f x y = x ⧺ foldl (flip (deleteBy f)) (nubBy f y) x
+
+    intersectBy ∷ (Bool → Bool → Bool) → α → α → α
+    intersectBy f x y = filter (\a → any (f a) y) x
 
 {-# RULES
 "Bitstream stream/unstream fusion"
