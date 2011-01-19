@@ -61,13 +61,13 @@ instance Bitstream (Packet Left) where
           {-# INLINE consume #-}
           consume !p !o !s
               = case next s of
-                  S.Done       → (# p, o #)
-                  S.Skip    s' → consume p o s'
                   S.Yield x s'
                       | p < 8     → if x
                                      then consume (p+1) (o `setBit` p) s'
                                      else consume (p+1)  o             s'
                       | otherwise → error "packet overflow"
+                  S.Skip s' → consume p o s'
+                  S.Done    → (# p, o #)
 
     {-# NOINLINE [1] empty #-}
     empty = Packet 0 0
