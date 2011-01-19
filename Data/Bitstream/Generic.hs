@@ -538,6 +538,13 @@ class Bitstream α where
     intersectBy ∷ (Bool → Bool → Bool) → α → α → α
     intersectBy f x y = filter (\a → any (f a) y) x
 
+    groupBy ∷ (Bool → Bool → Bool) → α → [α]
+    groupBy f α
+        | null α    = []
+        | otherwise = let (β, γ) = span (f (head α)) α
+                      in
+                        (head α `cons` β) : groupBy f γ
+
 {-# RULES
 "Bitstream stream/unstream fusion"
     ∀s. stream (unstream s) = s
