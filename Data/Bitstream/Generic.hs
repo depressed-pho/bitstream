@@ -228,6 +228,16 @@ class Bitstream α where
     unfoldr = (unstream ∘) ∘ S.unfoldr
     {-# INLINE unfoldr #-}
 
+    unfoldrN ∷ Integral n ⇒ n → (β → Maybe (Bool, β)) → β → (α, Maybe β)
+    unfoldrN n0 f β0 = loop_unfoldrN n0 β0 (∅)
+        where
+          loop_unfoldrN 0 β α = (α, Just β)
+          loop_unfoldrN n β α
+              = case f β of
+                  Nothing      → (α, Nothing)
+                  Just (a, β') → loop_unfoldrN (n-1) β' (α `snoc` a)
+    {-# INLINE unfoldrN #-}
+
     take ∷ Integral n ⇒ n → α → α
     take = (unstream ∘) ∘ (∘ stream) ∘ S.genericTake
     {-# INLINE take #-}
