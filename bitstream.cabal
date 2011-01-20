@@ -34,6 +34,10 @@ Library
     Exposed-Modules:
         Data.Bitstream
         Data.Bitstream.Generic
+        Data.Bitstream.Lazy
+
+    Other-Modules:
+        Data.Bitstream.Internal
         Data.Bitstream.Packet
 
     GHC-Options:
