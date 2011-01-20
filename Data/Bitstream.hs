@@ -19,6 +19,7 @@ module Data.Bitstream
     )
     where
 import Data.Bitstream.Internal
+import Data.Bitstream.Generic hiding (Bitstream)
 import qualified Data.Bitstream.Generic as G
 import Data.Bitstream.Packet (Left, Right, Packet)
 import qualified Data.StorableVector as SV
@@ -33,9 +34,10 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
     {-# INLINE [0] stream #-}
     stream (Bitstream v)
         = {-# CORE "strict bitstream 'stream'" #-}
-          S.concatMap G.stream (streamSV v)
+          S.concatMap stream (streamSV v)
 
     {-# INLINE [0] unstream #-}
     unstream
         = {-# CORE "strict bitstream 'unstream'" #-}
           Bitstream ∘ unstreamSV ∘ packStream
+

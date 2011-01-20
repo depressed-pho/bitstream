@@ -4,6 +4,17 @@
   #-}
 module Data.Bitstream.Generic
     ( Bitstream(..)
+
+    , (∅)
+    , (⧺)
+    , (∈)
+    , (∋)
+    , (∉)
+    , (∌)
+    , (∖)
+    , (∪)
+    , (∩)
+    , (∆)
     )
     where
 import qualified Data.List.Stream as L
@@ -13,7 +24,7 @@ import Prelude hiding ( any, break, concat, elem, filter, foldl, foldr, head
                       , length, map, notElem, null, replicate, reverse, scanr
                       , scanr1, span, tail, zipWith3
                       )
-import Prelude.Unicode hiding ((∈), (⧺))
+import Prelude.Unicode hiding ((∈), (∉), (⧺))
 
 infix  4 ∈, ∋, ∉, ∌, `elem`, `notElem`
 infixr 5 ⧺, `append`
@@ -31,10 +42,6 @@ class Bitstream α where
     empty ∷ α
     empty = unstream (S.stream [])
     {-# INLINE empty #-}
-
-    (∅) ∷ α
-    (∅) = empty
-    {-# INLINE (∅) #-}
 
     singleton ∷ Bool → α
     singleton = unstream ∘ S.stream ∘ flip (:) []
@@ -59,10 +66,6 @@ class Bitstream α where
     append ∷ α → α → α
     append = (unstream ∘) ∘ (∘ stream) ∘ S.append ∘ stream
     {-# INLINE append #-}
-
-    (⧺) ∷ α → α → α
-    (⧺) = append
-    {-# INLINE (⧺) #-}
 
     head ∷ α → Bool
     head = S.head ∘ stream
@@ -310,25 +313,9 @@ class Bitstream α where
     elem = (∘ stream) ∘ S.elem
     {-# INLINE elem #-}
 
-    (∈) ∷ Bool → α → Bool
-    (∈) = elem
-    {-# INLINE (∈) #-}
-
-    (∋) ∷ α → Bool → Bool
-    (∋) = flip elem
-    {-# INLINE (∋) #-}
-
     notElem ∷ Bool → α → Bool
     notElem = ((¬) ∘) ∘ (∈)
     {-# INLINE notElem #-}
-
-    (∉) ∷ Bool → α → Bool
-    (∉) = notElem
-    {-# INLINE (∉) #-}
-
-    (∌) ∷ α → Bool → Bool
-    (∌) = flip notElem
-    {-# INLINE (∌) #-}
 
     filter ∷ (Bool → Bool) → α → α
     filter = (unstream ∘) ∘ (∘ stream) ∘ S.filter
@@ -494,29 +481,13 @@ class Bitstream α where
     (\\) = foldl (flip delete)
     {-# INLINE (\\) #-}
 
-    (∖) ∷ α → α → α
-    (∖) = (\\)
-    {-# INLINE (∖) #-}
-
     union ∷ α → α → α
     union = unionBy (≡)
     {-# INLINE union #-}
 
-    (∪) ∷ α → α → α
-    (∪) = union
-    {-# INLINE (∪) #-}
-
     intersect ∷ α → α → α
     intersect = intersectBy (≡)
     {-# INLINE intersect #-}
-
-    (∩) ∷ α → α → α
-    (∩) = intersect
-    {-# INLINE (∩) #-}
-
-    (∆) ∷ α → α → α
-    a ∆ b = (a ∖ b) ∪ (b ∖ a)
-    {-# INLINE (∆) #-}
 
     nubBy ∷ (Bool → Bool → Bool) → α → α
     nubBy f = flip nubBy' (∅)
@@ -563,3 +534,43 @@ class Bitstream α where
 "List stream / Bitstream unstream fusion"
     ∀s. S.stream (unstream s) = s
   #-}
+
+(∅) ∷ Bitstream α ⇒ α
+(∅) = empty
+{-# INLINE (∅) #-}
+
+(⧺) ∷ Bitstream α ⇒ α → α → α
+(⧺) = append
+{-# INLINE (⧺) #-}
+
+(∈) ∷ Bitstream α ⇒ Bool → α → Bool
+(∈) = elem
+{-# INLINE (∈) #-}
+
+(∋) ∷ Bitstream α ⇒ α → Bool → Bool
+(∋) = flip elem
+{-# INLINE (∋) #-}
+
+(∉) ∷ Bitstream α ⇒ Bool → α → Bool
+(∉) = notElem
+{-# INLINE (∉) #-}
+
+(∌) ∷ Bitstream α ⇒ α → Bool → Bool
+(∌) = flip notElem
+{-# INLINE (∌) #-}
+
+(∖) ∷ Bitstream α ⇒ α → α → α
+(∖) = (\\)
+{-# INLINE (∖) #-}
+
+(∪) ∷ Bitstream α ⇒ α → α → α
+(∪) = union
+{-# INLINE (∪) #-}
+
+(∩) ∷ Bitstream α ⇒ α → α → α
+(∩) = intersect
+{-# INLINE (∩) #-}
+
+(∆) ∷ Bitstream α ⇒ α → α → α
+x ∆ y = (x ∖ y) ∪ (y ∖ x)
+{-# INLINE (∆) #-}
