@@ -24,6 +24,7 @@ import qualified Data.Bitstream.Generic as G
 import Data.Bitstream.Packet (Left, Right, Packet)
 import qualified Data.StorableVector as SV
 import qualified Data.Stream as S
+import Prelude hiding (length)
 import Prelude.Unicode
 
 newtype Bitstream d
@@ -31,6 +32,9 @@ newtype Bitstream d
     deriving (Eq, Show)
 
 instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
+--    {-# SPECIALISE instance G.Bitstream (Bitstream Left ) #-}
+--    {-# SPECIALISE instance G.Bitstream (Bitstream Right) #-}
+
     {-# INLINE [0] stream #-}
     stream (Bitstream v)
         = {-# CORE "strict bitstream 'stream'" #-}
@@ -41,3 +45,13 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
         = {-# CORE "strict bitstream 'unstream'" #-}
           Bitstream ∘ unstreamSV ∘ packStream
 
+    {-# INLINE empty #-}
+    empty = Bitstream SV.empty
+
+    {-# INLINE singleton #-}
+    singleton b
+        = Bitstream (SV.singleton (singleton b))
+
+    {-# NOINLINE [1] length #-}
+    length (Bitstream v)
+        = SV.foldl' (\n p → n + length p) 0 v

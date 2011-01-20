@@ -527,12 +527,19 @@ class Bitstream α where
                         (head α `cons` β) : groupBy f γ
 
 {-# RULES
+
 "Bitstream stream/unstream fusion"
     ∀s. stream (unstream s) = s
 "Bitstream stream / List unstream fusion"
     ∀s. stream (S.unstream s) = s
 "List stream / Bitstream unstream fusion"
     ∀s. S.stream (unstream s) = s
+
+"length → fusible" [~1]
+    ∀α. length α = S.genericLength (stream α)
+"length → unfused" [ 1]
+    ∀α. S.genericLength (stream α) = length α
+
   #-}
 
 (∅) ∷ Bitstream α ⇒ α

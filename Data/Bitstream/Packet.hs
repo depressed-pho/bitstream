@@ -69,11 +69,27 @@ instance Bitstream (Packet Left) where
                   S.Skip s' → consume p o s'
                   S.Done    → (# p, o #)
 
-    {-# NOINLINE [1] empty #-}
+    {-# INLINE empty #-}
     empty = Packet 0 0
+
+    {-# INLINE singleton #-}
+    singleton True  = Packet 1 1
+    singleton False = Packet 1 0
 
     {-# NOINLINE [1] length #-}
     length (Packet n _) = fromIntegral n
+
+    {-# INLINE unfoldrN #-}
+    unfoldrN n0 f β0
+        | n0 > 8    = error "packet overflow"
+        | otherwise = loop_unfoldrN n0 β0 (∅)
+        where
+          {-# INLINE loop_unfoldrN #-}
+          loop_unfoldrN 0 β α = (α, Just β)
+          loop_unfoldrN n β α
+              = case f β of
+                  Nothing      → (α, Nothing)
+                  Just (a, β') → loop_unfoldrN (n-1) β' (α `unsafeSnocL` a)
 
 instance Bitstream (Packet Right) where
     {-# INLINE [0] stream #-}
@@ -100,23 +116,34 @@ instance Bitstream (Packet Right) where
                                      else consume (p-1)  o             s'
                       | otherwise → error "packet overflow"
 
-    {-# NOINLINE [1] empty #-}
+    {-# INLINE empty #-}
     empty = Packet 0 0
+
+    {-# INLINE singleton #-}
+    singleton True  = Packet 1 0x80
+    singleton False = Packet 1 0x00
 
     {-# NOINLINE [1] length #-}
     length (Packet n _) = fromIntegral n
 
+    {-# INLINE unfoldrN #-}
+    unfoldrN n0 f β0
+        | n0 > 8    = error "packet overflow"
+        | otherwise = loop_unfoldrN n0 β0 (∅)
+        where
+          {-# INLINE loop_unfoldrN #-}
+          loop_unfoldrN 0 β α = (α, Just β)
+          loop_unfoldrN n β α
+              = case f β of
+                  Nothing      → (α, Nothing)
+                  Just (a, β') → loop_unfoldrN (n-1) β' (α `unsafeSnocR` a)
+
 {-# RULES
 
-"empty → fusible" [~1]
-    empty = unstream (S.stream [])
-"empty → unfused" [ 1]
-    unstream (S.stream []) = empty
-
 "length → fusible" [~1]
-    ∀c. length c = S.genericLength (stream c)
+    ∀p. length p = S.genericLength (stream p)
 "length → unfused" [ 1]
-    ∀c. S.genericLength (stream c) = length c
+    ∀p. S.genericLength (stream p) = length p
 
   #-}
 
@@ -127,3 +154,13 @@ fromOctet = Packet 8
 toOctet ∷ Packet d → Word8
 toOctet (Packet _ o) = o
 {-# INLINE toOctet #-}
+
+unsafeSnocL ∷ Packet Left → Bool → Packet Left
+unsafeSnocL (Packet n o) True  = Packet (n+1) (o `setBit` n)
+unsafeSnocL (Packet n o) False = Packet (n+1)  o
+{-# INLINE unsafeSnocL #-}
+
+unsafeSnocR ∷ Packet Right → Bool → Packet Right
+unsafeSnocR (Packet n o) True  = Packet (n+1) (o `setBit` (7-n))
+unsafeSnocR (Packet n o) False = Packet (n+1)  o
+{-# INLINE unsafeSnocR #-}
