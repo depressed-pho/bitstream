@@ -23,6 +23,7 @@ import qualified Data.Stream as S
 import Data.Word
 import Foreign.Storable
 import Prelude hiding (length, null)
+import Prelude.Unicode
 
 data Left
 data Right
@@ -76,12 +77,23 @@ instance Bitstream (Packet Left) where
     singleton True  = Packet 1 1
     singleton False = Packet 1 0
 
-    {-# NOINLINE [1] length #-}
+    {-# NOINLINE [1] cons #-}
+    cons b p@(Packet n _)
+        | n ≥ 8     = overflow
+        | otherwise = b `unsafeConsL` p
+
+    {-# NOINLINE [1] snoc #-}
+    snoc p@(Packet n _) b
+        | n ≥ 8     = overflow
+        | otherwise = p `unsafeSnocL` b
+
+    {-# SPECIALISE length ∷ Packet Left → Int #-}
     length (Packet n _) = fromIntegral n
+    {-# NOINLINE [1] length #-}
 
     {-# INLINE unfoldrN #-}
     unfoldrN n0 f β0
-        | n0 > 8    = error "packet overflow"
+        | n0 > 8    = overflow
         | otherwise = loop_unfoldrN n0 β0 (∅)
         where
           {-# INLINE loop_unfoldrN #-}
@@ -123,12 +135,23 @@ instance Bitstream (Packet Right) where
     singleton True  = Packet 1 0x80
     singleton False = Packet 1 0x00
 
-    {-# NOINLINE [1] length #-}
+    {-# NOINLINE [1] cons #-}
+    cons b p@(Packet n _)
+        | n ≥ 8     = overflow
+        | otherwise = b `unsafeConsR` p
+
+    {-# NOINLINE [1] snoc #-}
+    snoc p@(Packet n _) b
+        | n ≥ 8     = overflow
+        | otherwise = p `unsafeSnocR` b
+
+    {-# SPECIALISE length ∷ Packet Right → Int #-}
     length (Packet n _) = fromIntegral n
+    {-# NOINLINE [1] length #-}
 
     {-# INLINE unfoldrN #-}
     unfoldrN n0 f β0
-        | n0 > 8    = error "packet overflow"
+        | n0 > 8    = overflow
         | otherwise = loop_unfoldrN n0 β0 (∅)
         where
           {-# INLINE loop_unfoldrN #-}
@@ -138,14 +161,9 @@ instance Bitstream (Packet Right) where
                   Nothing      → (α, Nothing)
                   Just (a, β') → loop_unfoldrN (n-1) β' (α `unsafeSnocR` a)
 
-{-# RULES
-
-"length → fusible" [~1]
-    ∀p. length p = S.genericLength (stream p)
-"length → unfused" [ 1]
-    ∀p. S.genericLength (stream p) = length p
-
-  #-}
+overflow ∷ α
+overflow = error "Data.Bitstream.Packet: packet size overflow"
+{-# INLINE overflow #-}
 
 fromOctet ∷ Word8 → Packet d
 fromOctet = Packet 8
@@ -154,6 +172,16 @@ fromOctet = Packet 8
 toOctet ∷ Packet d → Word8
 toOctet (Packet _ o) = o
 {-# INLINE toOctet #-}
+
+unsafeConsL ∷ Bool → Packet Left → Packet Left
+unsafeConsL True  (Packet n o) = Packet (n+1) ((o `shiftL` 1) .|. 1)
+unsafeConsL False (Packet n o) = Packet (n+1)  (o `shiftL` 1)
+{-# INLINE unsafeConsL #-}
+
+unsafeConsR ∷ Bool → Packet Right → Packet Right
+unsafeConsR True  (Packet n o) = Packet (n+1) ((o `shiftR` 1) .|. 0x80)
+unsafeConsR False (Packet n o) = Packet (n+1)  (o `shiftR` 1)
+{-# INLINE unsafeConsR #-}
 
 unsafeSnocL ∷ Packet Left → Bool → Packet Left
 unsafeSnocL (Packet n o) True  = Packet (n+1) (o `setBit` n)

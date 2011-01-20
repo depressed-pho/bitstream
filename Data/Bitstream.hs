@@ -13,9 +13,20 @@
 --
 -- FIXME: explain about directions
 module Data.Bitstream
-    ( Bitstream
+    ( -- * Types
+      Bitstream
     , Left
     , Right
+
+      -- * Introducing and eliminating 'Bitstream's
+    , empty
+    , singleton
+    , pack
+    , unpack
+
+      -- * Basic interface
+    , cons
+    , snoc
     )
     where
 import Data.Bitstream.Internal
@@ -52,6 +63,27 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
     singleton b
         = Bitstream (SV.singleton (singleton b))
 
-    {-# NOINLINE [1] length #-}
+    {-# NOINLINE [1] cons #-}
+    cons b (Bitstream v)
+        = case SV.viewL v of
+            Just (p, v')
+                | length p < (8 ∷ Int)
+                      → Bitstream (SV.cons (cons    b p) v')
+                | otherwise
+                      → Bitstream (SV.cons (singleton b) v )
+            Nothing   → Bitstream (SV.cons (singleton b) v )
+
+    {-# NOINLINE [1] snoc #-}
+    snoc (Bitstream v) b
+        = case SV.viewR v of
+            Just (v', p)
+                | length p < (8 ∷ Int)
+                      → Bitstream (SV.snoc v' (snoc    p b))
+                | otherwise
+                      → Bitstream (SV.snoc v  (singleton b))
+            Nothing   → Bitstream (SV.snoc v  (singleton b))
+
+    {-# SPECIALISE length ∷ G.Bitstream (Packet d) ⇒ Bitstream d → Int #-}
     length (Bitstream v)
         = SV.foldl' (\n p → n + length p) 0 v
+    {-# NOINLINE [1] length #-}

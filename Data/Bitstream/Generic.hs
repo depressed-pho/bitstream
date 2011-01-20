@@ -535,6 +535,16 @@ class Bitstream α where
 "List stream / Bitstream unstream fusion"
     ∀s. S.stream (unstream s) = s
 
+"cons → fusible" [~1]
+    ∀b α. cons b α = unstream (S.cons b (stream α))
+"cons → unfused" [ 1]
+    ∀b α. unstream (S.cons b (stream α)) = cons b α
+
+"snoc → fusible" [~1]
+    ∀α b. snoc α b = unstream (S.snoc (stream α) b)
+"snoc → unfused" [ 1]
+    ∀α b. unstream (S.snoc (stream α) b) = snoc α b
+
 "length → fusible" [~1]
     ∀α. length α = S.genericLength (stream α)
 "length → unfused" [ 1]
