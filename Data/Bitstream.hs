@@ -69,7 +69,10 @@ import Prelude.Unicode
 
 newtype Bitstream d
     = Bitstream (SV.Vector (Packet d))
-    deriving (Eq, Show)
+    deriving (Show)
+
+instance G.Bitstream (Packet d) ⇒ Eq (Bitstream d) where
+    x == y = unpack x ≡ unpack y
 
 instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
 --    {-# SPECIALISE instance G.Bitstream (Bitstream Left ) #-}
