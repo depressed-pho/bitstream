@@ -53,6 +53,7 @@ module Data.Bitstream
 
       -- ** Special folds
     , concat
+    , concatMap
     )
     where
 import Data.Bitstream.Internal
@@ -174,7 +175,21 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
         = Bitstream (SV.reverse (SV.map reverse v))
 
     {-# INLINE [1] concat #-}
-    concat = Bitstream ∘ SV.concat ∘ L.map (\(Bitstream v) → v)
+    concat = Bitstream ∘ SV.concat ∘ L.map g
+        where
+          {-# INLINE g #-}
+          g (Bitstream v) = v
+
+    {-# INLINE [1] concatMap #-}
+    concatMap f (Bitstream v)
+        = Bitstream (SV.concatMap g v)
+        where
+          {-# INLINE g #-}
+          g = SV.concatMap h ∘ SV.pack ∘ unpack
+          {-# INLINE h #-}
+          h = i ∘ f
+          {-# INLINE i #-}
+          i (Bitstream v') = v'
 
 inconsistentState ∷ α
 inconsistentState

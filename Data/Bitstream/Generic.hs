@@ -143,11 +143,11 @@ class Bitstream α where
     {-# INLINE foldr1 #-}
 
     concat ∷ [α] → α
-    concat = S.foldr (⧺) (∅) ∘ S.stream
+    concat = unstream ∘ S.concatMap stream ∘ S.stream
     {-# INLINE concat #-}
 
     concatMap ∷ (Bool → α) → α → α
-    concatMap f = foldr (\x y → f x ⧺ y) (∅)
+    concatMap f = unstream ∘ S.concatMap (stream ∘ f) ∘ stream
     {-# INLINE concatMap #-}
 
     and ∷ α → Bool
@@ -626,6 +626,11 @@ class Bitstream α where
     ∀αs. concat αs = S.foldr (⧺) (∅) (S.stream αs)
 "concat → unfused" [ 1]
     ∀αs. S.foldr (⧺) (∅) (S.stream αs) = concat αs
+
+"concatMap → fusible" [~1]
+    ∀α f. concatMap f α = unstream (S.concatMap (stream ∘ f) (stream α))
+"concatMap → unfused" [ 1]
+    ∀α f. unstream (S.concatMap (stream ∘ f) (stream α)) = concatMap f α
 
   #-}
 
