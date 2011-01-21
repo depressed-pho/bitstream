@@ -91,6 +91,11 @@ instance Bitstream (Packet Left) where
     head (Packet 0 _) = packetEmpty
     head (Packet _ o) = o `testBit` 0
 
+    {-# INLINE uncons #-}
+    uncons (Packet 0 _) = Nothing
+    uncons (Packet n o) = Just ( o `testBit` 0
+                               , Packet (n-1) (o `shiftR` 1) )
+
     {-# SPECIALISE length ∷ Packet Left → Int #-}
     length (Packet n _) = fromIntegral n
     {-# NOINLINE [1] length #-}
@@ -145,6 +150,11 @@ instance Bitstream (Packet Right) where
     cons b p@(Packet n _)
         | n ≥ 8     = packetOverflow
         | otherwise = b `unsafeConsR` p
+
+    {-# INLINE uncons #-}
+    uncons (Packet 0 _) = Nothing
+    uncons (Packet n o) = Just ( o `testBit` 0x80
+                               , Packet (n-1) (o `shiftL` 1) )
 
     {-# NOINLINE [1] snoc #-}
     snoc p@(Packet n _) b
