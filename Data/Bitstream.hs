@@ -30,6 +30,7 @@ module Data.Bitstream
     , append
     , head
     , uncons
+    , last
     )
     where
 import Data.Bitstream.Internal
@@ -38,7 +39,7 @@ import qualified Data.Bitstream.Generic as G
 import Data.Bitstream.Packet (Left, Right, Packet)
 import qualified Data.StorableVector as SV
 import qualified Data.Stream as S
-import Prelude hiding (head, length, null)
+import Prelude hiding (head, last, length, null)
 import Prelude.Unicode
 
 newtype Bitstream d
@@ -102,6 +103,10 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
                    | null p'   → return (b, Bitstream v')
                    | otherwise → return (b, Bitstream (SV.cons p' v'))
                Nothing         → inconsistentState
+
+    {-# NOINLINE [1] last #-}
+    last (Bitstream v)
+        = last (SV.last v)
 
     {-# SPECIALISE length ∷ G.Bitstream (Packet d) ⇒ Bitstream d → Int #-}
     length (Bitstream v)

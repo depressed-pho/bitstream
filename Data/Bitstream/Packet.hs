@@ -47,7 +47,8 @@ instance Storable (Packet d) where
 
 instance Bitstream (Packet Left) where
     {-# INLINE [0] stream #-}
-    stream (Packet n o) = S.unfoldr produce 0
+    stream (Packet n o) = {-# CORE "Packet Left 'stream'" #-}
+                          S.unfoldr produce 0
         where
           {-# INLINE produce #-}
           produce ∷ Int → Maybe (Bool, Int)
@@ -56,7 +57,8 @@ instance Bitstream (Packet Left) where
               | otherwise = Nothing
 
     {-# INLINE [0] unstream #-}
-    unstream (S.Stream next s0) = case consume (-1) 0 s0 of
+    unstream (S.Stream next s0) = {-# CORE "Packet Left 'unstream'" #-}
+                                  case consume (-1) 0 s0 of
                                     (# p, o #) → Packet (p+1) o
         where
           {-# INLINE consume #-}
@@ -96,6 +98,10 @@ instance Bitstream (Packet Left) where
     uncons (Packet n o) = Just ( o `testBit` 0
                                , Packet (n-1) (o `shiftR` 1) )
 
+    {-# NOINLINE [1] last #-}
+    last (Packet 0 _) = packetEmpty
+    last (Packet n o) = o `testBit` (n-1)
+
     {-# SPECIALISE length ∷ Packet Left → Int #-}
     length (Packet n _) = fromIntegral n
     {-# NOINLINE [1] length #-}
@@ -116,7 +122,8 @@ instance Bitstream (Packet Left) where
 
 instance Bitstream (Packet Right) where
     {-# INLINE [0] stream #-}
-    stream (Packet n b) = S.unfoldr produce (n-1)
+    stream (Packet n b) = {-# CORE "Packet Right 'stream'" #-}
+                          S.unfoldr produce (n-1)
         where
           {-# INLINE produce #-}
           produce ∷ Int → Maybe (Bool, Int)
@@ -125,7 +132,8 @@ instance Bitstream (Packet Right) where
               | otherwise = Nothing
 
     {-# INLINE [0] unstream #-}
-    unstream (S.Stream next s0) = case consume 7 0 s0 of
+    unstream (S.Stream next s0) = {-# CORE "Packet Right 'unstream'" #-}
+                                  case consume 7 0 s0 of
                                     (# p, o #) → Packet (7-p) o
         where
           {-# INLINE consume #-}
@@ -151,11 +159,6 @@ instance Bitstream (Packet Right) where
         | n ≥ 8     = packetOverflow
         | otherwise = b `unsafeConsR` p
 
-    {-# INLINE uncons #-}
-    uncons (Packet 0 _) = Nothing
-    uncons (Packet n o) = Just ( o `testBit` 0x80
-                               , Packet (n-1) (o `shiftL` 1) )
-
     {-# NOINLINE [1] snoc #-}
     snoc p@(Packet n _) b
         | n ≥ 8     = packetOverflow
@@ -164,6 +167,15 @@ instance Bitstream (Packet Right) where
     {-# NOINLINE [1] head #-}
     head (Packet 0 _) = packetEmpty
     head (Packet _ o) = o `testBit` 7
+
+    {-# INLINE uncons #-}
+    uncons (Packet 0 _) = Nothing
+    uncons (Packet n o) = Just ( o `testBit` 0x80
+                               , Packet (n-1) (o `shiftL` 1) )
+
+    {-# NOINLINE [1] last #-}
+    last (Packet 0 _) = packetEmpty
+    last (Packet n o) = o `testBit` (8-n)
 
     {-# SPECIALISE length ∷ Packet Right → Int #-}
     length (Packet n _) = fromIntegral n
