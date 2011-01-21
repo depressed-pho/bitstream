@@ -28,6 +28,7 @@ module Data.Bitstream
     , cons
     , snoc
     , append
+    , head
     )
     where
 import Data.Bitstream.Internal
@@ -36,7 +37,7 @@ import qualified Data.Bitstream.Generic as G
 import Data.Bitstream.Packet (Left, Right, Packet)
 import qualified Data.StorableVector as SV
 import qualified Data.Stream as S
-import Prelude hiding (length)
+import Prelude hiding (head, length)
 import Prelude.Unicode
 
 newtype Bitstream d
@@ -87,6 +88,10 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
     {-# NOINLINE [1] append #-}
     append (Bitstream x) (Bitstream y)
         = Bitstream (SV.append x y)
+
+    {-# NOINLINE [1] head #-}
+    head (Bitstream v)
+        = head (SV.head v)
 
     {-# SPECIALISE length ∷ G.Bitstream (Packet d) ⇒ Bitstream d → Int #-}
     length (Bitstream v)

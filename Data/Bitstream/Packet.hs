@@ -79,13 +79,17 @@ instance Bitstream (Packet Left) where
 
     {-# NOINLINE [1] cons #-}
     cons b p@(Packet n _)
-        | n ≥ 8     = overflow
+        | n ≥ 8     = packetOverflow
         | otherwise = b `unsafeConsL` p
 
     {-# NOINLINE [1] snoc #-}
     snoc p@(Packet n _) b
-        | n ≥ 8     = overflow
+        | n ≥ 8     = packetOverflow
         | otherwise = p `unsafeSnocL` b
+
+    {-# NOINLINE [1] head #-}
+    head (Packet 0 _) = packetEmpty
+    head (Packet _ o) = o `testBit` 0
 
     {-# SPECIALISE length ∷ Packet Left → Int #-}
     length (Packet n _) = fromIntegral n
@@ -94,7 +98,7 @@ instance Bitstream (Packet Left) where
     {-# SPECIALISE
         unfoldrN ∷ Int → (β → Maybe (Bool, β)) → β → (Packet Left, Maybe β) #-}
     unfoldrN n0 f β0
-        | n0 > 8    = overflow
+        | n0 > 8    = packetOverflow
         | otherwise = loop_unfoldrN n0 β0 (∅)
         where
           {-# INLINE loop_unfoldrN #-}
@@ -139,13 +143,17 @@ instance Bitstream (Packet Right) where
 
     {-# NOINLINE [1] cons #-}
     cons b p@(Packet n _)
-        | n ≥ 8     = overflow
+        | n ≥ 8     = packetOverflow
         | otherwise = b `unsafeConsR` p
 
     {-# NOINLINE [1] snoc #-}
     snoc p@(Packet n _) b
-        | n ≥ 8     = overflow
+        | n ≥ 8     = packetOverflow
         | otherwise = p `unsafeSnocR` b
+
+    {-# NOINLINE [1] head #-}
+    head (Packet 0 _) = packetEmpty
+    head (Packet _ o) = o `testBit` 7
 
     {-# SPECIALISE length ∷ Packet Right → Int #-}
     length (Packet n _) = fromIntegral n
@@ -154,7 +162,7 @@ instance Bitstream (Packet Right) where
     {-# SPECIALISE
         unfoldrN ∷ Int → (β → Maybe (Bool, β)) → β → (Packet Right, Maybe β) #-}
     unfoldrN n0 f β0
-        | n0 > 8    = overflow
+        | n0 > 8    = packetOverflow
         | otherwise = loop_unfoldrN n0 β0 (∅)
         where
           {-# INLINE loop_unfoldrN #-}
@@ -165,9 +173,13 @@ instance Bitstream (Packet Right) where
                   Just (a, β') → loop_unfoldrN (n-1) β' (a `unsafeConsR` α)
     {-# INLINE unfoldrN #-}
 
-overflow ∷ α
-overflow = error "Data.Bitstream.Packet: packet size overflow"
-{-# INLINE overflow #-}
+packetEmpty ∷ α
+packetEmpty = error "Data.Bitstream.Packet: packet is empty"
+{-# INLINE packetEmpty #-}
+
+packetOverflow ∷ α
+packetOverflow = error "Data.Bitstream.Packet: packet size overflow"
+{-# INLINE packetOverflow #-}
 
 fromOctet ∷ Word8 → Packet d
 fromOctet = Packet 8
