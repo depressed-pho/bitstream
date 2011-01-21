@@ -102,6 +102,10 @@ instance Bitstream (Packet Left) where
     last (Packet 0 _) = packetEmpty
     last (Packet n o) = o `testBit` (n-1)
 
+    {-# NOINLINE [1] tail #-}
+    tail (Packet 0 _) = packetEmpty
+    tail (Packet n o) = Packet (n-1) (o `shiftR` 1)
+
     {-# SPECIALISE length ∷ Packet Left → Int #-}
     length (Packet n _) = fromIntegral n
     {-# NOINLINE [1] length #-}
@@ -176,6 +180,10 @@ instance Bitstream (Packet Right) where
     {-# NOINLINE [1] last #-}
     last (Packet 0 _) = packetEmpty
     last (Packet n o) = o `testBit` (8-n)
+
+    {-# NOINLINE [1] tail #-}
+    tail (Packet 0 _) = packetEmpty
+    tail (Packet n o) = Packet (n-1) (o `shiftL` 1)
 
     {-# SPECIALISE length ∷ Packet Right → Int #-}
     length (Packet n _) = fromIntegral n

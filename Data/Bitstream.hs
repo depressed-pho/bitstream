@@ -31,6 +31,7 @@ module Data.Bitstream
     , head
     , uncons
     , last
+    , tail
     )
     where
 import Data.Bitstream.Internal
@@ -39,7 +40,7 @@ import qualified Data.Bitstream.Generic as G
 import Data.Bitstream.Packet (Left, Right, Packet)
 import qualified Data.StorableVector as SV
 import qualified Data.Stream as S
-import Prelude hiding (head, last, length, null)
+import Prelude hiding (head, last, length, null, tail)
 import Prelude.Unicode
 
 newtype Bitstream d
@@ -108,6 +109,16 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
     last (Bitstream v)
         = last (SV.last v)
 
+    {-# NOINLINE [1] tail #-}
+    tail (Bitstream v)
+        = case SV.viewL v of
+            Just (p, v')
+                → case tail p of
+                     p' | null p'   → Bitstream v'
+                        | otherwise → Bitstream (SV.cons p' v')
+            Nothing
+                → emptyStream
+
     {-# SPECIALISE length ∷ G.Bitstream (Packet d) ⇒ Bitstream d → Int #-}
     length (Bitstream v)
         = SV.foldl' (\n p → n + length p) 0 v
@@ -116,3 +127,7 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
 inconsistentState ∷ α
 inconsistentState
     = error "Data.Bitstream: internal error: inconsistent state"
+
+emptyStream ∷ α
+emptyStream
+    = error "Data.Bitstream: empty stream"

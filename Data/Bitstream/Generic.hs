@@ -602,6 +602,11 @@ class Bitstream α where
 "last → unfused" [ 1]
     ∀α. S.last (stream α) = last α
 
+"tail → fusible" [~1]
+    ∀α. tail α = unstream (S.tail (stream α))
+"tail → unfused" [ 1]
+    ∀α. unstream (S.tail (stream α)) = last α
+
 "length → fusible" [~1]
     ∀α. length α = S.genericLength (stream α)
 "length → unfused" [ 1]
