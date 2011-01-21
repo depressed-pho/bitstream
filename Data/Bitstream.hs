@@ -39,15 +39,32 @@ module Data.Bitstream
       -- * Transforming 'Bitstream's
     , map
     , reverse
+    , intersperse
+    , intercalate
+    , transpose
+
+      -- * Reducing 'Bitstream's
+    , foldl
+    , foldl'
+    , foldl1
+    , foldl1'
+    , foldr
+    , foldr1
+
+      -- ** Special folds
+    , concat
     )
     where
 import Data.Bitstream.Internal
 import Data.Bitstream.Generic hiding (Bitstream)
 import qualified Data.Bitstream.Generic as G
 import Data.Bitstream.Packet (Left, Right, Packet)
+import qualified Data.List.Stream as L
 import qualified Data.StorableVector as SV
 import qualified Data.Stream as S
-import Prelude hiding (head, init, last, length, map, null, reverse, tail)
+import Prelude ( Eq(..), Int, Maybe(..), Monad(..), Num(..), Ord(..), Show(..)
+               , error, otherwise
+               )
 import Prelude.Unicode
 
 newtype Bitstream d
@@ -152,6 +169,9 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
     {-# INLINE reverse #-}
     reverse (Bitstream v)
         = Bitstream (SV.reverse (SV.map reverse v))
+
+    {-# INLINE [1] concat #-}
+    concat = Bitstream ∘ SV.concat ∘ L.map (\(Bitstream v) → v)
 
 inconsistentState ∷ α
 inconsistentState
