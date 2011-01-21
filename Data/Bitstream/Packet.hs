@@ -91,7 +91,8 @@ instance Bitstream (Packet Left) where
     length (Packet n _) = fromIntegral n
     {-# NOINLINE [1] length #-}
 
-    {-# INLINE unfoldrN #-}
+    {-# SPECIALISE
+        unfoldrN ∷ Int → (β → Maybe (Bool, β)) → β → (Packet Left, Maybe β) #-}
     unfoldrN n0 f β0
         | n0 > 8    = overflow
         | otherwise = loop_unfoldrN n0 β0 (∅)
@@ -101,7 +102,8 @@ instance Bitstream (Packet Left) where
           loop_unfoldrN n β α
               = case f β of
                   Nothing      → (α, Nothing)
-                  Just (a, β') → loop_unfoldrN (n-1) β' (α `unsafeSnocL` a)
+                  Just (a, β') → loop_unfoldrN (n-1) β' (a `unsafeConsL` α)
+    {-# INLINE unfoldrN #-}
 
 instance Bitstream (Packet Right) where
     {-# INLINE [0] stream #-}
@@ -149,7 +151,8 @@ instance Bitstream (Packet Right) where
     length (Packet n _) = fromIntegral n
     {-# NOINLINE [1] length #-}
 
-    {-# INLINE unfoldrN #-}
+    {-# SPECIALISE
+        unfoldrN ∷ Int → (β → Maybe (Bool, β)) → β → (Packet Right, Maybe β) #-}
     unfoldrN n0 f β0
         | n0 > 8    = overflow
         | otherwise = loop_unfoldrN n0 β0 (∅)
@@ -159,7 +162,8 @@ instance Bitstream (Packet Right) where
           loop_unfoldrN n β α
               = case f β of
                   Nothing      → (α, Nothing)
-                  Just (a, β') → loop_unfoldrN (n-1) β' (α `unsafeSnocR` a)
+                  Just (a, β') → loop_unfoldrN (n-1) β' (a `unsafeConsR` α)
+    {-# INLINE unfoldrN #-}
 
 overflow ∷ α
 overflow = error "Data.Bitstream.Packet: packet size overflow"

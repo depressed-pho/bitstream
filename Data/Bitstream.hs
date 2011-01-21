@@ -27,6 +27,7 @@ module Data.Bitstream
       -- * Basic interface
     , cons
     , snoc
+    , append
     )
     where
 import Data.Bitstream.Internal
@@ -82,6 +83,10 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
                 | otherwise
                       → Bitstream (SV.snoc v  (singleton b))
             Nothing   → Bitstream (SV.snoc v  (singleton b))
+
+    {-# NOINLINE [1] append #-}
+    append (Bitstream x) (Bitstream y)
+        = Bitstream (SV.append x y)
 
     {-# SPECIALISE length ∷ G.Bitstream (Packet d) ⇒ Bitstream d → Int #-}
     length (Bitstream v)

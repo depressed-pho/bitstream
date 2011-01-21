@@ -114,11 +114,12 @@ class Bitstream α where
     {-# INLINE intercalate #-}
 
     transpose ∷ [α] → [α]
-    transpose []       = []
+    transpose []     = []
     transpose (α:αs)
-        | null α       = transpose αs
-        | otherwise    = (head α `cons` pack (L.map head αs))
-                         : transpose (tail α : L.map tail αs)
+        = case uncons α of
+            Nothing      → transpose αs
+            Just (a, as) → (a `cons` pack (L.map head αs))
+                           : transpose (as : L.map tail αs)
 
     foldl ∷ (β → Bool → β) → β → α → β
     foldl f β = S.foldl f β ∘ stream
@@ -178,36 +179,41 @@ class Bitstream α where
 
     scanr ∷ (Bool → Bool → Bool) → Bool → α → α
     scanr f β α
-        | null α    = singleton β
-        | otherwise = let α' = scanr f β (tail α)
-                      in
-                        f (head α) (head α') `cons` α'
+        = case uncons α of
+            Nothing      → singleton β
+            Just (a, as) → let α' = scanr f β as
+                           in
+                             f a (head α') `cons` α'
     {-# INLINE scanr #-}
 
     scanr1 ∷ (Bool → Bool → Bool) → α → α
     scanr1 f α
-        | null α        = α
-        | null (tail α) = α
-        | otherwise     = let α' = scanr1 f (tail α)
-                          in
-                            f (head α) (head α') `cons` α'
+        = case uncons α of
+            Nothing         → α
+            Just (a, as)
+                | null as   → α
+                | otherwise → let α' = scanr1 f as
+                              in
+                                f a (head α') `cons` α'
     {-# INLINE scanr1 #-}
 
     mapAccumL ∷ (β → Bool → (β, Bool)) → β → α → (β, α)
     mapAccumL f s α
-        | null α    = (s, α)
-        | otherwise = let (s' , a ) = f s (head α)
-                          (s'', α') = mapAccumL f s' (tail α)
-                      in
-                        (s'', a `cons` α')
+        = case uncons α of
+            Nothing      → (s, α)
+            Just (a, as) → let (s' , b ) = f s a
+                               (s'', α') = mapAccumL f s' as
+                           in
+                             (s'', b `cons` α')
 
     mapAccumR ∷ (β → Bool → (β, Bool)) → β → α → (β, α)
     mapAccumR f s α
-        | null α    = (s, α)
-        | otherwise = let (s'', a ) = f s' (head α)
-                          (s' , α') = mapAccumR f s (tail α)
-                      in
-                        (s'', a `cons` α')
+        = case uncons α of
+            Nothing      → (s, α)
+            Just (a, as) → let (s'', b ) = f s' a
+                               (s' , α') = mapAccumR f s as
+                           in
+                             (s'', b `cons` α')
 
     iterate ∷ (Bool → Bool) → Bool → α
     iterate = (unstream ∘) ∘ S.iterate
@@ -238,7 +244,7 @@ class Bitstream α where
           loop_unfoldrN n β α
               = case f β of
                   Nothing      → (α, Nothing)
-                  Just (a, β') → loop_unfoldrN (n-1) β' (α `snoc` a)
+                  Just (a, β') → loop_unfoldrN (n-1) β' (a `cons` α)
     {-# INLINE unfoldrN #-}
 
     take ∷ Integral n ⇒ n → α → α
@@ -266,36 +272,43 @@ class Bitstream α where
 
     span ∷ (Bool → Bool) → α → (α, α)
     span f α
-        | null α     = (α, α)
-        | f (head α) = let (β, γ) = span f (tail α)
-                       in
-                         (head α `cons` β, γ)
-        | otherwise  = ((∅), α)
+        = case uncons α of
+            Nothing         → (α, α)
+            Just (a, as)
+                | f a       → let (β, γ) = span f as
+                              in
+                                (a `cons` β, γ)
+                | otherwise → ((∅), α)
 
     break ∷ (Bool → Bool) → α → (α, α)
     break f α
-        | null α     = (α, α)
-        | f (head α) = ((∅), α)
-        | otherwise  = let (β, γ) = break f (tail α)
-                       in
-                         (head α `cons` β, γ)
+        = case uncons α of
+            Nothing         → (α, α)
+            Just (a, as)
+                | f a       → ((∅), α)
+                | otherwise → let (β, γ) = break f as
+                              in
+                                (a `cons` β, γ)
 
     group ∷ α → [α]
     group α
-        | null α    = []
-        | otherwise = let (β, γ) = span (head α ≡) (tail α)
-                      in
-                        (head α `cons` β) : group γ
+        = case uncons α of
+            Nothing      → []
+            Just (a, as) → let (β, γ) = span (a ≡) as
+                           in
+                             (a `cons` β) : group γ
 
     inits ∷ α → [α]
     inits α
-        | null α    = α : []
-        | otherwise = (∅) : L.map (cons (head α)) (inits (tail α))
+        = case uncons α of
+            Nothing      → α : []
+            Just (a, as) → (∅) : L.map (cons a) (inits as)
 
     tails ∷ α → [α]
     tails α
-        | null α    = α : []
-        | otherwise = α : tails (tail α)
+        = case uncons α of
+            Nothing      → α : []
+            Just (_, as) → α : tails as
 
     isPrefixOf ∷ α → α → Bool
     isPrefixOf x y = S.isPrefixOf (stream x) (stream y)
@@ -352,9 +365,11 @@ class Bitstream α where
     findIndices f = find' 0
         where
           find' n α
-              | null α     = []
-              | f (head α) = n : find' (n+1) (tail α)
-              | otherwise  =     find' (n+1) (tail α)
+              = case uncons α of
+                  Nothing         → []
+                  Just (a, as)
+                      | f a       → n : find' (n+1) as
+                      | otherwise →     find' (n+1) as
 
     zip ∷ α → α → [(Bool, Bool)]
     zip a b = S.unstream (S.zip (stream a) (stream b))
@@ -381,43 +396,61 @@ class Bitstream α where
     {-# INLINE zip7 #-}
 
     zipWith ∷ (Bool → Bool → β) → α → α → [β]
-    zipWith f a b = S.unstream (S.zipWith f
-                                     (stream a)
-                                     (stream b))
+    zipWith f α β = S.unstream (S.zipWith f
+                                     (stream α)
+                                     (stream β))
     {-# INLINE zipWith #-}
 
     zipWith3 ∷ (Bool → Bool → Bool → β) → α → α → α → [β]
-    zipWith3 f a b c = S.unstream (S.zipWith3 f
-                                        (stream a)
-                                        (stream b)
-                                        (stream c))
+    zipWith3 f α β γ = S.unstream (S.zipWith3 f
+                                        (stream α)
+                                        (stream β)
+                                        (stream γ))
     {-# INLINE zipWith3 #-}
 
     zipWith4 ∷ (Bool → Bool → Bool → Bool → β) → α → α → α → α → [β]
-    zipWith4 f a b c d = S.unstream (S.zipWith4 f
-                                          (stream a)
-                                          (stream b)
-                                          (stream c)
-                                          (stream d))
+    zipWith4 f α β γ δ = S.unstream (S.zipWith4 f
+                                          (stream α)
+                                          (stream β)
+                                          (stream γ)
+                                          (stream δ))
     {-# INLINE zipWith4 #-}
 
     zipWith5 ∷ (Bool → Bool → Bool → Bool → Bool → β) → α → α → α → α → α → [β]
-    zipWith5 p a b c d e
-        | null a ∨ null b ∨ null c ∨ null d ∨ null e = []
-        | otherwise = p (head a) (head b) (head c) (head d) (head e)
-                      : zipWith5 p (tail a) (tail b) (tail c) (tail d) (tail e)
+    zipWith5 f α β γ δ ε
+        = case (uncons α, uncons β, uncons γ, uncons δ, uncons ε) of
+            (Nothing, _, _, _, _) → []
+            (_, Nothing, _, _, _) → []
+            (_, _, Nothing, _, _) → []
+            (_, _, _, Nothing, _) → []
+            (_, _, _, _, Nothing) → []
+            (Just (a, as), Just (b, bs), Just (c, cs), Just (d, ds), Just (e, es))
+                → f a b c d e : zipWith5 f as bs cs ds es
 
     zipWith6 ∷ (Bool → Bool → Bool → Bool → Bool → Bool → β) → α → α → α → α → α → α → [β]
-    zipWith6 p a b c d e f
-        | null a ∨ null b ∨ null c ∨ null d ∨ null e ∨ null f = []
-        | otherwise = p (head a) (head b) (head c) (head d) (head e) (head f)
-                      : zipWith6 p (tail a) (tail b) (tail c) (tail d) (tail e) (tail f)
+    zipWith6 f α β γ δ ε ζ
+        = case (uncons α, uncons β, uncons γ, uncons δ, uncons ε, uncons ζ) of
+            (Nothing, _, _, _, _, _) → []
+            (_, Nothing, _, _, _, _) → []
+            (_, _, Nothing, _, _, _) → []
+            (_, _, _, Nothing, _, _) → []
+            (_, _, _, _, Nothing, _) → []
+            (_, _, _, _, _, Nothing) → []
+            (Just (a, as), Just (b, bs), Just (c, cs), Just (d, ds), Just (e, es), Just (f', fs))
+                → f a b c d e f' : zipWith6 f as bs cs ds es fs
 
     zipWith7 ∷ (Bool → Bool → Bool → Bool → Bool → Bool → Bool → β) → α → α → α → α → α → α → α → [β]
-    zipWith7 p a b c d e f g
-        | null a ∨ null b ∨ null c ∨ null d ∨ null e ∨ null f ∨ null g = []
-        | otherwise = p (head a) (head b) (head c) (head d) (head e) (head f) (head g)
-                      : zipWith7 p (tail a) (tail b) (tail c) (tail d) (tail e) (tail f) (tail g)
+    zipWith7 f α β γ δ ε ζ η
+        = case (uncons α, uncons β, uncons γ, uncons δ, uncons ε, uncons ζ, uncons η) of
+            (Nothing, _, _, _, _, _, _) → []
+            (_, Nothing, _, _, _, _, _) → []
+            (_, _, Nothing, _, _, _, _) → []
+            (_, _, _, Nothing, _, _, _) → []
+            (_, _, _, _, Nothing, _, _) → []
+            (_, _, _, _, _, Nothing, _) → []
+            (_, _, _, _, _, _, Nothing) → []
+            (Just (a, as), Just (b, bs), Just (c, cs), Just (d, ds), Just (e, es), Just (f', fs), Just (g, gs))
+                → f a b c d e f' g : zipWith7 f as bs cs ds es fs gs
 
     unzip ∷ [(Bool, Bool)] → (α, α)
     unzip = L.foldr (\(a, b) ~(as, bs) →
@@ -469,9 +502,11 @@ class Bitstream α where
         where
           nub' ∷ Bitstream α ⇒ α → α → α
           nub' α α'
-              | null α      = α
-              | head α ∈ α' = nub' (tail α) α'
-              | otherwise   = head α `cons` nub' (tail α) (head α `cons` α')
+              = case uncons α of
+                  Nothing         → α
+                  Just (a, as)
+                      | a ∈ α'    → nub' as α'
+                      | otherwise → a `cons` nub' as (a `cons` α')
 
     delete ∷ Bool → α → α
     delete = deleteBy (≡)
@@ -494,21 +529,27 @@ class Bitstream α where
         where
           nubBy' ∷ Bitstream α ⇒ α → α → α
           nubBy' α α'
-              | null α              = α
-              | elemBy' (head α) α' = nubBy' (tail α) α'
-              | otherwise           = head α `cons` nubBy' (tail α) (head α `cons` α')
+              = case uncons α of
+                  Nothing            → α
+                  Just (a, as)
+                      | elemBy' a α' → nubBy' as α'
+                      | otherwise    → a `cons` nubBy' as (a `cons` α')
 
           elemBy' ∷ Bitstream α ⇒ Bool → α → Bool
-          elemBy' a α
-              | null α       = False
-              | f a (head α) = True
-              | otherwise    = elemBy' a (tail α)
+          elemBy' b α
+              = case uncons α of
+                  Nothing         → False
+                  Just (a, as)
+                      | f b a     → True
+                      | otherwise → elemBy' b as
 
     deleteBy ∷ (Bool → Bool → Bool) → Bool → α → α
-    deleteBy f a α
-        | null α       = α
-        | f a (head α) = tail α
-        | otherwise    = head α `cons` deleteBy f a (tail α)
+    deleteBy f b α
+        = case uncons α of
+            Nothing         → α
+            Just (a, as)
+                | f b a     → as
+                | otherwise → a `cons` deleteBy f b as
 
     deleteFirstsBy ∷ (Bool → Bool → Bool) → α → α → α
     deleteFirstsBy = foldl ∘ flip ∘ deleteBy
@@ -521,10 +562,11 @@ class Bitstream α where
 
     groupBy ∷ (Bool → Bool → Bool) → α → [α]
     groupBy f α
-        | null α    = []
-        | otherwise = let (β, γ) = span (f (head α)) α
-                      in
-                        (head α `cons` β) : groupBy f γ
+        = case uncons α of
+            Nothing     → []
+            Just (a, _) → let (β, γ) = span (f a) α
+                          in
+                            (a `cons` β) : groupBy f γ
 
 {-# RULES
 
@@ -544,6 +586,16 @@ class Bitstream α where
     ∀α b. snoc α b = unstream (S.snoc (stream α) b)
 "snoc → unfused" [ 1]
     ∀α b. unstream (S.snoc (stream α) b) = snoc α b
+
+"append → fusible" [~1]
+    ∀x y. append x y = unstream (S.append (stream x) (stream y))
+"append → unfused" [ 1]
+    ∀x y. unstream (S.append (stream x) (stream y)) = append x y
+
+"head → fusible" [~1]
+    ∀α. head α = S.head (stream α)
+"head → unfused" [ 1]
+    ∀α. S.head (stream α) = head α
 
 "length → fusible" [~1]
     ∀α. length α = S.genericLength (stream α)
