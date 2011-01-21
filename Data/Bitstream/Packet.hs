@@ -110,6 +110,10 @@ instance Bitstream (Packet Left) where
     init (Packet 0 _) = packetEmpty
     init (Packet n o) = Packet (n-1) o
 
+    {-# INLINE [1] null #-}
+    null (Packet 0 _) = True
+    null _            = False
+
     {-# SPECIALISE length ∷ Packet Left → Int #-}
     length (Packet n _) = fromIntegral n
     {-# INLINE [1] length #-}
@@ -192,6 +196,10 @@ instance Bitstream (Packet Right) where
     {-# INLINE [1] init #-}
     init (Packet 0 _) = packetEmpty
     init (Packet n o) = Packet (n-1) o
+
+    {-# INLINE [1] null #-}
+    null (Packet 0 _) = True
+    null _            = False
 
     {-# SPECIALISE length ∷ Packet Right → Int #-}
     length (Packet n _) = fromIntegral n

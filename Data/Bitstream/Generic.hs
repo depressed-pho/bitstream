@@ -610,10 +610,20 @@ class Bitstream α where
 "init → unfused" [ 1]
     ∀α. unstream (S.init (stream α)) = last α
 
+"null → fusible" [~1]
+    ∀α. null α = S.null (stream α)
+"null → unfused" [ 1]
+    ∀α. S.null (stream α) = null α
+
 "length → fusible" [~1]
     ∀α. length α = S.genericLength (stream α)
 "length → unfused" [ 1]
     ∀α. S.genericLength (stream α) = length α
+
+"map → fusible" [~1]
+    ∀α f. map f α = unstream (S.map f (stream α))
+"map → unfused" [ 1]
+    ∀α f. unstream (S.map f (stream α)) = map f α
 
   #-}
 

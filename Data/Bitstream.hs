@@ -33,6 +33,12 @@ module Data.Bitstream
     , last
     , tail
     , init
+    , null
+    , length
+
+      -- * Transforming 'Bitstream's
+    , map
+    , reverse
     )
     where
 import Data.Bitstream.Internal
@@ -41,7 +47,7 @@ import qualified Data.Bitstream.Generic as G
 import Data.Bitstream.Packet (Left, Right, Packet)
 import qualified Data.StorableVector as SV
 import qualified Data.Stream as S
-import Prelude hiding (head, init, last, length, null, tail)
+import Prelude hiding (head, init, last, length, map, null, reverse, tail)
 import Prelude.Unicode
 
 newtype Bitstream d
@@ -130,10 +136,22 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
             Nothing
                 → emptyStream
 
+    {-# INLINE [1] null #-}
+    null (Bitstream v)
+        = SV.null v
+
     {-# SPECIALISE length ∷ G.Bitstream (Packet d) ⇒ Bitstream d → Int #-}
     length (Bitstream v)
         = SV.foldl' (\n p → n + length p) 0 v
     {-# NOINLINE [1] length #-}
+
+    {-# INLINE [1] map #-}
+    map f (Bitstream v)
+        = Bitstream (SV.map (map f) v)
+
+    {-# INLINE reverse #-}
+    reverse (Bitstream v)
+        = Bitstream (SV.reverse (SV.map reverse v))
 
 inconsistentState ∷ α
 inconsistentState
