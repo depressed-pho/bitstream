@@ -79,17 +79,17 @@ instance Bitstream (Packet Left) where
     singleton True  = Packet 1 1
     singleton False = Packet 1 0
 
-    {-# NOINLINE [1] cons #-}
+    {-# INLINE [1] cons #-}
     cons b p@(Packet n _)
         | n ≥ 8     = packetOverflow
         | otherwise = b `unsafeConsL` p
 
-    {-# NOINLINE [1] snoc #-}
+    {-# INLINE [1] snoc #-}
     snoc p@(Packet n _) b
         | n ≥ 8     = packetOverflow
         | otherwise = p `unsafeSnocL` b
 
-    {-# NOINLINE [1] head #-}
+    {-# INLINE [1] head #-}
     head (Packet 0 _) = packetEmpty
     head (Packet _ o) = o `testBit` 0
 
@@ -98,17 +98,21 @@ instance Bitstream (Packet Left) where
     uncons (Packet n o) = Just ( o `testBit` 0
                                , Packet (n-1) (o `shiftR` 1) )
 
-    {-# NOINLINE [1] last #-}
+    {-# INLINE [1] last #-}
     last (Packet 0 _) = packetEmpty
     last (Packet n o) = o `testBit` (n-1)
 
-    {-# NOINLINE [1] tail #-}
+    {-# INLINE [1] tail #-}
     tail (Packet 0 _) = packetEmpty
     tail (Packet n o) = Packet (n-1) (o `shiftR` 1)
 
+    {-# INLINE [1] init #-}
+    init (Packet 0 _) = packetEmpty
+    init (Packet n o) = Packet (n-1) o
+
     {-# SPECIALISE length ∷ Packet Left → Int #-}
     length (Packet n _) = fromIntegral n
-    {-# NOINLINE [1] length #-}
+    {-# INLINE [1] length #-}
 
     {-# SPECIALISE
         unfoldrN ∷ Int → (β → Maybe (Bool, β)) → β → (Packet Left, Maybe β) #-}
@@ -158,17 +162,17 @@ instance Bitstream (Packet Right) where
     singleton True  = Packet 1 0x80
     singleton False = Packet 1 0x00
 
-    {-# NOINLINE [1] cons #-}
+    {-# INLINE [1] cons #-}
     cons b p@(Packet n _)
         | n ≥ 8     = packetOverflow
         | otherwise = b `unsafeConsR` p
 
-    {-# NOINLINE [1] snoc #-}
+    {-# INLINE [1] snoc #-}
     snoc p@(Packet n _) b
         | n ≥ 8     = packetOverflow
         | otherwise = p `unsafeSnocR` b
 
-    {-# NOINLINE [1] head #-}
+    {-# INLINE [1] head #-}
     head (Packet 0 _) = packetEmpty
     head (Packet _ o) = o `testBit` 7
 
@@ -177,17 +181,21 @@ instance Bitstream (Packet Right) where
     uncons (Packet n o) = Just ( o `testBit` 0x80
                                , Packet (n-1) (o `shiftL` 1) )
 
-    {-# NOINLINE [1] last #-}
+    {-# INLINE [1] last #-}
     last (Packet 0 _) = packetEmpty
     last (Packet n o) = o `testBit` (8-n)
 
-    {-# NOINLINE [1] tail #-}
+    {-# INLINE [1] tail #-}
     tail (Packet 0 _) = packetEmpty
     tail (Packet n o) = Packet (n-1) (o `shiftL` 1)
 
+    {-# INLINE [1] init #-}
+    init (Packet 0 _) = packetEmpty
+    init (Packet n o) = Packet (n-1) o
+
     {-# SPECIALISE length ∷ Packet Right → Int #-}
     length (Packet n _) = fromIntegral n
-    {-# NOINLINE [1] length #-}
+    {-# INLINE [1] length #-}
 
     {-# SPECIALISE
         unfoldrN ∷ Int → (β → Maybe (Bool, β)) → β → (Packet Right, Maybe β) #-}

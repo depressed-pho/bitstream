@@ -32,6 +32,7 @@ module Data.Bitstream
     , uncons
     , last
     , tail
+    , init
     )
     where
 import Data.Bitstream.Internal
@@ -40,7 +41,7 @@ import qualified Data.Bitstream.Generic as G
 import Data.Bitstream.Packet (Left, Right, Packet)
 import qualified Data.StorableVector as SV
 import qualified Data.Stream as S
-import Prelude hiding (head, last, length, null, tail)
+import Prelude hiding (head, init, last, length, null, tail)
 import Prelude.Unicode
 
 newtype Bitstream d
@@ -88,15 +89,15 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
                       → Bitstream (SV.snoc v  (singleton b))
             Nothing   → Bitstream (SV.snoc v  (singleton b))
 
-    {-# NOINLINE [1] append #-}
+    {-# INLINE [1] append #-}
     append (Bitstream x) (Bitstream y)
         = Bitstream (SV.append x y)
 
-    {-# NOINLINE [1] head #-}
+    {-# INLINE [1] head #-}
     head (Bitstream v)
         = head (SV.head v)
 
-    {-# INLINE uncons #-}
+    {-# NOINLINE uncons #-}
     uncons (Bitstream v)
         = do (p, v') ← SV.viewL v
              case uncons p of
@@ -105,7 +106,7 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
                    | otherwise → return (b, Bitstream (SV.cons p' v'))
                Nothing         → inconsistentState
 
-    {-# NOINLINE [1] last #-}
+    {-# INLINE [1] last #-}
     last (Bitstream v)
         = last (SV.last v)
 
@@ -116,6 +117,16 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
                 → case tail p of
                      p' | null p'   → Bitstream v'
                         | otherwise → Bitstream (SV.cons p' v')
+            Nothing
+                → emptyStream
+
+    {-# NOINLINE [1] init #-}
+    init (Bitstream v)
+        = case SV.viewR v of
+            Just (v', p)
+                → case init p of
+                     p' | null p'   → Bitstream v'
+                        | otherwise → Bitstream (SV.snoc v' p')
             Nothing
                 → emptyStream
 

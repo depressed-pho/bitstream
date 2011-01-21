@@ -21,8 +21,8 @@ import qualified Data.List.Stream as L
 import Data.Maybe
 import qualified Data.Stream as S
 import Prelude hiding ( any, break, concat, elem, filter, foldl, foldr, head
-                      , last, length, map, notElem, null, replicate, reverse
-                      , scanr, scanr1, span, tail, zipWith3
+                      , init, last, length, map, notElem, null, replicate
+                      , reverse, scanr, scanr1, span, tail, zipWith3
                       )
 import Prelude.Unicode hiding ((∈), (∉), (⧺))
 
@@ -184,7 +184,6 @@ class Bitstream α where
             Just (a, as) → let α' = scanr f β as
                            in
                              f a (head α') `cons` α'
-    {-# INLINE scanr #-}
 
     scanr1 ∷ (Bool → Bool → Bool) → α → α
     scanr1 f α
@@ -195,7 +194,6 @@ class Bitstream α where
                 | otherwise → let α' = scanr1 f as
                               in
                                 f a (head α') `cons` α'
-    {-# INLINE scanr1 #-}
 
     mapAccumL ∷ (β → Bool → (β, Bool)) → β → α → (β, α)
     mapAccumL f s α
@@ -606,6 +604,11 @@ class Bitstream α where
     ∀α. tail α = unstream (S.tail (stream α))
 "tail → unfused" [ 1]
     ∀α. unstream (S.tail (stream α)) = last α
+
+"init → fusible" [~1]
+    ∀α. init α = unstream (S.init (stream α))
+"init → unfused" [ 1]
+    ∀α. unstream (S.init (stream α)) = last α
 
 "length → fusible" [~1]
     ∀α. length α = S.genericLength (stream α)
