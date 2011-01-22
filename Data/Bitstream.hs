@@ -56,6 +56,8 @@ module Data.Bitstream
     , concatMap
     , and
     , or
+    , any
+    , all
     )
     where
 import Data.Bitstream.Internal
@@ -198,6 +200,12 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
 
     {-# INLINE [1] or #-}
     or (Bitstream v) = SV.any or v
+
+    {-# INLINE [1] any #-}
+    any f (Bitstream v) = SV.any (any f) v
+
+    {-# INLINE [1] all #-}
+    all f (Bitstream v) = SV.all (all f) v
 
 inconsistentState ∷ α
 inconsistentState
