@@ -632,6 +632,16 @@ class Bitstream α where
 "concatMap → unfused" [ 1]
     ∀α f. unstream (S.concatMap (stream ∘ f) (stream α)) = concatMap f α
 
+"and → fusible" [~1]
+    ∀α. and α = S.and (stream α)
+"and → unfused" [ 1]
+    ∀α. S.and (stream α) = and α
+
+"or → fusible" [~1]
+    ∀α. or α = S.or (stream α)
+"or → unfused" [ 1]
+    ∀α. S.or (stream α) = or α
+
   #-}
 
 (∅) ∷ Bitstream α ⇒ α

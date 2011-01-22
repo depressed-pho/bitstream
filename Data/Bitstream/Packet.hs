@@ -118,6 +118,12 @@ instance Bitstream (Packet Left) where
     length (Packet n _) = fromIntegral n
     {-# INLINE [1] length #-}
 
+    {-# INLINE [1] and #-}
+    and (Packet n o) = (0xff `shiftR` (8-n)) ≡ o
+
+    {-# INLINE [1] or #-}
+    or (Packet _ o) = o ≢ 0
+
     {-# SPECIALISE
         unfoldrN ∷ Int → (β → Maybe (Bool, β)) → β → (Packet Left, Maybe β) #-}
     unfoldrN n0 f β0
@@ -204,6 +210,12 @@ instance Bitstream (Packet Right) where
     {-# SPECIALISE length ∷ Packet Right → Int #-}
     length (Packet n _) = fromIntegral n
     {-# INLINE [1] length #-}
+
+    {-# INLINE [1] and #-}
+    and (Packet n o) = (0xff `shiftL` (8-n)) ≡ o
+
+    {-# INLINE [1] or #-}
+    or (Packet _ o) = o ≢ 0
 
     {-# SPECIALISE
         unfoldrN ∷ Int → (β → Maybe (Bool, β)) → β → (Packet Right, Maybe β) #-}

@@ -54,6 +54,8 @@ module Data.Bitstream
       -- ** Special folds
     , concat
     , concatMap
+    , and
+    , or
     )
     where
 import Data.Bitstream.Internal
@@ -190,6 +192,12 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
           h = i ∘ f
           {-# INLINE i #-}
           i (Bitstream v') = v'
+
+    {-# INLINE [1] and #-}
+    and (Bitstream v) = SV.all and v
+
+    {-# INLINE [1] or #-}
+    or (Bitstream v) = SV.any or v
 
 inconsistentState ∷ α
 inconsistentState
