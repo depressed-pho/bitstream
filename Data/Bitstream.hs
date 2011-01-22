@@ -70,6 +70,9 @@ module Data.Bitstream
     , mapAccumL
     , mapAccumR
 
+      -- ** Replication
+    , replicate
+
       -- ** Unfolding
     , unfoldr
     , unfoldrN
@@ -225,6 +228,15 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
     {-# INLINE [1] all #-}
     all f (Bitstream v) = SV.all (all f) v
 
+    replicate n0 = Bitstream ∘ SV.unfoldr g ∘ ((,) n0)
+        where
+          {-# INLINE g #-}
+          g (0, _) = Nothing
+          g (n, b) = let n' = min 8 n
+                         p  = replicate n' b
+                     in
+                       Just (p, (n-n', b))
+
     {-# INLINE [1] unfoldr #-}
     unfoldr f = Bitstream ∘ SV.unfoldr g ∘ Just
         where
@@ -235,12 +247,11 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
                               | null p    → Nothing
                               | otherwise → Just (p, β')
 
-    -- FIXME: optimised form of the 'replicate'
-
     {-# SPECIALISE
         take ∷ G.Bitstream (Packet d) ⇒ Int → Bitstream d → Bitstream d #-}
     take n0 (Bitstream v0) = Bitstream (SV.unfoldr g (n0, v0))
         where
+          {-# INLINE g #-}
           g (0, _) = Nothing
           g (n, v) = do (p, v') ← SV.viewL v
                         let p' = take n p

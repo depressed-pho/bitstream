@@ -210,6 +210,11 @@ class Bitstream α where
                            in
                              (s'', b `cons` α')
 
+    replicate ∷ Integral n ⇒ n → Bool → α
+    replicate n b
+        | n ≤ 0     = (∅)
+        | otherwise = b `cons` replicate (n-1) b
+
 -- FIXME: Provide these only for lazy streams!
 {-
     iterate ∷ (Bool → Bool) → Bool → α
@@ -219,12 +224,6 @@ class Bitstream α where
     repeat ∷ Bool → α
     repeat = unstream ∘ S.repeat
     {-# INLINE repeat #-}
-
-    replicate ∷ Integral n ⇒ n → Bool → α
-    replicate n a
-        | n ≤ 0     = (∅)
-        | otherwise = a `cons` replicate (n-1) a
-    {-# INLINE replicate #-}
 
     cycle ∷ α → α
     cycle = unstream ∘ S.cycle ∘ stream

@@ -124,6 +124,16 @@ instance Bitstream (Packet Left) where
     {-# INLINE [1] or #-}
     or (Packet _ o) = o ≢ 0
 
+    {-# SPECIALISE replicate ∷ Int → Bool → Packet Left #-}
+    replicate n b
+        | n > 8     = packetOverflow
+        | otherwise = let o = if b
+                              then 0xFF `shiftR` (8 - fromIntegral n)
+                              else 0
+                      in
+                        Packet (fromIntegral n) o
+    {-# INLINE replicate #-}
+
     {-# SPECIALISE
         unfoldrN ∷ Int → (β → Maybe (Bool, β)) → β → (Packet Left, Maybe β) #-}
     unfoldrN n0 f β0
@@ -224,6 +234,16 @@ instance Bitstream (Packet Right) where
 
     {-# INLINE [1] or #-}
     or (Packet _ o) = o ≢ 0
+
+    {-# SPECIALISE replicate ∷ Int → Bool → Packet Right #-}
+    replicate n b
+        | n > 8     = packetOverflow
+        | otherwise = let o = if b
+                              then 0xFF `shiftL` (8 - fromIntegral n)
+                              else 0
+                      in
+                        Packet (fromIntegral n) o
+    {-# INLINE replicate #-}
 
     {-# SPECIALISE
         unfoldrN ∷ Int → (β → Maybe (Bool, β)) → β → (Packet Right, Maybe β) #-}
