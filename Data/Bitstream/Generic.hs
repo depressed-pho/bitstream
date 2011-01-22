@@ -242,7 +242,7 @@ class Bitstream α where
           loop_unfoldrN n β α
               = case f β of
                   Nothing      → (α, Nothing)
-                  Just (a, β') → loop_unfoldrN (n-1) β' (a `cons` α)
+                  Just (a, β') → loop_unfoldrN (n-1) β' (α `snoc` a)
     {-# INLINE unfoldrN #-}
 
     take ∷ Integral n ⇒ n → α → α
@@ -649,6 +649,11 @@ class Bitstream α where
     ∀f β. unfoldr f β = unstream (S.unfoldr f β)
 "unfoldr → unfused" [ 1]
     ∀f β. unstream (S.unfoldr f β) = unfoldr f β
+
+"take → fusible" [~1]
+    ∀n α. take n α = unstream (S.genericTake n (stream α))
+"take → unfused" [ 1]
+    ∀n α. unstream (S.genericTake n (stream α)) = take n α
 
   #-}
 

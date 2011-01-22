@@ -135,8 +135,16 @@ instance Bitstream (Packet Left) where
           loop_unfoldrN n β α
               = case f β of
                   Nothing      → (α, Nothing)
-                  Just (a, β') → loop_unfoldrN (n-1) β' (a `unsafeConsL` α)
+                  Just (a, β') → loop_unfoldrN (n-1) β' (α `unsafeSnocL` a)
     {-# INLINE unfoldrN #-}
+
+    {-# SPECIALISE take ∷ Int → Packet Left → Packet Left #-}
+    take n (Packet _ o)
+        = let n' = fromIntegral (min 8 n)
+              o' = (0xFF `shiftR` (8-n')) .&. o
+          in
+            Packet n' o'
+    {-# INLINE [1] take #-}
 
 instance Bitstream (Packet Right) where
     {-# INLINE [0] stream #-}
@@ -228,8 +236,16 @@ instance Bitstream (Packet Right) where
           loop_unfoldrN n β α
               = case f β of
                   Nothing      → (α, Nothing)
-                  Just (a, β') → loop_unfoldrN (n-1) β' (a `unsafeConsR` α)
+                  Just (a, β') → loop_unfoldrN (n-1) β' (α `unsafeSnocR` a)
     {-# INLINE unfoldrN #-}
+
+    {-# SPECIALISE take ∷ Int → Packet Right → Packet Right #-}
+    take n (Packet _ o)
+        = let n' = fromIntegral (min 8 n)
+              o' = (0xFF `shiftL` (8-n')) .&. o
+          in
+            Packet n' o'
+    {-# INLINE [1] take #-}
 
 packetEmpty ∷ α
 packetEmpty = error "Data.Bitstream.Packet: packet is empty"

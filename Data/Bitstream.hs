@@ -73,6 +73,9 @@ module Data.Bitstream
       -- ** Unfolding
     , unfoldr
     , unfoldrN
+
+      -- * Substrings
+    , take
     )
     where
 import Data.Bitstream.Internal
@@ -231,6 +234,19 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
                           (p, β')
                               | null p    → Nothing
                               | otherwise → Just (p, β')
+
+    -- FIXME: optimised form of the 'replicate'
+
+    {-# SPECIALISE
+        take ∷ G.Bitstream (Packet d) ⇒ Int → Bitstream d → Bitstream d #-}
+    take n0 (Bitstream v0) = Bitstream (SV.unfoldr g (n0, v0))
+        where
+          g (0, _) = Nothing
+          g (n, v) = do (p, v') ← SV.viewL v
+                        let p' = take n p
+                            n' = n - length p'
+                        return (p', (n', v'))
+    {-# INLINE [1] take #-}
 
 inconsistentState ∷ α
 inconsistentState
