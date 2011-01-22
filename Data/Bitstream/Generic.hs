@@ -17,11 +17,11 @@ module Data.Bitstream.Generic
     , (∆)
     )
     where
-import qualified Data.List.Stream as L
+import qualified Data.List as L
 import Data.Maybe
-import qualified Data.Stream as S
 import Prelude (Bool(..), Integral(..), Num(..), flip, otherwise)
 import Prelude.Unicode hiding ((∈), (∉), (⧺))
+import qualified Data.List.Unicode as L
 
 infix  4 ∈, ∋, ∉, ∌, `elem`, `notElem`
 infixr 5 ⧺, `append`
@@ -32,40 +32,36 @@ infixl 9 !!, ∖, \\, ∆
 -- THINKME: consider using numeric-prelude's non-negative numbers
 -- instead of Integral n.
 
+snocL ∷ [α] → α → [α]
+snocL xs x = xs L.⧺ [x]
+{-# INLINE snocL #-}
+
 class Bitstream α where
-    stream   ∷ α → S.Stream Bool
-    unstream ∷ S.Stream Bool → α
+    pack   ∷ [Bool] → α
+    unpack ∷ α → [Bool]
 
     empty ∷ α
-    empty = unstream (S.stream [])
+    empty = pack []
     {-# INLINE empty #-}
 
     singleton ∷ Bool → α
-    singleton = unstream ∘ S.stream ∘ flip (:) []
+    singleton = pack ∘ flip (:) []
     {-# INLINE singleton #-}
 
-    pack ∷ [Bool] → α
-    pack = unstream ∘ S.stream
-    {-# INLINE pack #-}
-
-    unpack ∷ α → [Bool]
-    unpack = S.unstream ∘ stream
-    {-# INLINE unpack #-}
-
     cons ∷ Bool → α → α
-    cons = (unstream ∘) ∘ (∘ stream) ∘ S.cons
+    cons = (pack ∘) ∘ (∘ unpack) ∘ (:)
     {-# INLINE cons #-}
 
     snoc ∷ α → Bool → α
-    snoc = (unstream ∘) ∘ S.snoc ∘ stream
+    snoc α a = pack (unpack α `snocL` a)
     {-# INLINE snoc #-}
 
     append ∷ α → α → α
-    append = (unstream ∘) ∘ (∘ stream) ∘ S.append ∘ stream
+    append = (pack ∘) ∘ (∘ unpack) ∘ (L.⧺) ∘ unpack
     {-# INLINE append #-}
 
     head ∷ α → Bool
-    head = S.head ∘ stream
+    head = L.head ∘ unpack
     {-# INLINE head #-}
 
     uncons ∷ α → Maybe (Bool, α)
@@ -75,27 +71,27 @@ class Bitstream α where
     {-# INLINE uncons #-}
 
     last ∷ α → Bool
-    last = S.last ∘ stream
+    last = L.last ∘ unpack
     {-# INLINE last #-}
 
     tail ∷ α → α
-    tail = unstream ∘ S.tail ∘ stream
+    tail = pack ∘ L.tail ∘ unpack
     {-# INLINE tail #-}
 
     init ∷ α → α
-    init = unstream ∘ S.init ∘ stream
+    init = pack ∘ L.init ∘ unpack
     {-# INLINE init #-}
 
     null ∷ α → Bool
-    null = S.null ∘ stream
+    null = L.null ∘ unpack
     {-# INLINE null #-}
 
     length ∷ Num n ⇒ α → n
-    length = S.genericLength ∘ stream
+    length = L.genericLength ∘ unpack
     {-# INLINE length #-}
 
     map ∷ (Bool → Bool) → α → α
-    map = (unstream ∘) ∘ (∘ stream) ∘ S.map
+    map = (pack ∘) ∘ (∘ unpack) ∘ L.map
     {-# INLINE map #-}
 
     reverse ∷ α → α
@@ -103,11 +99,11 @@ class Bitstream α where
     {-# INLINE reverse #-}
 
     intersperse ∷ Bool → α → α
-    intersperse = (unstream ∘) ∘ (∘ stream) ∘ S.intersperse
+    intersperse = (pack ∘) ∘ (∘ unpack) ∘ L.intersperse
     {-# INLINE intersperse #-}
 
     intercalate ∷ α → [α] → α
-    intercalate α = S.foldr (⧺) (∅) ∘ S.intersperse α ∘ S.stream
+    intercalate α αs = pack (L.intercalate (unpack α) (L.map unpack αs))
     {-# INLINE intercalate #-}
 
     transpose ∷ [α] → [α]
@@ -117,61 +113,62 @@ class Bitstream α where
             Nothing      → transpose αs
             Just (a, as) → (a `cons` pack (L.map head αs))
                            : transpose (as : L.map tail αs)
+    {-# INLINEABLE transpose #-}
 
     foldl ∷ (β → Bool → β) → β → α → β
-    foldl f β = S.foldl f β ∘ stream
+    foldl f β = L.foldl f β ∘ unpack
     {-# INLINE foldl #-}
 
     foldl' ∷ (β → Bool → β) → β → α → β
-    foldl' f β = S.foldl' f β ∘ stream
+    foldl' f β = L.foldl' f β ∘ unpack
     {-# INLINE foldl' #-}
 
     foldl1 ∷ (Bool → Bool → Bool) → α → Bool
-    foldl1 = (∘ stream) ∘ S.foldl1
+    foldl1 = (∘ unpack) ∘ L.foldl1
     {-# INLINE foldl1 #-}
 
     foldl1' ∷ (Bool → Bool → Bool) → α → Bool
-    foldl1' = (∘ stream) ∘ S.foldl1'
+    foldl1' = (∘ unpack) ∘ L.foldl1'
     {-# INLINE foldl1' #-}
 
     foldr ∷ (Bool → β → β) → β → α → β
-    foldr f β = S.foldr f β ∘ stream
+    foldr f β = L.foldr f β ∘ unpack
     {-# INLINE foldr #-}
 
     foldr1 ∷ (Bool → Bool → Bool) → α → Bool
-    foldr1 = (∘ stream) ∘ S.foldr1
+    foldr1 = (∘ unpack) ∘ L.foldr1
     {-# INLINE foldr1 #-}
 
     concat ∷ [α] → α
-    concat = unstream ∘ S.concatMap stream ∘ S.stream
+    concat = pack ∘ L.concatMap unpack
     {-# INLINE concat #-}
 
     concatMap ∷ (Bool → α) → α → α
-    concatMap f = unstream ∘ S.concatMap (stream ∘ f) ∘ stream
+    concatMap f = pack ∘ L.concatMap (unpack ∘ f) ∘ unpack
     {-# INLINE concatMap #-}
 
     and ∷ α → Bool
-    and = S.and ∘ stream
+    and = L.and ∘ unpack
     {-# INLINE and #-}
 
     or ∷ α → Bool
-    or = S.or ∘ stream
+    or = L.or ∘ unpack
     {-# INLINE or #-}
 
     any ∷ (Bool → Bool) → α → Bool
-    any = (∘ stream) ∘ S.any
+    any = (∘ unpack) ∘ L.any
     {-# INLINE any #-}
 
     all ∷ (Bool → Bool) → α → Bool
-    all = (∘ stream) ∘ S.all
+    all = (∘ unpack) ∘ L.all
     {-# INLINE all #-}
 
     scanl ∷ (Bool → Bool → Bool) → Bool → α → α
-    scanl f β α = unstream (S.scanl f β (S.snoc (stream α) (⊥)))
+    scanl f β α = pack (L.scanl f β (snocL (unpack α) (⊥)))
     {-# INLINE scanl #-}
 
     scanl1 ∷ (Bool → Bool → Bool) → α → α
-    scanl1 f α = unstream (S.scanl1 f (S.snoc (stream α) (⊥)))
+    scanl1 f α = pack (L.scanl1 f (snocL (unpack α) (⊥)))
     {-# INLINE scanl1 #-}
 
     scanr ∷ (Bool → Bool → Bool) → Bool → α → α
@@ -181,6 +178,7 @@ class Bitstream α where
             Just (a, as) → let α' = scanr f β as
                            in
                              f a (head α') `cons` α'
+    {-# INLINEABLE scanr #-}
 
     scanr1 ∷ (Bool → Bool → Bool) → α → α
     scanr1 f α
@@ -191,6 +189,7 @@ class Bitstream α where
                 | otherwise → let α' = scanr1 f as
                               in
                                 f a (head α') `cons` α'
+    {-# INLINEABLE scanr1 #-}
 
     mapAccumL ∷ (β → Bool → (β, Bool)) → β → α → (β, α)
     mapAccumL f s α
@@ -200,6 +199,7 @@ class Bitstream α where
                                (s'', α') = mapAccumL f s' as
                            in
                              (s'', b `cons` α')
+    {-# INLINEABLE mapAccumL #-}
 
     mapAccumR ∷ (β → Bool → (β, Bool)) → β → α → (β, α)
     mapAccumR f s α
@@ -209,29 +209,31 @@ class Bitstream α where
                                (s' , α') = mapAccumR f s as
                            in
                              (s'', b `cons` α')
+    {-# INLINEABLE mapAccumR #-}
 
     replicate ∷ Integral n ⇒ n → Bool → α
     replicate n b
         | n ≤ 0     = (∅)
         | otherwise = b `cons` replicate (n-1) b
+    {-# INLINEABLE replicate #-}
 
 -- FIXME: Provide these only for lazy streams!
 {-
     iterate ∷ (Bool → Bool) → Bool → α
-    iterate = (unstream ∘) ∘ S.iterate
+    iterate = (pack ∘) ∘ L.iterate
     {-# INLINE iterate #-}
 
     repeat ∷ Bool → α
-    repeat = unstream ∘ S.repeat
+    repeat = pack ∘ L.repeat
     {-# INLINE repeat #-}
 
     cycle ∷ α → α
-    cycle = unstream ∘ S.cycle ∘ stream
+    cycle = pack ∘ L.cycle ∘ unpack
     {-# INLINE cycle #-}
 -}
 
     unfoldr ∷ (β → Maybe (Bool, β)) → β → α
-    unfoldr = (unstream ∘) ∘ S.unfoldr
+    unfoldr = (pack ∘) ∘ L.unfoldr
     {-# INLINE unfoldr #-}
 
     unfoldrN ∷ Integral n ⇒ n → (β → Maybe (Bool, β)) → β → (α, Maybe β)
@@ -245,26 +247,26 @@ class Bitstream α where
     {-# INLINE unfoldrN #-}
 
     take ∷ Integral n ⇒ n → α → α
-    take = (unstream ∘) ∘ (∘ stream) ∘ S.genericTake
+    take = (pack ∘) ∘ (∘ unpack) ∘ L.genericTake
     {-# INLINE take #-}
 
     drop ∷ Integral n ⇒ n → α → α
-    drop = (unstream ∘) ∘ (∘ stream) ∘ S.genericDrop
+    drop = (pack ∘) ∘ (∘ unpack) ∘ L.genericDrop
     {-# INLINE drop #-}
 
     splitAt ∷ Integral n ⇒ n → α → (α, α)
     splitAt n α
-        = case S.genericSplitAt n (stream α) of
+        = case L.genericSplitAt n (unpack α) of
             (xs, ys)
                 → (pack xs, pack ys)
     {-# INLINE splitAt #-}
 
     takeWhile ∷ (Bool → Bool) → α → α
-    takeWhile = (unstream ∘) ∘ (∘ stream) ∘ S.takeWhile
+    takeWhile = (pack ∘) ∘ (∘ unpack) ∘ L.takeWhile
     {-# INLINE takeWhile #-}
 
     dropWhile ∷ (Bool → Bool) → α → α
-    dropWhile = (unstream ∘) ∘ (∘ stream) ∘ S.dropWhile
+    dropWhile = (pack ∘) ∘ (∘ unpack) ∘ L.dropWhile
     {-# INLINE dropWhile #-}
 
     span ∷ (Bool → Bool) → α → (α, α)
@@ -276,6 +278,7 @@ class Bitstream α where
                               in
                                 (a `cons` β, γ)
                 | otherwise → ((∅), α)
+    {-# INLINEABLE span #-}
 
     break ∷ (Bool → Bool) → α → (α, α)
     break f α
@@ -286,6 +289,7 @@ class Bitstream α where
                 | otherwise → let (β, γ) = break f as
                               in
                                 (a `cons` β, γ)
+    {-# INLINEABLE break #-}
 
     group ∷ α → [α]
     group α
@@ -294,21 +298,24 @@ class Bitstream α where
             Just (a, as) → let (β, γ) = span (a ≡) as
                            in
                              (a `cons` β) : group γ
+    {-# INLINEABLE group #-}
 
     inits ∷ α → [α]
     inits α
         = case uncons α of
             Nothing      → α : []
             Just (a, as) → (∅) : L.map (cons a) (inits as)
+    {-# INLINEABLE inits #-}
 
     tails ∷ α → [α]
     tails α
         = case uncons α of
             Nothing      → α : []
             Just (_, as) → α : tails as
+    {-# INLINEABLE tails #-}
 
     isPrefixOf ∷ α → α → Bool
-    isPrefixOf x y = S.isPrefixOf (stream x) (stream y)
+    isPrefixOf x y = L.isPrefixOf (unpack x) (unpack y)
     {-# INLINE isPrefixOf #-}
 
     isSuffixOf ∷ α → α → Bool
@@ -320,7 +327,7 @@ class Bitstream α where
     {-# INLINE isInfixOf #-}
 
     elem ∷ Bool → α → Bool
-    elem = (∘ stream) ∘ S.elem
+    elem = (∘ unpack) ∘ L.elem
     {-# INLINE elem #-}
 
     notElem ∷ Bool → α → Bool
@@ -328,11 +335,11 @@ class Bitstream α where
     {-# INLINE notElem #-}
 
     filter ∷ (Bool → Bool) → α → α
-    filter = (unstream ∘) ∘ (∘ stream) ∘ S.filter
+    filter = (pack ∘) ∘ (∘ unpack) ∘ L.filter
     {-# INLINE filter #-}
 
     find ∷ (Bool → Bool) → α → Maybe Bool
-    find = (∘ stream) ∘ S.find
+    find = (∘ unpack) ∘ L.find
     {-# INLINE find #-}
 
     partition ∷ (Bool → Bool) → α → (α, α)
@@ -341,9 +348,10 @@ class Bitstream α where
           select a ~(β, γ)
               | f a       = (a `cons` β, γ)
               | otherwise = (β, a `cons` γ)
+    {-# INLINEABLE partition #-}
 
     (!!) ∷ Integral n ⇒ α → n → Bool
-    (!!) = S.genericIndex ∘ stream
+    (!!) = L.genericIndex ∘ unpack
     {-# INLINE (!!) #-}
 
     elemIndex ∷ Integral n ⇒ Bool → α → Maybe n
@@ -367,9 +375,10 @@ class Bitstream α where
                   Just (a, as)
                       | f a       → n : find' (n+1) as
                       | otherwise →     find' (n+1) as
+    {-# INLINEABLE findIndices #-}
 
     zip ∷ α → α → [(Bool, Bool)]
-    zip a b = S.unstream (S.zip (stream a) (stream b))
+    zip a b = L.zip (unpack a) (unpack b)
     {-# INLINE zip #-}
 
     zip3 ∷ α → α → α → [(Bool, Bool, Bool)]
@@ -393,72 +402,68 @@ class Bitstream α where
     {-# INLINE zip7 #-}
 
     zipWith ∷ (Bool → Bool → β) → α → α → [β]
-    zipWith f α β = S.unstream (S.zipWith f
-                                     (stream α)
-                                     (stream β))
+    zipWith f α β = L.zipWith f
+                      (unpack α)
+                      (unpack β)
     {-# INLINE zipWith #-}
 
     zipWith3 ∷ (Bool → Bool → Bool → β) → α → α → α → [β]
-    zipWith3 f α β γ = S.unstream (S.zipWith3 f
-                                        (stream α)
-                                        (stream β)
-                                        (stream γ))
+    zipWith3 f α β γ = L.zipWith3 f
+                          (unpack α)
+                          (unpack β)
+                          (unpack γ)
     {-# INLINE zipWith3 #-}
 
     zipWith4 ∷ (Bool → Bool → Bool → Bool → β) → α → α → α → α → [β]
-    zipWith4 f α β γ δ = S.unstream (S.zipWith4 f
-                                          (stream α)
-                                          (stream β)
-                                          (stream γ)
-                                          (stream δ))
+    zipWith4 f α β γ δ = L.zipWith4 f
+                             (unpack α)
+                             (unpack β)
+                             (unpack γ)
+                             (unpack δ)
     {-# INLINE zipWith4 #-}
 
     zipWith5 ∷ (Bool → Bool → Bool → Bool → Bool → β) → α → α → α → α → α → [β]
-    zipWith5 f α β γ δ ε
-        = case (uncons α, uncons β, uncons γ, uncons δ, uncons ε) of
-            (Nothing, _, _, _, _) → []
-            (_, Nothing, _, _, _) → []
-            (_, _, Nothing, _, _) → []
-            (_, _, _, Nothing, _) → []
-            (_, _, _, _, Nothing) → []
-            (Just (a, as), Just (b, bs), Just (c, cs), Just (d, ds), Just (e, es))
-                → f a b c d e : zipWith5 f as bs cs ds es
+    zipWith5 f α β γ δ ε = L.zipWith5 f
+                                (unpack α)
+                                (unpack β)
+                                (unpack γ)
+                                (unpack δ)
+                                (unpack ε)
+    {-# INLINE zipWith5 #-}
 
     zipWith6 ∷ (Bool → Bool → Bool → Bool → Bool → Bool → β) → α → α → α → α → α → α → [β]
-    zipWith6 f α β γ δ ε ζ
-        = case (uncons α, uncons β, uncons γ, uncons δ, uncons ε, uncons ζ) of
-            (Nothing, _, _, _, _, _) → []
-            (_, Nothing, _, _, _, _) → []
-            (_, _, Nothing, _, _, _) → []
-            (_, _, _, Nothing, _, _) → []
-            (_, _, _, _, Nothing, _) → []
-            (_, _, _, _, _, Nothing) → []
-            (Just (a, as), Just (b, bs), Just (c, cs), Just (d, ds), Just (e, es), Just (f', fs))
-                → f a b c d e f' : zipWith6 f as bs cs ds es fs
+    zipWith6 f α β γ δ ε ζ = L.zipWith6 f
+                                   (unpack α)
+                                   (unpack β)
+                                   (unpack γ)
+                                   (unpack δ)
+                                   (unpack ε)
+                                   (unpack ζ)
+    {-# INLINE zipWith6 #-}
 
     zipWith7 ∷ (Bool → Bool → Bool → Bool → Bool → Bool → Bool → β) → α → α → α → α → α → α → α → [β]
-    zipWith7 f α β γ δ ε ζ η
-        = case (uncons α, uncons β, uncons γ, uncons δ, uncons ε, uncons ζ, uncons η) of
-            (Nothing, _, _, _, _, _, _) → []
-            (_, Nothing, _, _, _, _, _) → []
-            (_, _, Nothing, _, _, _, _) → []
-            (_, _, _, Nothing, _, _, _) → []
-            (_, _, _, _, Nothing, _, _) → []
-            (_, _, _, _, _, Nothing, _) → []
-            (_, _, _, _, _, _, Nothing) → []
-            (Just (a, as), Just (b, bs), Just (c, cs), Just (d, ds), Just (e, es), Just (f', fs), Just (g, gs))
-                → f a b c d e f' g : zipWith7 f as bs cs ds es fs gs
+    zipWith7 f α β γ δ ε ζ η = L.zipWith7 f
+                                      (unpack α)
+                                      (unpack β)
+                                      (unpack γ)
+                                      (unpack δ)
+                                      (unpack ε)
+                                      (unpack ζ)
+                                      (unpack η)
+    {-# INLINE zipWith7 #-}
 
     unzip ∷ [(Bool, Bool)] → (α, α)
     unzip = L.foldr (\(a, b) ~(as, bs) →
                          ( a `cons` as
                          , b `cons` bs )) ((∅), (∅))
+    {-# INLINEABLE unzip #-}
 
     unzip3 ∷ [(Bool, Bool, Bool)] → (α, α, α)
     unzip3 = L.foldr (\(a, b, c) ~(as, bs, cs) →
                           ( a `cons` as
                           , b `cons` bs
                           , c `cons` cs )) ((∅), (∅), (∅))
+    {-# INLINEABLE unzip3 #-}
 
     unzip4 ∷ [(Bool, Bool, Bool, Bool)] → (α, α, α, α)
     unzip4 = L.foldr (\(a, b, c, d) ~(as, bs, cs, ds) →
@@ -466,6 +471,7 @@ class Bitstream α where
                           , b `cons` bs
                           , c `cons` cs
                           , d `cons` ds )) ((∅), (∅), (∅), (∅))
+    {-# INLINEABLE unzip4 #-}
 
     unzip5 ∷ [(Bool, Bool, Bool, Bool, Bool)] → (α, α, α, α, α)
     unzip5 = L.foldr (\(a, b, c, d, e) ~(as, bs, cs, ds, es) →
@@ -474,6 +480,7 @@ class Bitstream α where
                           , c `cons` cs
                           , d `cons` ds
                           , e `cons` es )) ((∅), (∅), (∅), (∅), (∅))
+    {-# INLINEABLE unzip5 #-}
 
     unzip6 ∷ [(Bool, Bool, Bool, Bool, Bool, Bool)] → (α, α, α, α, α, α)
     unzip6 = L.foldr (\(a, b, c, d, e, f) ~(as, bs, cs, ds, es, fs) →
@@ -483,6 +490,7 @@ class Bitstream α where
                           , d `cons` ds
                           , e `cons` es
                           , f `cons` fs )) ((∅), (∅), (∅), (∅), (∅), (∅))
+    {-# INLINEABLE unzip6 #-}
 
     unzip7 ∷ [(Bool, Bool, Bool, Bool, Bool, Bool, Bool)] → (α, α, α, α, α, α, α)
     unzip7 = L.foldr (\(a, b, c, d, e, f, g) ~(as, bs, cs, ds, es, fs, gs) →
@@ -493,6 +501,7 @@ class Bitstream α where
                           , e `cons` es
                           , f `cons` fs
                           , g `cons` gs )) ((∅), (∅), (∅), (∅), (∅), (∅), (∅))
+    {-# INLINEABLE unzip7 #-}
 
     nub ∷ α → α
     nub = flip nub' (∅)
@@ -504,6 +513,7 @@ class Bitstream α where
                   Just (a, as)
                       | a ∈ α'    → nub' as α'
                       | otherwise → a `cons` nub' as (a `cons` α')
+    {-# INLINEABLE nub #-}
 
     delete ∷ Bool → α → α
     delete = deleteBy (≡)
@@ -539,6 +549,7 @@ class Bitstream α where
                   Just (a, as)
                       | f b a     → True
                       | otherwise → elemBy' b as
+    {-# INLINEABLE nubBy #-}
 
     deleteBy ∷ (Bool → Bool → Bool) → Bool → α → α
     deleteBy f b α
@@ -547,15 +558,19 @@ class Bitstream α where
             Just (a, as)
                 | f b a     → as
                 | otherwise → a `cons` deleteBy f b as
+    {-# INLINEABLE deleteBy #-}
 
     deleteFirstsBy ∷ (Bool → Bool → Bool) → α → α → α
     deleteFirstsBy = foldl ∘ flip ∘ deleteBy
+    {-# INLINEABLE deleteFirstsBy #-}
 
     unionBy ∷ (Bool → Bool → Bool) → α → α → α
     unionBy f x y = x ⧺ foldl (flip (deleteBy f)) (nubBy f y) x
+    {-# INLINEABLE unionBy #-}
 
     intersectBy ∷ (Bool → Bool → Bool) → α → α → α
     intersectBy f x y = filter (\a → any (f a) y) x
+    {-# INLINEABLE intersectBy #-}
 
     groupBy ∷ (Bool → Bool → Bool) → α → [α]
     groupBy f α
@@ -564,97 +579,7 @@ class Bitstream α where
             Just (a, _) → let (β, γ) = span (f a) α
                           in
                             (a `cons` β) : groupBy f γ
-
-{-# RULES
-
-"Bitstream stream/unstream fusion"
-    ∀s. stream (unstream s) = s
-"Bitstream stream / List unstream fusion"
-    ∀s. stream (S.unstream s) = s
-"List stream / Bitstream unstream fusion"
-    ∀s. S.stream (unstream s) = s
-
-"cons → fusible" [~1]
-    ∀b α. cons b α = unstream (S.cons b (stream α))
-"cons → unfused" [ 1]
-    ∀b α. unstream (S.cons b (stream α)) = cons b α
-
-"snoc → fusible" [~1]
-    ∀α b. snoc α b = unstream (S.snoc (stream α) b)
-"snoc → unfused" [ 1]
-    ∀α b. unstream (S.snoc (stream α) b) = snoc α b
-
-"append → fusible" [~1]
-    ∀x y. append x y = unstream (S.append (stream x) (stream y))
-"append → unfused" [ 1]
-    ∀x y. unstream (S.append (stream x) (stream y)) = append x y
-
-"head → fusible" [~1]
-    ∀α. head α = S.head (stream α)
-"head → unfused" [ 1]
-    ∀α. S.head (stream α) = head α
-
-"last → fusible" [~1]
-    ∀α. last α = S.last (stream α)
-"last → unfused" [ 1]
-    ∀α. S.last (stream α) = last α
-
-"tail → fusible" [~1]
-    ∀α. tail α = unstream (S.tail (stream α))
-"tail → unfused" [ 1]
-    ∀α. unstream (S.tail (stream α)) = last α
-
-"init → fusible" [~1]
-    ∀α. init α = unstream (S.init (stream α))
-"init → unfused" [ 1]
-    ∀α. unstream (S.init (stream α)) = last α
-
-"null → fusible" [~1]
-    ∀α. null α = S.null (stream α)
-"null → unfused" [ 1]
-    ∀α. S.null (stream α) = null α
-
-"length → fusible" [~1]
-    ∀α. length α = S.genericLength (stream α)
-"length → unfused" [ 1]
-    ∀α. S.genericLength (stream α) = length α
-
-"map → fusible" [~1]
-    ∀α f. map f α = unstream (S.map f (stream α))
-"map → unfused" [ 1]
-    ∀α f. unstream (S.map f (stream α)) = map f α
-
-"concat → fusible" [~1]
-    ∀αs. concat αs = S.foldr (⧺) (∅) (S.stream αs)
-"concat → unfused" [ 1]
-    ∀αs. S.foldr (⧺) (∅) (S.stream αs) = concat αs
-
-"concatMap → fusible" [~1]
-    ∀α f. concatMap f α = unstream (S.concatMap (stream ∘ f) (stream α))
-"concatMap → unfused" [ 1]
-    ∀α f. unstream (S.concatMap (stream ∘ f) (stream α)) = concatMap f α
-
-"and → fusible" [~1]
-    ∀α. and α = S.and (stream α)
-"and → unfused" [ 1]
-    ∀α. S.and (stream α) = and α
-
-"or → fusible" [~1]
-    ∀α. or α = S.or (stream α)
-"or → unfused" [ 1]
-    ∀α. S.or (stream α) = or α
-
-"unfoldr → fusible" [~1]
-    ∀f β. unfoldr f β = unstream (S.unfoldr f β)
-"unfoldr → unfused" [ 1]
-    ∀f β. unstream (S.unfoldr f β) = unfoldr f β
-
-"take → fusible" [~1]
-    ∀n α. take n α = unstream (S.genericTake n (stream α))
-"take → unfused" [ 1]
-    ∀n α. unstream (S.genericTake n (stream α)) = take n α
-
-  #-}
+    {-# INLINEABLE groupBy #-}
 
 (∅) ∷ Bitstream α ⇒ α
 (∅) = empty

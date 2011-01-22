@@ -5,16 +5,16 @@
   , UnicodeSyntax
   #-}
 module Data.Bitstream.Lazy
-    ( Bitstream
+    ( {-Bitstream
     , Left
-    , Right
+    , Right-}
     )
     where
+{-
 import qualified Data.Bitstream.Generic as G
 import Data.Bitstream.Internal
 import Data.Bitstream.Packet (Left, Right, Packet)
 import qualified Data.StorableVector.Lazy as LV
-import qualified Data.Stream as S
 import Prelude.Unicode
 
 -- 32 KiB * sizeOf (Packet d) == 64 KiB
@@ -35,3 +35,4 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
     unstream
         = {-# CORE "lazy bitstream 'unstream'" #-}
           Bitstream ∘ unstreamLV chunkSize ∘ packStream
+-}

@@ -4,7 +4,7 @@
   , UndecidableInstances
   , UnicodeSyntax
   #-}
--- | Fast, packed, strict bit vectors using stream fusion.
+-- | Fast, packed, strict bit vectors.
 --
 -- This module is intended to be imported @qualified@, to avoid name
 -- clashes with "Prelude" functions. e.g.
@@ -81,15 +81,13 @@ module Data.Bitstream
     , take
     )
     where
-import Data.Bitstream.Internal
 import Data.Bitstream.Generic hiding (Bitstream)
 import qualified Data.Bitstream.Generic as G
 import Data.Bitstream.Packet (Left, Right, Packet)
-import qualified Data.List.Stream as L
+import qualified Data.List as L
 import qualified Data.StorableVector as SV
-import qualified Data.Stream as S
 import Prelude ( Bool(..), Eq(..), Int, Maybe(..), Monad(..), Num(..), Ord(..)
-               , Show(..), error, otherwise
+               , Show(..), ($), div, error, fst, otherwise
                )
 import Prelude.Unicode
 
@@ -102,17 +100,22 @@ instance G.Bitstream (Packet d) ⇒ Eq (Bitstream d) where
 
 instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
     {-# SPECIALISE instance G.Bitstream (Bitstream Left ) #-}
---    {-# SPECIALISE instance G.Bitstream (Bitstream Right) #-}
+    {-# SPECIALISE instance G.Bitstream (Bitstream Right) #-}
 
-    {-# INLINE [0] stream #-}
-    stream (Bitstream v)
-        = {-# CORE "strict bitstream 'stream'" #-}
-          S.concatMap stream (streamSV v)
+    {-# INLINE pack #-}
+    pack xs0 = Bitstream (fst $ SV.unfoldrN l f xs0)
+        where
+          l ∷ Int
+          l = (L.length xs0 + 7) `div` 8
 
-    {-# INLINE [0] unstream #-}
-    unstream
-        = {-# CORE "strict bitstream 'unstream'" #-}
-          Bitstream ∘ unstreamSV ∘ packStream
+          {-# INLINE f #-}
+          f xs = case L.splitAt 8 xs of
+                   (hd, tl)
+                       | L.null hd → Nothing
+                       | otherwise → Just (pack hd, tl)
+
+    {-# INLINE unpack #-}
+    unpack (Bitstream v) = L.concatMap unpack (SV.unpack v)
 
     {-# INLINE empty #-}
     empty = Bitstream SV.empty
@@ -121,7 +124,7 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
     singleton b
         = Bitstream (SV.singleton (singleton b))
 
-    {-# NOINLINE [1] cons #-}
+    {-# INLINEABLE cons #-}
     cons b (Bitstream v)
         = case SV.viewL v of
             Just (p, v')
@@ -131,7 +134,7 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
                       → Bitstream (SV.cons (singleton b) v )
             Nothing   → Bitstream (SV.cons (singleton b) v )
 
-    {-# NOINLINE [1] snoc #-}
+    {-# INLINEABLE snoc #-}
     snoc (Bitstream v) b
         = case SV.viewR v of
             Just (v', p)
@@ -141,14 +144,15 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
                       → Bitstream (SV.snoc v  (singleton b))
             Nothing   → Bitstream (SV.snoc v  (singleton b))
 
-    {-# INLINE [1] append #-}
+    {-# INLINE append #-}
     append (Bitstream x) (Bitstream y)
         = Bitstream (SV.append x y)
 
-    {-# INLINE [1] head #-}
+    {-# INLINE head #-}
     head (Bitstream v)
         = head (SV.head v)
 
+    {-# INLINEABLE uncons #-}
     uncons (Bitstream v)
         = do (p, v') ← SV.viewL v
              case uncons p of
@@ -157,11 +161,11 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
                    | otherwise → return (b, Bitstream (SV.cons p' v'))
                Nothing         → inconsistentState
 
-    {-# INLINE [1] last #-}
+    {-# INLINE last #-}
     last (Bitstream v)
         = last (SV.last v)
 
-    {-# NOINLINE [1] tail #-}
+    {-# INLINEABLE tail #-}
     tail (Bitstream v)
         = case SV.viewL v of
             Just (p, v')
@@ -171,7 +175,7 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
             Nothing
                 → emptyStream
 
-    {-# NOINLINE [1] init #-}
+    {-# INLINEABLE init #-}
     init (Bitstream v)
         = case SV.viewR v of
             Just (v', p)
@@ -181,7 +185,7 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
             Nothing
                 → emptyStream
 
-    {-# INLINE [1] null #-}
+    {-# INLINE null #-}
     null (Bitstream v)
         = SV.null v
 
@@ -189,9 +193,9 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
     {-# SPECIALISE length ∷ Bitstream Right → Int #-}
     length (Bitstream v)
         = SV.foldl' (\n p → n + length p) 0 v
-    {-# NOINLINE [1] length #-}
+    {-# INLINE length #-}
 
-    {-# INLINE [1] map #-}
+    {-# INLINE map #-}
     map f (Bitstream v)
         = Bitstream (SV.map (map f) v)
 
@@ -199,13 +203,13 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
     reverse (Bitstream v)
         = Bitstream (SV.reverse (SV.map reverse v))
 
-    {-# INLINE [1] concat #-}
+    {-# INLINE concat #-}
     concat = Bitstream ∘ SV.concat ∘ L.map g
         where
           {-# INLINE g #-}
           g (Bitstream v) = v
 
-    {-# INLINE [1] concatMap #-}
+    {-# INLINE concatMap #-}
     concatMap f (Bitstream v)
         = Bitstream (SV.concatMap g v)
         where
@@ -216,16 +220,16 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
           {-# INLINE i #-}
           i (Bitstream v') = v'
 
-    {-# INLINE [1] and #-}
+    {-# INLINE and #-}
     and (Bitstream v) = SV.all and v
 
-    {-# INLINE [1] or #-}
+    {-# INLINE or #-}
     or (Bitstream v) = SV.any or v
 
-    {-# INLINE [1] any #-}
+    {-# INLINE any #-}
     any f (Bitstream v) = SV.any (any f) v
 
-    {-# INLINE [1] all #-}
+    {-# INLINE all #-}
     all f (Bitstream v) = SV.all (all f) v
 
     {-# SPECIALISE replicate ∷ Int → Bool → Bitstream Left  #-}
@@ -238,8 +242,9 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
                          p  = replicate n' b
                      in
                        Just (p, (n-n', b))
+    {-# INLINEABLE replicate #-}
 
-    {-# INLINE [1] unfoldr #-}
+    {-# INLINEABLE unfoldr #-}
     unfoldr f = Bitstream ∘ SV.unfoldr g ∘ Just
         where
           {-# INLINE g #-}
@@ -259,7 +264,7 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
                         let p' = take n p
                             n' = n - length p'
                         return (p', (n', v'))
-    {-# INLINE [1] take #-}
+    {-# INLINEABLE take #-}
 
 inconsistentState ∷ α
 inconsistentState
