@@ -88,8 +88,8 @@ import Data.Bitstream.Packet (Left, Right, Packet)
 import qualified Data.List.Stream as L
 import qualified Data.StorableVector as SV
 import qualified Data.Stream as S
-import Prelude ( Eq(..), Int, Maybe(..), Monad(..), Num(..), Ord(..), Show(..)
-               , error, otherwise
+import Prelude ( Bool(..), Eq(..), Int, Maybe(..), Monad(..), Num(..), Ord(..)
+               , Show(..), error, otherwise
                )
 import Prelude.Unicode
 
@@ -101,7 +101,7 @@ instance G.Bitstream (Packet d) ⇒ Eq (Bitstream d) where
     x == y = unpack x ≡ unpack y
 
 instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
---    {-# SPECIALISE instance G.Bitstream (Bitstream Left ) #-}
+    {-# SPECIALISE instance G.Bitstream (Bitstream Left ) #-}
 --    {-# SPECIALISE instance G.Bitstream (Bitstream Right) #-}
 
     {-# INLINE [0] stream #-}
@@ -149,7 +149,6 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
     head (Bitstream v)
         = head (SV.head v)
 
-    {-# NOINLINE uncons #-}
     uncons (Bitstream v)
         = do (p, v') ← SV.viewL v
              case uncons p of
@@ -186,7 +185,8 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
     null (Bitstream v)
         = SV.null v
 
-    {-# SPECIALISE length ∷ G.Bitstream (Packet d) ⇒ Bitstream d → Int #-}
+    {-# SPECIALISE length ∷ Bitstream Left  → Int #-}
+    {-# SPECIALISE length ∷ Bitstream Right → Int #-}
     length (Bitstream v)
         = SV.foldl' (\n p → n + length p) 0 v
     {-# NOINLINE [1] length #-}
@@ -228,6 +228,8 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
     {-# INLINE [1] all #-}
     all f (Bitstream v) = SV.all (all f) v
 
+    {-# SPECIALISE replicate ∷ Int → Bool → Bitstream Left  #-}
+    {-# SPECIALISE replicate ∷ Int → Bool → Bitstream Right #-}
     replicate n0 = Bitstream ∘ SV.unfoldr g ∘ ((,) n0)
         where
           {-# INLINE g #-}
@@ -247,8 +249,8 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
                               | null p    → Nothing
                               | otherwise → Just (p, β')
 
-    {-# SPECIALISE
-        take ∷ G.Bitstream (Packet d) ⇒ Int → Bitstream d → Bitstream d #-}
+    {-# SPECIALISE take ∷ Int → Bitstream Left  → Bitstream Left  #-}
+    {-# SPECIALISE take ∷ Int → Bitstream Right → Bitstream Right #-}
     take n0 (Bitstream v0) = Bitstream (SV.unfoldr g (n0, v0))
         where
           {-# INLINE g #-}
