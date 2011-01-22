@@ -210,6 +210,8 @@ class Bitstream α where
                            in
                              (s'', b `cons` α')
 
+-- FIXME: Provide these only for lazy streams!
+{-
     iterate ∷ (Bool → Bool) → Bool → α
     iterate = (unstream ∘) ∘ S.iterate
     {-# INLINE iterate #-}
@@ -227,6 +229,7 @@ class Bitstream α where
     cycle ∷ α → α
     cycle = unstream ∘ S.cycle ∘ stream
     {-# INLINE cycle #-}
+-}
 
     unfoldr ∷ (β → Maybe (Bool, β)) → β → α
     unfoldr = (unstream ∘) ∘ S.unfoldr
@@ -641,6 +644,11 @@ class Bitstream α where
     ∀α. or α = S.or (stream α)
 "or → unfused" [ 1]
     ∀α. S.or (stream α) = or α
+
+"unfoldr → fusible" [~1]
+    ∀f β. unfoldr f β = unstream (S.unfoldr f β)
+"unfoldr → unfused" [ 1]
+    ∀f β. unstream (S.unfoldr f β) = unfoldr f β
 
   #-}
 

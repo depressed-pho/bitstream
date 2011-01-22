@@ -58,6 +58,21 @@ module Data.Bitstream
     , or
     , any
     , all
+
+      -- * Building lists
+      -- ** Scans
+    , scanl
+    , scanl1
+    , scanr
+    , scanr1
+
+      -- ** Accumulating maps
+    , mapAccumL
+    , mapAccumR
+
+      -- ** Unfolding
+    , unfoldr
+    , unfoldrN
     )
     where
 import Data.Bitstream.Internal
@@ -206,6 +221,16 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
 
     {-# INLINE [1] all #-}
     all f (Bitstream v) = SV.all (all f) v
+
+    {-# INLINE [1] unfoldr #-}
+    unfoldr f = Bitstream ∘ SV.unfoldr g ∘ Just
+        where
+          {-# INLINE g #-}
+          g Nothing  = Nothing
+          g (Just β) = case unfoldrN (8 ∷ Int) f β of
+                          (p, β')
+                              | null p    → Nothing
+                              | otherwise → Just (p, β')
 
 inconsistentState ∷ α
 inconsistentState
