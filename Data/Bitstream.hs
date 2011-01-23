@@ -104,7 +104,7 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
     {-# SPECIALISE instance G.Bitstream (Bitstream Left ) #-}
     {-# SPECIALISE instance G.Bitstream (Bitstream Right) #-}
 
-    {-# INLINE [0] pack #-}
+    {-# INLINEABLE [0] pack #-}
     pack xs0 = Bitstream (fst $ SV.unfoldrN l f xs0)
         where
           l ∷ Int
@@ -116,7 +116,7 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
                        | L.null hd → Nothing
                        | otherwise → Just (pack hd, tl)
 
-    {-# INLINE [0] unpack #-}
+    {-# INLINEABLE [0] unpack #-}
     unpack (Bitstream v) = L.concatMap unpack (SV.unpack v)
 
     {-# INLINE [0] stream #-}
