@@ -85,6 +85,24 @@ module Data.Bitstream
     , dropWhile
     , span
     , break
+    , group
+    , inits
+    , tails
+
+      -- * Predicates
+    , isPrefixOf
+    , isSuffixOf
+    , isInfixOf
+
+      -- * Searching streams
+      -- ** Searching by equality
+    , elem
+    , notElem
+
+      -- ** Searching with a predicate
+    , find
+    , filter
+    , partition
     )
     where
 import Data.Bitstream.Generic hiding (Bitstream)
@@ -373,6 +391,30 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
                               | otherwise → p' `SV.cons` v'
                   Nothing
                       → SV.empty
+
+    {-# INLINEABLE find #-}
+    find f (Bitstream v0) = go v0
+        where
+          {-# INLINE go #-}
+          go v = case SV.viewL v of
+                   Just (p, v')
+                       → case find f p of
+                            r@(Just _) → r
+                            Nothing    → go v'
+                   Nothing
+                       → Nothing
+
+    {-# INLINEABLE filter #-}
+    filter f (Bitstream v0) = Bitstream (fst $ SV.unfoldrN l g v0)
+        where
+          {-# INLINE l #-}
+          l ∷ Int
+          l = SV.length v0
+          {-# INLINE g #-}
+          g v = do (p, v') ← SV.viewL v
+                   case filter f p of
+                     p' | null p'   → g v'
+                        | otherwise → return (p', v')
 
 inconsistentState ∷ α
 inconsistentState

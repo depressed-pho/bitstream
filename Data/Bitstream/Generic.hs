@@ -327,27 +327,24 @@ class Bitstream α where
     {-# INLINE isInfixOf #-}
 
     elem ∷ Bool → α → Bool
-    elem = (∘ unpack) ∘ L.elem
+    elem True  = or
+    elem False = (¬) ∘ and
     {-# INLINE elem #-}
 
     notElem ∷ Bool → α → Bool
     notElem = ((¬) ∘) ∘ (∈)
     {-# INLINE notElem #-}
 
-    filter ∷ (Bool → Bool) → α → α
-    filter = (pack ∘) ∘ (∘ unpack) ∘ L.filter
-    {-# INLINE filter #-}
-
     find ∷ (Bool → Bool) → α → Maybe Bool
     find = (∘ unpack) ∘ L.find
     {-# INLINE find #-}
 
+    filter ∷ (Bool → Bool) → α → α
+    filter = (pack ∘) ∘ (∘ unpack) ∘ L.filter
+    {-# INLINE filter #-}
+
     partition ∷ (Bool → Bool) → α → (α, α)
-    partition f α = foldr select ((∅), (∅)) α
-        where
-          select a ~(β, γ)
-              | f a       = (a `cons` β, γ)
-              | otherwise = (β, a `cons` γ)
+    partition f α = (filter f α, filter ((¬) ∘ f) α)
     {-# INLINEABLE partition #-}
 
     (!!) ∷ Integral n ⇒ α → n → Bool
