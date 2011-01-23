@@ -327,9 +327,21 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
                     Nothing            → v
     {-# INLINEABLE drop #-}
 
---    {-# SPECIALISE splitAt ∷ Int → Bitstream Left  → (Bitstream Left , Bitstream Left ) #-}
---    {-# SPECIALISE splitAt ∷ Int → Bitstream Left  → (Bitstream Right, Bitstream Right) #-}
---    splitAt n0 (Bitstream
+    {-# SPECIALISE splitAt ∷ Int → Bitstream Left  → (Bitstream Left , Bitstream Left ) #-}
+    {-# SPECIALISE splitAt ∷ Int → Bitstream Right → (Bitstream Right, Bitstream Right) #-}
+    splitAt n0 (Bitstream v0)
+        = case unfoldrN n0 split' ((∅), v0) of
+            (hd, Just (p, tl))
+                | null p    → (hd, Bitstream tl)
+                | otherwise → (hd, Bitstream (p `SV.cons` tl))
+            (hd, Nothing)   → (hd, (∅))
+        where
+          {-# INLINE split' #-}
+          split' (p, v)
+              | null p    = do (p', v') ← SV.viewL v
+                               return (head p', (tail p', v'))
+              | otherwise = Just (head p, (tail p, v))
+    {-# INLINEABLE splitAt #-}
 
 inconsistentState ∷ α
 inconsistentState
