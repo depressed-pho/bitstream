@@ -1,9 +1,11 @@
 Name: bitstream
-Synopsis: Fast, packed, strict and lazy bit streams.
+Synopsis: Fast, packed, strict and lazy bit streams with optional
+          stream fusion
 Description:
 
-        Fast, packed, strict and lazy bit vectors. This is like
-        @bytestring@ but stores bits instead of bytes.
+        Fast, packed, strict and lazy bit vectors with optional stream
+        fusion. This is like @bytestring@ but stores bits instead of
+        bytes.
 
 Version: 0.1
 License: PublicDomain
@@ -27,7 +29,8 @@ Library
     Build-Depends:
         base                 == 4.*,
         base-unicode-symbols == 0.2.*,
-        storablevector       == 0.2.*
+        storablevector       == 0.2.*,
+        stream-fusion        == 0.1.*
 
     Exposed-Modules:
         Data.Bitstream
@@ -35,6 +38,7 @@ Library
         Data.Bitstream.Lazy
 
     Other-Modules:
+        Data.Bitstream.Internal
         Data.Bitstream.Packet
 
     GHC-Options:

@@ -19,7 +19,8 @@ module Data.Bitstream.Packet
     where
 import Data.Bitstream.Generic
 import Data.Bits
-import qualified Data.List as L
+import qualified Data.List.Stream as L
+import qualified Data.Stream as S
 import Data.Word
 import Foreign.Storable
 import Prelude hiding (length, null)
@@ -46,7 +47,7 @@ instance Storable (Packet d) where
              pokeByteOff p 1 o
 
 instance Bitstream (Packet Left) where
-    {-# INLINEABLE pack #-}
+    {-# INLINE [0] pack #-}
     pack xs0 = case consume (-1) 0 xs0 of
                 (# p, o #) → Packet (p+1) o
         where
@@ -58,7 +59,7 @@ instance Bitstream (Packet Left) where
                             else consume (p+1)  o             xs
               | otherwise = error "packet overflow"
 
-    {-# INLINEABLE unpack #-}
+    {-# INLINE [0] unpack #-}
     unpack (Packet n o) = L.unfoldr produce 0
         where
           {-# INLINE produce #-}
@@ -66,6 +67,30 @@ instance Bitstream (Packet Left) where
           produce !p
               | p < n     = Just (o `testBit` p, p+1)
               | otherwise = Nothing
+
+    {-# INLINE [0] stream #-}
+    stream (Packet n o) = S.unfoldr produce 0
+        where
+          {-# INLINE produce #-}
+          produce ∷ Int → Maybe (Bool, Int)
+          produce !p
+              | p < n     = Just (o `testBit` p, p+1)
+              | otherwise = Nothing
+
+    {-# INLINE [0] unstream #-}
+    unstream (S.Stream next s0) = case consume (-1) 0 s0 of
+                                    (# p, o #) → Packet (p+1) o
+        where
+          {-# INLINE consume #-}
+          consume !p !o !s
+              = case next s of
+                  S.Yield x s'
+                      | p < 8     → if x
+                                     then consume (p+1) (o `setBit` p) s'
+                                     else consume (p+1)  o             s'
+                      | otherwise → error "packet overflow"
+                  S.Skip s' → consume p o s'
+                  S.Done    → (# p, o #)
 
     {-# INLINE empty #-}
     empty = Packet 0 0
@@ -152,7 +177,7 @@ instance Bitstream (Packet Left) where
     {-# INLINE take #-}
 
 instance Bitstream (Packet Right) where
-    {-# INLINEABLE pack #-}
+    {-# INLINE [0] pack #-}
     pack xs0 = case consume 7 0 xs0 of
                  (# p, o #) → Packet (7-p) o
         where
@@ -164,7 +189,7 @@ instance Bitstream (Packet Right) where
                             else consume (p-1)  o             xs
               | otherwise = error "packet overflow"
 
-    {-# INLINEABLE unpack #-}
+    {-# INLINE [0] unpack #-}
     unpack (Packet n b) = L.unfoldr produce (n-1)
         where
           {-# INLINE produce #-}
@@ -172,6 +197,32 @@ instance Bitstream (Packet Right) where
           produce !p
               | p > 0     = Just (b `testBit` p, p-1)
               | otherwise = Nothing
+
+    {-# INLINE [0] stream #-}
+    stream (Packet n b) = {-# CORE "Packet Right 'stream'" #-}
+                          S.unfoldr produce (n-1)
+        where
+          {-# INLINE produce #-}
+          produce ∷ Int → Maybe (Bool, Int)
+          produce !p
+              | p > 0     = Just (b `testBit` p, p-1)
+              | otherwise = Nothing
+
+    {-# INLINE [0] unstream #-}
+    unstream (S.Stream next s0) = {-# CORE "Packet Right 'unstream'" #-}
+                                  case consume 7 0 s0 of
+                                    (# p, o #) → Packet (7-p) o
+        where
+          {-# INLINE consume #-}
+          consume !p !o !s
+              = case next s of
+                  S.Done       → (# p, o #)
+                  S.Skip    s' → consume p o s'
+                  S.Yield x s'
+                      | p > 0     → if x
+                                     then consume (p-1) (o `setBit` p) s'
+                                     else consume (p-1)  o             s'
+                      | otherwise → error "packet overflow"
 
     {-# INLINE empty #-}
     empty = Packet 0 0

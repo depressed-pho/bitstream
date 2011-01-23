@@ -83,9 +83,11 @@ module Data.Bitstream
     where
 import Data.Bitstream.Generic hiding (Bitstream)
 import qualified Data.Bitstream.Generic as G
+import Data.Bitstream.Internal
 import Data.Bitstream.Packet (Left, Right, Packet)
-import qualified Data.List as L
+import qualified Data.List.Stream as L
 import qualified Data.StorableVector as SV
+import qualified Data.Stream as S
 import Prelude ( Bool(..), Eq(..), Int, Maybe(..), Monad(..), Num(..), Ord(..)
                , Show(..), ($), div, error, fst, otherwise
                )
@@ -102,7 +104,7 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
     {-# SPECIALISE instance G.Bitstream (Bitstream Left ) #-}
     {-# SPECIALISE instance G.Bitstream (Bitstream Right) #-}
 
-    {-# INLINE pack #-}
+    {-# INLINE [0] pack #-}
     pack xs0 = Bitstream (fst $ SV.unfoldrN l f xs0)
         where
           l ∷ Int
@@ -114,8 +116,16 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
                        | L.null hd → Nothing
                        | otherwise → Just (pack hd, tl)
 
-    {-# INLINE unpack #-}
+    {-# INLINE [0] unpack #-}
     unpack (Bitstream v) = L.concatMap unpack (SV.unpack v)
+
+    {-# INLINE [0] stream #-}
+    stream (Bitstream v)
+        = S.concatMap stream (streamSV v)
+
+    {-# INLINE [0] unstream #-}
+    unstream
+        = Bitstream ∘ unstreamSV ∘ packStream
 
     {-# INLINE empty #-}
     empty = Bitstream SV.empty

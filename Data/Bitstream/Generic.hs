@@ -17,11 +17,11 @@ module Data.Bitstream.Generic
     , (∆)
     )
     where
-import qualified Data.List as L
+import qualified Data.List.Stream as L
 import Data.Maybe
+import qualified Data.Stream as S
 import Prelude (Bool(..), Integral(..), Num(..), flip, otherwise)
 import Prelude.Unicode hiding ((∈), (∉), (⧺))
-import qualified Data.List.Unicode as L
 
 infix  4 ∈, ∋, ∉, ∌, `elem`, `notElem`
 infixr 5 ⧺, `append`
@@ -33,12 +33,20 @@ infixl 9 !!, ∖, \\, ∆
 -- instead of Integral n.
 
 snocL ∷ [α] → α → [α]
-snocL xs x = xs L.⧺ [x]
+snocL xs x = xs L.++ [x]
 {-# INLINE snocL #-}
 
 class Bitstream α where
     pack   ∷ [Bool] → α
     unpack ∷ α → [Bool]
+
+    stream ∷ α → S.Stream Bool
+    stream = S.stream ∘ unpack
+    {-# INLINE stream #-}
+
+    unstream ∷ S.Stream Bool → α
+    unstream = pack ∘ S.unstream
+    {-# INLINE unstream #-}
 
     empty ∷ α
     empty = pack []
@@ -57,7 +65,7 @@ class Bitstream α where
     {-# INLINE snoc #-}
 
     append ∷ α → α → α
-    append = (pack ∘) ∘ (∘ unpack) ∘ (L.⧺) ∘ unpack
+    append = (pack ∘) ∘ (∘ unpack) ∘ (L.++) ∘ unpack
     {-# INLINE append #-}
 
     head ∷ α → Bool
@@ -622,3 +630,19 @@ class Bitstream α where
 (∆) ∷ Bitstream α ⇒ α → α → α
 x ∆ y = (x ∖ y) ∪ (y ∖ x)
 {-# INLINE (∆) #-}
+
+{-# RULES
+
+"Bitstream unpack/pack fusion"
+    ∀l. unpack (pack l) = l
+
+"Bitstream stream/unstream fusion"
+    ∀s. stream (unstream s) = s
+
+"Bitstream stream / List unstream fusion"
+    ∀s. stream (S.unstream s) = s
+
+"List stream / Bitstream unstream fusion"
+    ∀s. S.stream (unstream s) = s
+
+  #-}

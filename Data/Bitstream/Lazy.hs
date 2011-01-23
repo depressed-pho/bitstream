@@ -5,27 +5,41 @@
   , UnicodeSyntax
   #-}
 module Data.Bitstream.Lazy
-    ( {-Bitstream
+    ( Bitstream
     , Left
-    , Right-}
+    , Right
     )
     where
-{-
+import Data.Bitstream.Generic hiding (Bitstream)
 import qualified Data.Bitstream.Generic as G
 import Data.Bitstream.Internal
 import Data.Bitstream.Packet (Left, Right, Packet)
+import qualified Data.List.Stream as L
 import qualified Data.StorableVector.Lazy as LV
+import qualified Data.Stream as S
 import Prelude.Unicode
 
 -- 32 KiB * sizeOf (Packet d) == 64 KiB
-chunkSize ∷ Int
-chunkSize = 32 ⋅ 1024
+chunkSize ∷ LV.ChunkSize
+chunkSize = LV.ChunkSize (32 ⋅ 1024)
 
 newtype Bitstream d
     = Bitstream (LV.Vector (Packet d))
     deriving (Eq, Show)
 
 instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
+    {-# INLINE [0] pack #-}
+    pack xs0 = Bitstream (LV.unfoldr chunkSize f xs0)
+        where
+          {-# INLINE f #-}
+          f xs = case L.splitAt 8 xs of
+                   (hd, tl)
+                       | L.null hd → Nothing
+                       | otherwise → Just (pack hd, tl)
+
+    {-# INLINE [0] unpack #-}
+    unpack (Bitstream v) = L.concatMap unpack (LV.unpack v)
+
     {-# INLINE [0] stream #-}
     stream (Bitstream v)
         = {-# CORE "lazy bitstream 'stream'" #-}
@@ -35,4 +49,3 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
     unstream
         = {-# CORE "lazy bitstream 'unstream'" #-}
           Bitstream ∘ unstreamLV chunkSize ∘ packStream
--}
