@@ -82,6 +82,9 @@ module Data.Bitstream
     , drop
     , splitAt
     , takeWhile
+    , dropWhile
+    , span
+    , break
     )
     where
 import Data.Bitstream.Generic hiding (Bitstream)
@@ -340,8 +343,10 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
           {-# INLINE split' #-}
           split' (p, v)
               | null p    = do (p', v') ← SV.viewL v
-                               return (head p', (tail p', v'))
-              | otherwise = Just (head p, (tail p, v))
+                               (h , t ) ← uncons p'
+                               return (h, (t, v'))
+              | otherwise = do (h , t ) ← uncons p
+                               return (h, (t, v))
     {-# INLINEABLE splitAt #-}
 
     {-# INLINEABLE takeWhile #-}
@@ -351,12 +356,23 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
           l ∷ Int
           l = SV.length v0
           {-# INLINE g #-}
-          g Nothing  = Nothing
-          g (Just v)
-              = do (p, v') ← SV.viewL v
-                   case takeWhile f p of
-                     p' | p ≡ p'    → Just (p', Just v')
-                        | otherwise → Just (p', Nothing)
+          g mv = do v       ← mv
+                    (p, v') ← SV.viewL v
+                    case takeWhile f p of
+                      p' | p ≡ p'    → Just (p', Just v')
+                         | otherwise → Just (p', Nothing)
+
+    {-# INLINEABLE dropWhile #-}
+    dropWhile f (Bitstream v0) = Bitstream (g v0)
+        where
+          {-# INLINE g #-}
+          g v = case SV.viewL v of
+                  Just (p, v')
+                      → case dropWhile f p of
+                           p' | null p'   → g v'
+                              | otherwise → p' `SV.cons` v'
+                  Nothing
+                      → SV.empty
 
 inconsistentState ∷ α
 inconsistentState

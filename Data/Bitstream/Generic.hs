@@ -20,7 +20,9 @@ module Data.Bitstream.Generic
 import qualified Data.List.Stream as L
 import Data.Maybe
 import qualified Data.Stream as S
-import Prelude (Bool(..), Integral(..), Num(..), Ord(..), flip, otherwise)
+import Prelude ( Bool(..), Integer, Integral(..), Num(..), Ord(..), flip
+               , otherwise
+               )
 import Prelude.Unicode hiding ((∈), (∉), (⧺))
 
 infix  4 ∈, ∋, ∉, ∌, `elem`, `notElem`
@@ -279,25 +281,15 @@ class Bitstream α where
 
     span ∷ (Bool → Bool) → α → (α, α)
     span f α
-        = case uncons α of
-            Nothing         → (α, α)
-            Just (a, as)
-                | f a       → let (β, γ) = span f as
-                              in
-                                (a `cons` β, γ)
-                | otherwise → ((∅), α)
+        = let hd = takeWhile f α
+              tl = drop (length hd ∷ Integer) α
+          in
+            (hd, tl)
     {-# INLINEABLE span #-}
 
     break ∷ (Bool → Bool) → α → (α, α)
-    break f α
-        = case uncons α of
-            Nothing         → (α, α)
-            Just (a, as)
-                | f a       → ((∅), α)
-                | otherwise → let (β, γ) = break f as
-                              in
-                                (a `cons` β, γ)
-    {-# INLINEABLE break #-}
+    break f = span ((¬) ∘ f)
+    {-# INLINE break #-}
 
     group ∷ α → [α]
     group α
