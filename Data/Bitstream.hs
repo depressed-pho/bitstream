@@ -79,17 +79,19 @@ module Data.Bitstream
 
       -- * Substreams
     , take
+    , drop
+    , splitAt
     )
     where
 import Data.Bitstream.Generic hiding (Bitstream)
 import qualified Data.Bitstream.Generic as G
 import Data.Bitstream.Internal
-import Data.Bitstream.Packet (Left, Right, Packet)
+import Data.Bitstream.Packet (Left, Right, Packet, full)
 import qualified Data.List.Stream as L
 import qualified Data.StorableVector as SV
 import qualified Data.Stream as S
 import Prelude ( Bool(..), Eq(..), Int, Maybe(..), Monad(..), Num(..), Ord(..)
-               , Show(..), ($), div, error, fst, otherwise
+               , Show(..), ($), div, error, fromIntegral, fst, otherwise
                )
 import Prelude.Unicode
 
@@ -107,9 +109,9 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
     {-# INLINEABLE [0] pack #-}
     pack xs0 = Bitstream (fst $ SV.unfoldrN l f xs0)
         where
+          {-# INLINE l #-}
           l ∷ Int
           l = (L.length xs0 + 7) `div` 8
-
           {-# INLINE f #-}
           f xs = case L.splitAt 8 xs of
                    (hd, tl)
@@ -264,6 +266,32 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
                               | null p    → Nothing
                               | otherwise → Just (p, β')
 
+    {-# SPECIALISE unfoldrN ∷ Int → (β → Maybe (Bool, β)) → β → (Bitstream Left , Maybe β) #-}
+    {-# SPECIALISE unfoldrN ∷ Int → (β → Maybe (Bool, β)) → β → (Bitstream Right, Maybe β) #-}
+    unfoldrN n0 f β0 = case SV.unfoldrN l g (n0, Just β0) of
+                          (v, Just (_, mβ1)) → (Bitstream v, mβ1    )
+                          (v, _            ) → (Bitstream v, Nothing)
+        where
+          {-# INLINE l #-}
+          l ∷ Int
+          l = fromIntegral ((n0 + 7) `div` 8)
+          {-# INLINE g #-}
+          g (n, mβ) = case consume8 n mβ (∅) of
+                         (p, mβ')
+                             | null p    → Nothing
+                             | otherwise → Just (p, (n, mβ'))
+          {-# INLINE consume8 #-}
+          consume8 0 _        p = (p, Nothing)
+          consume8 _ Nothing  p = (p, Nothing)
+          consume8 n (Just β) p
+              | full p    = (p, Just β)
+              | otherwise = case f β of
+                              Nothing
+                                  → (p, Nothing)
+                              Just (b, β')
+                                  → consume8 (n-1) (Just β') (p `snoc` b)
+    {-# INLINEABLE unfoldrN #-}
+
     {-# SPECIALISE take ∷ Int → Bitstream Left  → Bitstream Left  #-}
     {-# SPECIALISE take ∷ Int → Bitstream Right → Bitstream Right #-}
     take n0 (Bitstream v0) = Bitstream (SV.unfoldr g (n0, v0))
@@ -275,6 +303,23 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
                             n' = n - length p'
                         return (p', (n', v'))
     {-# INLINEABLE take #-}
+
+    {-# SPECIALISE drop ∷ Int → Bitstream Left  → Bitstream Left  #-}
+    {-# SPECIALISE drop ∷ Int → Bitstream Right → Bitstream Right #-}
+    drop n0 (Bitstream v0) = Bitstream (g n0 v0)
+        where
+          {-# INLINE g #-}
+          g 0 v = v
+          g n v = case SV.viewL v of
+                    Just (p, v')
+                        | n ≥ length p → g (n - length p) v'
+                        | otherwise    → drop n p `SV.cons` v'
+                    Nothing            → v
+    {-# INLINEABLE drop #-}
+
+--    {-# SPECIALISE splitAt ∷ Int → Bitstream Left  → (Bitstream Left , Bitstream Left ) #-}
+--    {-# SPECIALISE splitAt ∷ Int → Bitstream Left  → (Bitstream Right, Bitstream Right) #-}
+--    splitAt n0 (Bitstream
 
 inconsistentState ∷ α
 inconsistentState

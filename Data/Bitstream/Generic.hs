@@ -264,9 +264,7 @@ class Bitstream α where
 
     splitAt ∷ Integral n ⇒ n → α → (α, α)
     splitAt n α
-        = case L.genericSplitAt n (unpack α) of
-            (xs, ys)
-                → (pack xs, pack ys)
+        = (take n α, drop n α)
     {-# INLINE splitAt #-}
 
     takeWhile ∷ (Bool → Bool) → α → α

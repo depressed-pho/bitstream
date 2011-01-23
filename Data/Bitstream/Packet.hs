@@ -13,6 +13,8 @@ module Data.Bitstream.Packet
 
     , Packet
 
+    , full
+
     , fromOctet
     , toOctet
     )
@@ -100,13 +102,13 @@ instance Bitstream (Packet Left) where
     singleton False = Packet 1 0
 
     {-# INLINE cons #-}
-    cons b p@(Packet n _)
-        | n ≥ 8     = packetOverflow
+    cons b p
+        | full p    = packetOverflow
         | otherwise = b `unsafeConsL` p
 
     {-# INLINE snoc #-}
-    snoc p@(Packet n _) b
-        | n ≥ 8     = packetOverflow
+    snoc p b
+        | full p    = packetOverflow
         | otherwise = p `unsafeSnocL` b
 
     {-# INLINE head #-}
@@ -169,12 +171,21 @@ instance Bitstream (Packet Left) where
     {-# INLINEABLE unfoldrN #-}
 
     {-# SPECIALISE take ∷ Int → Packet Left → Packet Left #-}
-    take n (Packet _ o)
-        = let n' = fromIntegral (min 8 n)
+    take l (Packet _ o)
+        = let n' = fromIntegral (min 8 l)
               o' = (0xFF `shiftR` (8-n')) .&. o
           in
             Packet n' o'
     {-# INLINE take #-}
+
+    {-# SPECIALISE drop ∷ Int → Packet Left → Packet Left #-}
+    drop l (Packet n o)
+        = let d  = fromIntegral (min (fromIntegral n) l)
+              n' = n-d
+              o' = o `shiftR` d
+          in
+            Packet n' o'
+    {-# INLINE drop #-}
 
 instance Bitstream (Packet Right) where
     {-# INLINE [0] pack #-}
@@ -232,13 +243,13 @@ instance Bitstream (Packet Right) where
     singleton False = Packet 1 0x00
 
     {-# INLINE cons #-}
-    cons b p@(Packet n _)
-        | n ≥ 8     = packetOverflow
+    cons b p
+        | full p    = packetOverflow
         | otherwise = b `unsafeConsR` p
 
     {-# INLINE snoc #-}
-    snoc p@(Packet n _) b
-        | n ≥ 8     = packetOverflow
+    snoc p b
+        | full p    = packetOverflow
         | otherwise = p `unsafeSnocR` b
 
     {-# INLINE head #-}
@@ -308,6 +319,15 @@ instance Bitstream (Packet Right) where
             Packet n' o'
     {-# INLINE take #-}
 
+    {-# SPECIALISE drop ∷ Int → Packet Right → Packet Right #-}
+    drop l (Packet n o)
+        = let d  = fromIntegral (min (fromIntegral n) l)
+              n' = n-d
+              o' = o `shiftL` d
+          in
+            Packet n' o'
+    {-# INLINE drop #-}
+
 packetEmpty ∷ α
 packetEmpty = error "Data.Bitstream.Packet: packet is empty"
 {-# INLINE packetEmpty #-}
@@ -315,6 +335,11 @@ packetEmpty = error "Data.Bitstream.Packet: packet is empty"
 packetOverflow ∷ α
 packetOverflow = error "Data.Bitstream.Packet: packet size overflow"
 {-# INLINE packetOverflow #-}
+
+full ∷ Packet d → Bool
+full (Packet 8 _) = True
+full _            = False
+{-# INLINE full #-}
 
 fromOctet ∷ Word8 → Packet d
 fromOctet = Packet 8
