@@ -89,11 +89,15 @@ import Data.Bitstream.Internal
 import Data.Bitstream.Packet (Left, Right, Packet, full)
 import qualified Data.List.Stream as L
 import qualified Data.StorableVector as SV
+import qualified Data.StorableVector.Base as SV
 import qualified Data.Stream as S
+import Foreign.Marshal.Array
+import Foreign.Storable
 import Prelude ( Bool(..), Eq(..), Int, Maybe(..), Monad(..), Num(..), Ord(..)
                , Show(..), ($), div, error, fromIntegral, fst, otherwise
                )
 import Prelude.Unicode
+import System.IO.Unsafe
 
 newtype Bitstream d
     = Bitstream (SV.Vector (Packet d))
@@ -268,28 +272,34 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
 
     {-# SPECIALISE unfoldrN ∷ Int → (β → Maybe (Bool, β)) → β → (Bitstream Left , Maybe β) #-}
     {-# SPECIALISE unfoldrN ∷ Int → (β → Maybe (Bool, β)) → β → (Bitstream Right, Maybe β) #-}
-    unfoldrN n0 f β0 = case SV.unfoldrN l g (n0, Just β0) of
-                          (v, Just (_, mβ1)) → (Bitstream v, mβ1    )
-                          (v, _            ) → (Bitstream v, Nothing)
+    unfoldrN n0 f β0
+        | n0 < 0    = ((∅), Just β0)
+        | otherwise = case unsafePerformIO $ SV.createAndTrim' l $ \p → go p l n0 β0 of
+                        (v, mβ1) → (Bitstream v, mβ1)
         where
           {-# INLINE l #-}
           l ∷ Int
           l = fromIntegral ((n0 + 7) `div` 8)
-          {-# INLINE g #-}
-          g (n, mβ) = case consume8 n mβ (∅) of
-                         (p, mβ')
-                             | null p    → Nothing
-                             | otherwise → Just (p, (n, mβ'))
+          {-# INLINE go #-}
+          go _ 0 _ β = return (0, l, Just β)
+          go p i n β = case consume8 n β (∅) of
+                          (pk, Just β')
+                              | null pk   → return (0, l-i, Just β')
+                              | otherwise → do poke p pk
+                                               go (advancePtr p 1) (i-1) (n - length pk) β'
+                          (pk, Nothing)
+                              | null pk   → return (0, l-i, Nothing)
+                              | otherwise → do poke p pk
+                                               return (0, l-i, Nothing)
           {-# INLINE consume8 #-}
-          consume8 0 _        p = (p, Nothing)
-          consume8 _ Nothing  p = (p, Nothing)
-          consume8 n (Just β) p
+          consume8 0 β p  = (p, Just β)
+          consume8 n β p
               | full p    = (p, Just β)
               | otherwise = case f β of
                               Nothing
                                   → (p, Nothing)
                               Just (b, β')
-                                  → consume8 (n-1) (Just β') (p `snoc` b)
+                                  → consume8 (n-1) β' (p `snoc` b)
     {-# INLINEABLE unfoldrN #-}
 
     {-# SPECIALISE take ∷ Int → Bitstream Left  → Bitstream Left  #-}

@@ -20,7 +20,7 @@ module Data.Bitstream.Generic
 import qualified Data.List.Stream as L
 import Data.Maybe
 import qualified Data.Stream as S
-import Prelude (Bool(..), Integral(..), Num(..), flip, otherwise)
+import Prelude (Bool(..), Integral(..), Num(..), Ord(..), flip, otherwise)
 import Prelude.Unicode hiding ((∈), (∉), (⧺))
 
 infix  4 ∈, ∋, ∉, ∌, `elem`, `notElem`
@@ -245,7 +245,9 @@ class Bitstream α where
     {-# INLINE unfoldr #-}
 
     unfoldrN ∷ Integral n ⇒ n → (β → Maybe (Bool, β)) → β → (α, Maybe β)
-    unfoldrN n0 f β0 = loop_unfoldrN n0 β0 (∅)
+    unfoldrN n0 f β0
+        | n0 < 0    = ((∅), Just β0)
+        | otherwise = loop_unfoldrN n0 β0 (∅)
         where
           loop_unfoldrN 0 β α = (α, Just β)
           loop_unfoldrN n β α
