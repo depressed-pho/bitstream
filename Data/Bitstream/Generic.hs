@@ -581,6 +581,8 @@ class Bitstream α where
                             (a `cons` β) : groupBy f γ
     {-# INLINEABLE groupBy #-}
 
+    -- FIXME: monadic interfaces
+
 (∅) ∷ Bitstream α ⇒ α
 (∅) = empty
 {-# INLINE (∅) #-}

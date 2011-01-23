@@ -77,7 +77,7 @@ module Data.Bitstream
     , unfoldr
     , unfoldrN
 
-      -- * Substrings
+      -- * Substreams
     , take
     )
     where
@@ -209,7 +209,7 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
           {-# INLINE g #-}
           g (Bitstream v) = v
 
-    {-# INLINE concatMap #-}
+    {-# INLINEABLE concatMap #-}
     concatMap f (Bitstream v)
         = Bitstream (SV.concatMap g v)
         where
