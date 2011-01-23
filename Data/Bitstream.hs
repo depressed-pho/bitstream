@@ -345,8 +345,11 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
     {-# INLINEABLE splitAt #-}
 
     {-# INLINEABLE takeWhile #-}
-    takeWhile f (Bitstream v0) = Bitstream (SV.unfoldr g (Just v0))
+    takeWhile f (Bitstream v0) = Bitstream (fst $ SV.unfoldrN l g (Just v0))
         where
+          {-# INLINE l #-}
+          l ∷ Int
+          l = SV.length v0
           {-# INLINE g #-}
           g Nothing  = Nothing
           g (Just v)
