@@ -106,6 +106,10 @@ module Data.Bitstream
 
       -- ** Indexing streams
     , (!!)
+    , elemIndex
+    , elemIndices
+    , findIndex
+    , findIndices
     )
     where
 import Data.Bitstream.Generic hiding (Bitstream)
@@ -427,13 +431,39 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
         | otherwise = go v0 i0
         where
           {-# INLINE go #-}
-          go v i
-              = case SV.viewL v of
-                  Just (p, v')
-                      | i < length p → p !! i
-                      | otherwise    → go v' (i - length p)
-                  Nothing            → indexOutOfRange i
+          go v i = case SV.viewL v of
+                     Just (p, v')
+                         | i < length p → p !! i
+                         | otherwise    → go v' (i - length p)
+                     Nothing            → indexOutOfRange i
     {-# INLINEABLE (!!) #-}
+
+    {-# SPECIALISE findIndex ∷ (Bool → Bool) → Bitstream Left  → Maybe Int #-}
+    {-# SPECIALISE findIndex ∷ (Bool → Bool) → Bitstream Right → Maybe Int #-}
+    findIndex f (Bitstream v0) = go v0 0
+        where
+          {-# INLINE go #-}
+          go v i = do (p, v') ← SV.viewL v
+                      case findIndex f p of
+                        Just j  → return (i + j)
+                        Nothing → go v' (i + length p)
+    {-# INLINEABLE findIndex #-}
+
+    {-# SPECIALISE findIndices ∷ (Bool → Bool) → Bitstream Left  → [Int] #-}
+    {-# SPECIALISE findIndices ∷ (Bool → Bool) → Bitstream Right → [Int] #-}
+    findIndices f (Bitstream v0) = go v0 0 []
+        where
+          {-# INLINE go #-}
+          go v i is = case SV.viewL v of
+                        Just (p, v')
+                            → let js  = L.map (i +) (findIndices f p)
+                                  is' = js : is
+                                  i'  = i + length p
+                              in
+                                go v' i' is'
+                        Nothing
+                            → L.concat (L.reverse is)
+    {-# INLINE findIndices #-}
 
 inconsistentState ∷ α
 inconsistentState
