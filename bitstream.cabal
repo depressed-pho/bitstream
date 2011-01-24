@@ -29,6 +29,7 @@ Library
     Build-Depends:
         base                 == 4.*,
         base-unicode-symbols == 0.2.*,
+        bytestring           == 0.9.*,
         storablevector       == 0.2.*,
         stream-fusion        == 0.1.*
 

@@ -139,6 +139,11 @@ instance Bitstream (Packet Left) where
         | full p    = packetOverflow
         | otherwise = p `unsafeSnocL` b
 
+    {-# INLINE append #-}
+    append (Packet nx ox) (Packet ny oy)
+        | nx + ny > 8 = packetOverflow
+        | otherwise   = Packet (nx + ny) (ox .|. (oy `shiftL` nx))
+
     {-# INLINE head #-}
     head (Packet 0 _) = packetEmpty
     head (Packet _ o) = o `testBit` 0
@@ -285,6 +290,11 @@ instance Bitstream (Packet Right) where
     snoc p b
         | full p    = packetOverflow
         | otherwise = p `unsafeSnocR` b
+
+    {-# INLINE append #-}
+    append (Packet nx ox) (Packet ny oy)
+        | nx + ny > 8 = packetOverflow
+        | otherwise   = Packet (nx + ny) (ox .|. (oy `shiftR` nx))
 
     {-# INLINE head #-}
     head (Packet 0 _) = packetEmpty

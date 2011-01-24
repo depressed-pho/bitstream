@@ -11,10 +11,14 @@ module Data.Bitstream.Internal
 
     , streamLV
     , unstreamLV
+
+    , fromBS
+    , toBS
     )
     where
 import qualified Data.Bitstream.Generic as G
 import Data.Bitstream.Packet
+import qualified Data.ByteString as BS
 import qualified Data.Stream as S
 import qualified Data.StorableVector as SV
 import qualified Data.StorableVector.Base as SV
@@ -71,3 +75,39 @@ unstreamLV n (S.Stream f s0) = LV.unfoldr n consume s0
                     S.Yield α s' → Just (α, s')
                     S.Skip    s' → consume s'
                     S.Done       → Nothing
+
+{-# INLINEABLE fromBS #-}
+fromBS ∷ BS.ByteString → SV.Vector (Packet d)
+fromBS bs0 = fst $ SV.unfoldrN len go bs0
+    where
+      {-# INLINE len #-}
+      len ∷ Int
+      len = BS.length bs0
+      {-# INLINE go #-}
+      go bs = do (o, bs') ← BS.uncons bs
+                 return (fromOctet o, bs')
+
+{-# INLINEABLE toBS #-}
+toBS ∷ G.Bitstream (Packet d) ⇒ SV.Vector (Packet d) → BS.ByteString
+toBS v0 = fst $ BS.unfoldrN len go ((G.∅), (G.∅), v0)
+    where
+      {-# INLINE len #-}
+      len ∷ Int
+      len = SV.length v0
+      {-# INLINE go #-}
+      go (p, r, v)
+          | full p
+              = Just (toOctet p, ((G.∅), r, v))
+          | G.null r
+              = case SV.viewL v of
+                  Just (r', v')
+                      → go (p, r', v')
+                  Nothing
+                      | G.null p  → Nothing
+                      | otherwise → Just (toOctet p, ((G.∅), (G.∅), SV.empty))
+          | otherwise
+              = let lenR     ∷ Int
+                    lenR     = 8 - G.length p
+                    (rH, rT) = G.splitAt lenR r
+                in
+                  go (p G.⧺ rH, rT, v)

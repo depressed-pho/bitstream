@@ -20,14 +20,20 @@ module Data.Bitstream
 
       -- * Introducing and eliminating 'Bitstream's
     , empty
+    , (∅)
     , singleton
     , pack
     , unpack
+
+      -- ** Converting from\/to strict 'BS.ByteString's
+    , fromByteString
+    , toByteString
 
       -- * Basic interface
     , cons
     , snoc
     , append
+    , (⧺)
     , head
     , uncons
     , last
@@ -98,7 +104,11 @@ module Data.Bitstream
       -- * Searching streams
       -- ** Searching by equality
     , elem
+    , (∈)
+    , (∋)
     , notElem
+    , (∉)
+    , (∌)
 
       -- ** Searching with a predicate
     , find
@@ -137,6 +147,8 @@ module Data.Bitstream
     , nub
     , delete
     , (\\)
+    , (∖)
+    , (∆)
     , union
     , intersect
     , nubBy
@@ -150,6 +162,7 @@ import Data.Bitstream.Generic hiding (Bitstream)
 import qualified Data.Bitstream.Generic as G
 import Data.Bitstream.Internal
 import Data.Bitstream.Packet (Left, Right, Packet, full)
+import qualified Data.ByteString as BS
 import qualified Data.List.Stream as L
 import Data.Monoid
 import qualified Data.StorableVector as SV
@@ -161,7 +174,7 @@ import Prelude ( Bool(..), Eq(..), Int, Integral, Maybe(..), Monad(..), Num(..)
                , Ord(..), Ordering(..), Show(..), ($), div, error, fromIntegral
                , fst, otherwise
                )
-import Prelude.Unicode hiding ((⧺))
+import Prelude.Unicode hiding ((⧺), (∈), (∉))
 import System.IO.Unsafe
 
 newtype Bitstream d
@@ -562,3 +575,11 @@ emptyStream
 indexOutOfRange ∷ Integral n ⇒ n → α
 indexOutOfRange n = error ("Data.Bitstream: index out of range: " L.++ show n)
 {-# INLINE indexOutOfRange #-}
+
+fromByteString ∷ BS.ByteString → Bitstream d
+fromByteString = Bitstream ∘ fromBS
+{-# INLINE fromByteString #-}
+
+toByteString ∷ G.Bitstream (Packet d) ⇒ Bitstream d → BS.ByteString
+toByteString (Bitstream v) = toBS v
+{-# INLINE toByteString #-}
