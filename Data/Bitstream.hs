@@ -168,7 +168,39 @@ newtype Bitstream d
     deriving (Show)
 
 instance G.Bitstream (Packet d) ⇒ Eq (Bitstream d) where
-    x == y = unpack x ≡ unpack y
+    {-# INLINEABLE (==) #-}
+    (Bitstream x0) == (Bitstream y0) = go ((∅), x0) ((∅), y0)
+        where
+          {-# INLINE go #-}
+          go (px, x) (py, y)
+              | null px
+                  = case SV.viewL x of
+                      Just (px', x')
+                          → go (px', x') (py, y)
+                      Nothing
+                          → if null py then
+                                case SV.viewL y of
+                                  Just _  → False
+                                  Nothing → True
+                            else
+                                False
+              | null py
+                  = case SV.viewL y of
+                      Just (py', y')
+                          → go (px, x) (py', y')
+                      Nothing
+                          → False
+              | otherwise
+                  = let len ∷ Int
+                        len = min (length px) (length py)
+                        pxH, pxT, pyH, pyT ∷ Packet d
+                        (pxH, pxT) = splitAt len px
+                        (pyH, pyT) = splitAt len py
+                    in
+                      if pxH ≡ pyH then
+                          go (pxT, x) (pyT, y)
+                      else
+                          False
 
 instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
     {-# SPECIALISE instance G.Bitstream (Bitstream Left ) #-}
