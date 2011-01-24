@@ -86,6 +86,7 @@ module Data.Bitstream
     , span
     , break
     , group
+    , groupBy
     , inits
     , tails
 
@@ -110,6 +111,39 @@ module Data.Bitstream
     , elemIndices
     , findIndex
     , findIndices
+
+      -- * Zipping and unzipping streams
+    , zip
+    , zip3
+    , zip4
+    , zip5
+    , zip6
+    , zip7
+    , zipWith
+    , zipWith3
+    , zipWith4
+    , zipWith5
+    , zipWith6
+    , zipWith7
+    , unzip
+    , unzip3
+    , unzip4
+    , unzip5
+    , unzip6
+    , unzip7
+
+      -- * Special streams
+      -- ** \"Set\" operations
+    , nub
+    , delete
+    , (\\)
+    , union
+    , intersect
+    , nubBy
+    , deleteBy
+    , deleteFirstsBy
+    , unionBy
+    , intersectBy
     )
     where
 import Data.Bitstream.Generic hiding (Bitstream)
