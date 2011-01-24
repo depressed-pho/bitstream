@@ -157,8 +157,8 @@ import qualified Data.Stream as S
 import Foreign.Marshal.Array
 import Foreign.Storable
 import Prelude ( Bool(..), Eq(..), Int, Integral, Maybe(..), Monad(..), Num(..)
-               , Ord(..), Show(..), ($), div, error, fromIntegral, fst
-               , otherwise
+               , Ord(..), Ordering(..), Show(..), ($), div, error, fromIntegral
+               , fst, otherwise
                )
 import Prelude.Unicode
 import System.IO.Unsafe
@@ -167,9 +167,23 @@ newtype Bitstream d
     = Bitstream (SV.Vector (Packet d))
     deriving (Show)
 
-instance G.Bitstream (Packet d) ⇒ Eq (Bitstream d) where
-    {-# INLINEABLE (==) #-}
-    (Bitstream x0) == (Bitstream y0) = go ((∅), x0) ((∅), y0)
+instance (Ord (Packet d), G.Bitstream (Packet d)) ⇒ Eq (Bitstream d) where
+    {-# INLINE (==) #-}
+    x == y = case x `compare` y of
+               EQ → True
+               _  → False
+
+-- | 'Bitstream's are compared as two binary integers:
+--
+-- @
+-- let x = 'pack' [True , False, False]
+--     y = 'pack' [False, True , False]
+-- in
+--   'compare' x y -- 'GT'
+-- @
+instance (Ord (Packet d), G.Bitstream (Packet d)) ⇒ Ord (Bitstream d) where
+    {-# INLINEABLE compare #-}
+    (Bitstream x0) `compare` (Bitstream y0) = go ((∅), x0) ((∅), y0)
         where
           {-# INLINE go #-}
           go (px, x) (py, y)
@@ -180,16 +194,16 @@ instance G.Bitstream (Packet d) ⇒ Eq (Bitstream d) where
                       Nothing
                           → if null py then
                                 case SV.viewL y of
-                                  Just _  → False
-                                  Nothing → True
+                                  Just _  → LT
+                                  Nothing → EQ
                             else
-                                False
+                                LT
               | null py
                   = case SV.viewL y of
                       Just (py', y')
                           → go (px, x) (py', y')
                       Nothing
-                          → False
+                          → GT
               | otherwise
                   = let len ∷ Int
                         len = min (length px) (length py)
@@ -197,10 +211,10 @@ instance G.Bitstream (Packet d) ⇒ Eq (Bitstream d) where
                         (pxH, pxT) = splitAt len px
                         (pyH, pyT) = splitAt len py
                     in
-                      if pxH ≡ pyH then
-                          go (pxT, x) (pyT, y)
-                      else
-                          False
+                      case pxH `compare` pyH of
+                        LT → LT
+                        GT → GT
+                        EQ → go (pxT, x) (pyT, y)
 
 instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
     {-# SPECIALISE instance G.Bitstream (Bitstream Left ) #-}

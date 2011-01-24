@@ -48,6 +48,34 @@ instance Storable (Packet d) where
         = do pokeByteOff p 0 (fromIntegral n ∷ Word8)
              pokeByteOff p 1 o
 
+instance Ord (Packet Left) where
+    {-# INLINEABLE compare #-}
+    (Packet nx ox) `compare` (Packet ny oy)
+        | nx < ny   = LT
+        | nx > ny   = GT
+        | otherwise = go nx ox oy
+        where
+          {-# INLINE go #-}
+          go n x y
+              | n ≡ 0
+                  = EQ
+              | x `testBit` 0
+                  = if y `testBit` 0 then
+                        go (n-1) (x `shiftR` 1) (y `shiftR` 1)
+                    else
+                        GT
+              | y `testBit` 0
+                  = LT
+              | otherwise
+                  = go (n-1) (x `shiftR` 1) (y `shiftR` 1)
+
+instance Ord (Packet Right) where
+    {-# INLINE compare #-}
+    (Packet nx ox) `compare` (Packet ny oy)
+        | nx < ny   = LT
+        | nx > ny   = GT
+        | otherwise = ox `compare` oy
+
 instance Bitstream (Packet Left) where
     {-# INLINE [0] pack #-}
     pack xs0 = case consume (-1) 0 xs0 of
