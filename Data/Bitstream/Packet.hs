@@ -187,6 +187,12 @@ instance Bitstream (Packet Left) where
             Packet n' o'
     {-# INLINE drop #-}
 
+    {-# SPECIALISE (!!) ∷ Packet Left → Int → Bool #-}
+    (Packet n o) !! i
+        | i < 0 ∨ i ≥ fromIntegral n = indexOutOfRange i
+        | otherwise                  = o `testBit` fromIntegral i
+    {-# INLINE (!!) #-}
+
 instance Bitstream (Packet Right) where
     {-# INLINE [0] pack #-}
     pack xs0 = case consume 7 0 xs0 of
@@ -328,13 +334,21 @@ instance Bitstream (Packet Right) where
             Packet n' o'
     {-# INLINE drop #-}
 
+    {-# SPECIALISE (!!) ∷ Packet Right → Int → Bool #-}
+    (Packet n o) !! i
+        | i < 0 ∨ i ≥ fromIntegral n = indexOutOfRange i
+        | otherwise                  = o `testBit` (7 - fromIntegral i)
+    {-# INLINE (!!) #-}
+
 packetEmpty ∷ α
 packetEmpty = error "Data.Bitstream.Packet: packet is empty"
-{-# INLINE packetEmpty #-}
 
 packetOverflow ∷ α
 packetOverflow = error "Data.Bitstream.Packet: packet size overflow"
-{-# INLINE packetOverflow #-}
+
+indexOutOfRange ∷ Integral n ⇒ n → α
+indexOutOfRange n = error ("Data.Bitstream.Packet: index out of range: " L.++ show n)
+{-# INLINE indexOutOfRange #-}
 
 full ∷ Packet d → Bool
 full (Packet 8 _) = True

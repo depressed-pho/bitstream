@@ -103,6 +103,9 @@ module Data.Bitstream
     , find
     , filter
     , partition
+
+      -- ** Indexing streams
+    , (!!)
     )
     where
 import Data.Bitstream.Generic hiding (Bitstream)
@@ -115,8 +118,9 @@ import qualified Data.StorableVector.Base as SV
 import qualified Data.Stream as S
 import Foreign.Marshal.Array
 import Foreign.Storable
-import Prelude ( Bool(..), Eq(..), Int, Maybe(..), Monad(..), Num(..), Ord(..)
-               , Show(..), ($), div, error, fromIntegral, fst, otherwise
+import Prelude ( Bool(..), Eq(..), Int, Integral, Maybe(..), Monad(..), Num(..)
+               , Ord(..), Show(..), ($), div, error, fromIntegral, fst
+               , otherwise
                )
 import Prelude.Unicode
 import System.IO.Unsafe
@@ -416,6 +420,21 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
                      p' | null p'   → g v'
                         | otherwise → return (p', v')
 
+    {-# SPECIALISE (!!) ∷ Bitstream Left  → Int → Bool #-}
+    {-# SPECIALISE (!!) ∷ Bitstream Right → Int → Bool #-}
+    (Bitstream v0) !! i0
+        | i0 < 0    = indexOutOfRange i0
+        | otherwise = go v0 i0
+        where
+          {-# INLINE go #-}
+          go v i
+              = case SV.viewL v of
+                  Just (p, v')
+                      | i < length p → p !! i
+                      | otherwise    → go v' (i - length p)
+                  Nothing            → indexOutOfRange i
+    {-# INLINEABLE (!!) #-}
+
 inconsistentState ∷ α
 inconsistentState
     = error "Data.Bitstream: internal error: inconsistent state"
@@ -423,3 +442,7 @@ inconsistentState
 emptyStream ∷ α
 emptyStream
     = error "Data.Bitstream: empty stream"
+
+indexOutOfRange ∷ Integral n ⇒ n → α
+indexOutOfRange n = error ("Data.Bitstream: index out of range: " L.++ show n)
+{-# INLINE indexOutOfRange #-}
