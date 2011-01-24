@@ -151,6 +151,7 @@ import qualified Data.Bitstream.Generic as G
 import Data.Bitstream.Internal
 import Data.Bitstream.Packet (Left, Right, Packet, full)
 import qualified Data.List.Stream as L
+import Data.Monoid
 import qualified Data.StorableVector as SV
 import qualified Data.StorableVector.Base as SV
 import qualified Data.Stream as S
@@ -160,7 +161,7 @@ import Prelude ( Bool(..), Eq(..), Int, Integral, Maybe(..), Monad(..), Num(..)
                , Ord(..), Ordering(..), Show(..), ($), div, error, fromIntegral
                , fst, otherwise
                )
-import Prelude.Unicode
+import Prelude.Unicode hiding ((⧺))
 import System.IO.Unsafe
 
 newtype Bitstream d
@@ -215,6 +216,11 @@ instance (Ord (Packet d), G.Bitstream (Packet d)) ⇒ Ord (Bitstream d) where
                         LT → LT
                         GT → GT
                         EQ → go (pxT, x) (pyT, y)
+
+instance G.Bitstream (Packet d) ⇒ Monoid (Bitstream d) where
+    mempty  = (∅)
+    mappend = (⧺)
+    mconcat = concat
 
 instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
     {-# SPECIALISE instance G.Bitstream (Bitstream Left ) #-}
