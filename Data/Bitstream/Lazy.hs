@@ -35,7 +35,6 @@ module Data.Bitstream.Lazy
     , cons
     , cons'
     , snoc
-    , snoc'
     )
     where
 import qualified Data.Bitstream as Strict
@@ -98,8 +97,7 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
         = Bitstream (LV.cons (singleton b) v)
 
     {-# INLINE snoc #-}
-    snoc (Bitstream v) b
-        = Bitstream (LV.append v (LV.singleton (singleton b)))
+    snoc = snoc'
 
 {-# INLINE fromChunks #-}
 fromChunks ∷ [Strict.Bitstream d] → Bitstream d
@@ -136,12 +134,12 @@ cons' b (Bitstream v) = Bitstream (LV.fromChunks (go (LV.chunks v)))
       go (x:xs) = case SV.viewL x of
                     Just (p, ps)
                         | length p < (8 ∷ Int)
-                              → [SV.cons (cons b p) ps]
+                              → SV.cons (cons b p) ps : xs
                         | SV.length x < chunkSize
-                              → [SV.cons (singleton b) ps]
+                              → SV.cons (singleton b) ps : xs
                         | otherwise
-                              → SV.singleton (singleton b):x:xs
-                    Nothing   → SV.singleton (singleton b):xs
+                              → SV.singleton (singleton b) : x : xs
+                    Nothing   → SV.singleton (singleton b) : xs
 
 {-# INLINEABLE snoc' #-}
 {-# SPECIALISE snoc' ∷ Bitstream Left  → Bool → Bitstream Left  #-}
