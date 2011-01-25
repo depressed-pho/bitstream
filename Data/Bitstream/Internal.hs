@@ -14,12 +14,17 @@ module Data.Bitstream.Internal
 
     , fromBS
     , toBS
+
+    , fromLBS
+    , toLBS
     )
     where
 import qualified Data.Bitstream.Generic as G
 import Data.Bitstream.Packet
 import qualified Data.ByteString as BS
+import qualified Data.ByteString.Lazy as LS
 import qualified Data.Stream as S
+import qualified Data.List.Stream as L
 import qualified Data.StorableVector as SV
 import qualified Data.StorableVector.Base as SV
 import qualified Data.StorableVector.Lazy as LV
@@ -111,3 +116,30 @@ toBS v0 = fst $ BS.unfoldrN len go ((G.∅), (G.∅), v0)
                     (rH, rT) = G.splitAt lenR r
                 in
                   go (p G.⧺ rH, rT, v)
+
+{-# INLINE fromLBS #-}
+fromLBS ∷ LS.ByteString → LV.Vector (Packet d)
+fromLBS = LV.fromChunks ∘ L.map fromBS ∘ LS.toChunks
+
+{-# INLINEABLE toLBS #-}
+toLBS ∷ G.Bitstream (Packet d) ⇒ LV.Vector (Packet d) → LS.ByteString
+toLBS v0 = LS.unfoldr go ((G.∅), (G.∅), v0)
+    where
+      {-# INLINE go #-}
+      go (p, r, v)
+          | full p
+              = Just (toOctet p, ((G.∅), r, v))
+          | G.null r
+              = case LV.viewL v of
+                  Just (r', v')
+                      → go (p, r', v')
+                  Nothing
+                      | G.null p  → Nothing
+                      | otherwise → Just (toOctet p, ((G.∅), (G.∅), LV.empty))
+          | otherwise
+              = let lenR     ∷ Int
+                    lenR     = 8 - G.length p
+                    (rH, rT) = G.splitAt lenR r
+                in
+                  go (p G.⧺ rH, rT, v)
+

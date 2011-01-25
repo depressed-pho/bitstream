@@ -37,10 +37,10 @@ Library
         Data.Bitstream
         Data.Bitstream.Generic
         Data.Bitstream.Lazy
+        Data.Bitstream.Packet
 
     Other-Modules:
         Data.Bitstream.Internal
-        Data.Bitstream.Packet
 
     GHC-Options:
         -Wall

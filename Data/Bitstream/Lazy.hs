@@ -5,15 +5,28 @@
   , UnicodeSyntax
   #-}
 module Data.Bitstream.Lazy
-    ( Bitstream
+    ( -- * Types
+      Bitstream
     , Left
     , Right
+
+      -- * Introducing and eliminating 'Bitstream's
+    , empty
+    , (∅)
+    , singleton
+    , pack
+    , unpack
+
+      -- ** Converting from\/to lazy 'BS.ByteString's
+    , fromByteString
+    , toByteString
     )
     where
 import Data.Bitstream.Generic hiding (Bitstream)
 import qualified Data.Bitstream.Generic as G
 import Data.Bitstream.Internal
 import Data.Bitstream.Packet (Left, Right, Packet)
+import qualified Data.ByteString.Lazy as LS
 import qualified Data.List.Stream as L
 import qualified Data.StorableVector.Lazy as LV
 import qualified Data.Stream as S
@@ -49,3 +62,18 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
     unstream
         = {-# CORE "lazy bitstream 'unstream'" #-}
           Bitstream ∘ unstreamLV chunkSize ∘ packStream
+
+    {-# INLINE empty #-}
+    empty = Bitstream LV.empty
+
+    {-# INLINE singleton #-}
+    singleton b
+        = Bitstream (LV.singleton (singleton b))
+
+{-# INLINE fromByteString #-}
+fromByteString ∷ LS.ByteString → Bitstream d
+fromByteString = Bitstream ∘ fromLBS
+
+{-# INLINE toByteString #-}
+toByteString ∷ G.Bitstream (Packet d) ⇒ Bitstream d → LS.ByteString
+toByteString (Bitstream v) = toLBS v
