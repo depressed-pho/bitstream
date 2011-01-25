@@ -16,7 +16,7 @@ Stability: experimental
 Homepage: http://cielonegro.org/Bitstream.html
 Category: Data
 Tested-With: GHC == 7.0.1
-Cabal-Version: >= 1.6
+Cabal-Version: >= 1.9.2
 Build-Type: Simple
 Extra-Source-Files:
     COPYING
@@ -45,3 +45,13 @@ Library
     GHC-Options:
         -Wall
 
+Test-Suite test-strict-bitstream
+    Type:    exitcode-stdio-1.0
+    Main-Is: Test/Bitstream.hs
+    Build-Depends:
+        QuickCheck           == 2.4.*,
+        base                 == 4.*,
+        base-unicode-symbols == 0.2.*,
+        bytestring           == 0.9.*,
+        storablevector       == 0.2.*,
+        stream-fusion        == 0.1.*
