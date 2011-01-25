@@ -36,6 +36,7 @@ module Data.Bitstream.Lazy
     , cons'
     , snoc
     , append
+    , (⧺)
     )
     where
 import qualified Data.Bitstream as Strict
@@ -52,7 +53,7 @@ import Prelude ( Bool(..), Eq(..), Int, Integral, Maybe(..), Monad(..), Num(..)
                , Ord(..), Ordering(..), Show(..), ($), div, error, fmap
                , fromIntegral, fst, otherwise
                )
-import Prelude.Unicode
+import Prelude.Unicode hiding ((⧺), (∈), (∉))
 
 -- 32 KiB * sizeOf (Packet d) == 64 KiB
 chunkSize ∷ Num α ⇒ α
@@ -130,13 +131,11 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
 
     {-# INLINE [0] stream #-}
     stream (Bitstream v)
-        = {-# CORE "lazy bitstream 'stream'" #-}
-          S.concatMap G.stream (streamLV v)
+        = S.concatMap G.stream (streamLV v)
 
     {-# INLINE [0] unstream #-}
     unstream
-        = {-# CORE "lazy bitstream 'unstream'" #-}
-          Bitstream ∘ unstreamLV chunkSize ∘ packStream
+        = Bitstream ∘ unstreamLV chunkSize ∘ packStream
 
     {-# INLINE empty #-}
     empty = Bitstream LV.empty
