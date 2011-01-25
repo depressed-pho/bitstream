@@ -17,6 +17,9 @@ module Data.Bitstream.Packet
 
     , fromOctet
     , toOctet
+
+    , packetLToR
+    , packetRToL
     )
     where
 import Data.Bitstream.Generic
@@ -50,24 +53,8 @@ instance Storable (Packet d) where
 
 instance Ord (Packet Left) where
     {-# INLINEABLE compare #-}
-    (Packet nx ox) `compare` (Packet ny oy)
-        | nx < ny   = LT
-        | nx > ny   = GT
-        | otherwise = go nx ox oy
-        where
-          {-# INLINE go #-}
-          go n x y
-              | n ≡ 0
-                  = EQ
-              | x `testBit` 0
-                  = if y `testBit` 0 then
-                        go (n-1) (x `shiftR` 1) (y `shiftR` 1)
-                    else
-                        GT
-              | y `testBit` 0
-                  = LT
-              | otherwise
-                  = go (n-1) (x `shiftR` 1) (y `shiftR` 1)
+    x `compare` y
+        = packetLToR x `compare` packetLToR y
 
 instance Ord (Packet Right) where
     {-# INLINE compare #-}
@@ -378,45 +365,73 @@ instance Bitstream (Packet Right) where
         | otherwise                  = o `testBit` (7 - fromIntegral i)
     {-# INLINE (!!) #-}
 
+{-# INLINE packetEmpty #-}
 packetEmpty ∷ α
 packetEmpty = error "Data.Bitstream.Packet: packet is empty"
 
+{-# INLINE packetOverflow #-}
 packetOverflow ∷ α
 packetOverflow = error "Data.Bitstream.Packet: packet size overflow"
 
+{-# INLINE indexOutOfRange #-}
 indexOutOfRange ∷ Integral n ⇒ n → α
 indexOutOfRange n = error ("Data.Bitstream.Packet: index out of range: " L.++ show n)
-{-# INLINE indexOutOfRange #-}
 
+{-# INLINE full #-}
 full ∷ Packet d → Bool
 full (Packet 8 _) = True
 full _            = False
-{-# INLINE full #-}
 
+{-# INLINE fromOctet #-}
 fromOctet ∷ Word8 → Packet d
 fromOctet = Packet 8
-{-# INLINE fromOctet #-}
 
+{-# INLINE toOctet #-}
 toOctet ∷ Packet d → Word8
 toOctet (Packet _ o) = o
-{-# INLINE toOctet #-}
 
+{-# INLINE unsafeConsL #-}
 unsafeConsL ∷ Bool → Packet Left → Packet Left
 unsafeConsL True  (Packet n o) = Packet (n+1) ((o `shiftL` 1) .|. 1)
 unsafeConsL False (Packet n o) = Packet (n+1)  (o `shiftL` 1)
-{-# INLINE unsafeConsL #-}
 
+{-# INLINE unsafeConsR #-}
 unsafeConsR ∷ Bool → Packet Right → Packet Right
 unsafeConsR True  (Packet n o) = Packet (n+1) ((o `shiftR` 1) .|. 0x80)
 unsafeConsR False (Packet n o) = Packet (n+1)  (o `shiftR` 1)
-{-# INLINE unsafeConsR #-}
 
+{-# INLINE unsafeSnocL #-}
 unsafeSnocL ∷ Packet Left → Bool → Packet Left
 unsafeSnocL (Packet n o) True  = Packet (n+1) (o `setBit` n)
 unsafeSnocL (Packet n o) False = Packet (n+1)  o
-{-# INLINE unsafeSnocL #-}
 
+{-# INLINE unsafeSnocR #-}
 unsafeSnocR ∷ Packet Right → Bool → Packet Right
 unsafeSnocR (Packet n o) True  = Packet (n+1) (o `setBit` (7-n))
 unsafeSnocR (Packet n o) False = Packet (n+1)  o
-{-# INLINE unsafeSnocR #-}
+
+{-# INLINE packetLToR #-}
+packetLToR ∷ Packet Left → Packet Right
+packetLToR = packetReverse
+
+{-# INLINE packetRToL #-}
+packetRToL ∷ Packet Right → Packet Left
+packetRToL = packetReverse
+
+{-# INLINE packetReverse #-}
+packetReverse ∷ Packet α → Packet β
+packetReverse (Packet n o)
+    = Packet n ( bit' 7 (o `testBit` 0) .|.
+                 bit' 6 (o `testBit` 1) .|.
+                 bit' 5 (o `testBit` 2) .|.
+                 bit' 4 (o `testBit` 3) .|.
+                 bit' 3 (o `testBit` 4) .|.
+                 bit' 2 (o `testBit` 5) .|.
+                 bit' 1 (o `testBit` 6) .|.
+                 bit' 0 (o `testBit` 7)
+               )
+    where
+      {-# INLINE bit' #-}
+      bit' ∷ Int → Bool → Word8
+      bit' n True  = bit n
+      bit' _ False = 0

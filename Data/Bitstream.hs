@@ -9,7 +9,7 @@
 -- This module is intended to be imported @qualified@, to avoid name
 -- clashes with "Prelude" functions. e.g.
 --
--- > import qualified Data.BitStream as S
+-- > import qualified Data.BitStream as BS
 --
 -- FIXME: explain about directions
 module Data.Bitstream
@@ -28,6 +28,14 @@ module Data.Bitstream
       -- ** Converting from\/to strict 'BS.ByteString's
     , fromByteString
     , toByteString
+
+      -- ** Converting from\/to 'S.Stream's
+    , stream
+    , unstream
+
+      -- * Changing bit order in octets
+    , directionLToR
+    , directionRToL
 
       -- * Basic interface
     , cons
@@ -156,12 +164,30 @@ module Data.Bitstream
     , deleteFirstsBy
     , unionBy
     , intersectBy
+
+    -- * I/O with 'Bitstream's
+    -- ** Standard input and output
+    , getContents
+    , put
+    , interact
+
+    -- ** Files
+    , readFile
+    , writeFile
+    , appendFile
+
+    -- ** I/O with 'Handle's
+    , hGetContents
+    , hGet
+    , hGetSome
+    , hGetNonBlocking
+    , hPut
     )
     where
 import Data.Bitstream.Generic hiding (Bitstream)
 import qualified Data.Bitstream.Generic as G
 import Data.Bitstream.Internal
-import Data.Bitstream.Packet (Left, Right, Packet, full)
+import Data.Bitstream.Packet
 import qualified Data.ByteString as BS
 import qualified Data.List.Stream as L
 import Data.Monoid
@@ -171,10 +197,11 @@ import qualified Data.Stream as S
 import Foreign.Marshal.Array
 import Foreign.Storable
 import Prelude ( Bool(..), Eq(..), Int, Integral, Maybe(..), Monad(..), Num(..)
-               , Ord(..), Ordering(..), Show(..), ($), div, error, fromIntegral
-               , fst, otherwise
+               , Ord(..), Ordering(..), Show(..), ($), div, error, fmap
+               , fromIntegral, fst, otherwise
                )
 import Prelude.Unicode hiding ((⧺), (∈), (∉))
+import System.IO (FilePath, Handle, IO)
 import System.IO.Unsafe
 
 newtype Bitstream d
@@ -572,14 +599,78 @@ emptyStream ∷ α
 emptyStream
     = error "Data.Bitstream: empty stream"
 
+{-# INLINE indexOutOfRange #-}
 indexOutOfRange ∷ Integral n ⇒ n → α
 indexOutOfRange n = error ("Data.Bitstream: index out of range: " L.++ show n)
-{-# INLINE indexOutOfRange #-}
 
+{-# INLINE fromByteString #-}
 fromByteString ∷ BS.ByteString → Bitstream d
 fromByteString = Bitstream ∘ fromBS
-{-# INLINE fromByteString #-}
 
+{-# INLINE toByteString #-}
 toByteString ∷ G.Bitstream (Packet d) ⇒ Bitstream d → BS.ByteString
 toByteString (Bitstream v) = toBS v
-{-# INLINE toByteString #-}
+
+{-# INLINE directionLToR #-}
+directionLToR ∷ Bitstream Left → Bitstream Right
+directionLToR (Bitstream v) = Bitstream (SV.map packetLToR v)
+
+{-# INLINE directionRToL #-}
+directionRToL ∷ Bitstream Right → Bitstream Left
+directionRToL (Bitstream v) = Bitstream (SV.map packetRToL v)
+
+{-# INLINE getContents #-}
+getContents ∷ G.Bitstream (Packet d) ⇒ IO (Bitstream d)
+getContents = fmap fromByteString BS.getContents
+
+{-# INLINE put #-}
+put ∷ G.Bitstream (Packet d) ⇒ Bitstream d → IO ()
+put = BS.putStr ∘ toByteString
+
+{-# INLINE interact #-}
+interact ∷ G.Bitstream (Packet d) ⇒ (Bitstream d → Bitstream d) → IO ()
+interact = BS.interact ∘ lift'
+    where
+      {-# INLINE lift' #-}
+      lift' f = toByteString ∘ f ∘ fromByteString
+
+{-# INLINE readFile #-}
+readFile ∷ G.Bitstream (Packet d) ⇒ FilePath → IO (Bitstream d)
+readFile = fmap fromByteString ∘ BS.readFile
+
+{-# INLINE writeFile #-}
+writeFile ∷ G.Bitstream (Packet d) ⇒ FilePath → Bitstream d → IO ()
+writeFile = (∘ toByteString) ∘ BS.writeFile
+
+{-# INLINE appendFile #-}
+appendFile ∷ G.Bitstream (Packet d) ⇒ FilePath → Bitstream d → IO ()
+appendFile = (∘ toByteString) ∘ BS.appendFile
+
+{-# INLINE hGetContents #-}
+hGetContents ∷ G.Bitstream (Packet d) ⇒ Handle → IO (Bitstream d)
+hGetContents = fmap fromByteString ∘ BS.hGetContents
+
+-- |@'hGet' h n@ reads a 'Bitstream' directly from the specified
+-- 'Handle' @h@. First argument @h@ is the 'Handle' to read from, and
+-- the second @n@ is the number of /octets/ to read, not /bits/. It
+-- returns the octets read, up to @n@, or null if EOF has been
+-- reached.
+--
+-- If the handle is a pipe or socket, and the writing end is closed,
+-- 'hGet' will behave as if EOF was reached.
+--
+{-# INLINE hGet #-}
+hGet ∷ G.Bitstream (Packet d) ⇒ Handle → Int → IO (Bitstream d)
+hGet = (fmap fromByteString ∘) ∘ BS.hGet
+
+{-# INLINE hGetSome #-}
+hGetSome ∷ G.Bitstream (Packet d) ⇒ Handle → Int → IO (Bitstream d)
+hGetSome = (fmap fromByteString ∘) ∘ BS.hGetSome
+
+{-# INLINE hGetNonBlocking #-}
+hGetNonBlocking ∷ G.Bitstream (Packet d) ⇒ Handle → Int → IO (Bitstream d)
+hGetNonBlocking = (fmap fromByteString ∘) ∘ BS.hGetNonBlocking
+
+{-# INLINE hPut #-}
+hPut ∷ G.Bitstream (Packet d) ⇒ Handle → Bitstream d → IO ()
+hPut = (∘ toByteString) ∘ BS.hPut
