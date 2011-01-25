@@ -139,19 +139,6 @@ cons' b (Bitstream v)
                   → Bitstream (consLV'' chunkSize (singleton b) v)
         Nothing   → Bitstream (LV.singleton (singleton b))
 
-{-# INLINEABLE snoc' #-}
-{-# SPECIALISE snoc' ∷ Bitstream Left  → Bool → Bitstream Left  #-}
-{-# SPECIALISE snoc' ∷ Bitstream Right → Bool → Bitstream Right #-}
-snoc' ∷ G.Bitstream (Packet d) ⇒ Bitstream d → Bool → Bitstream d
-snoc' (Bitstream v) b
-    = case LV.viewR v of
-        Just (v', p)
-            | length p < (8 ∷ Int)
-                  → Bitstream (snocLV' v' (snoc p b))
-            | otherwise
-                  → Bitstream (snocLV'' chunkSize v (singleton b))
-        Nothing   → Bitstream (LV.singleton (singleton b))
-
 {-# INLINE consLV' #-}
 consLV' ∷ Storable α ⇒ α → LV.Vector α → LV.Vector α
 consLV' α v
@@ -170,24 +157,24 @@ consLV'' (LV.ChunkSize cs) α v
                   → LV.fromChunks (SV.singleton α : x : xs)
         []        → LV.singleton α
 
-{-# INLINE snocLV' #-}
-snocLV' ∷ Storable α ⇒ LV.Vector α → α → LV.Vector α
-snocLV' v α = LV.fromChunks (go (LV.chunks v))
+{-# INLINEABLE snoc' #-}
+{-# SPECIALISE snoc' ∷ Bitstream Left  → Bool → Bitstream Left  #-}
+{-# SPECIALISE snoc' ∷ Bitstream Right → Bool → Bitstream Right #-}
+snoc' ∷ G.Bitstream (Packet d) ⇒ Bitstream d → Bool → Bitstream d
+snoc' (Bitstream v) b = Bitstream (LV.fromChunks (go (LV.chunks v)))
     where
+      {-# INLINE cs #-}
+      cs = case chunkSize of
+             LV.ChunkSize n → n
       {-# INLINE go #-}
-      go []     = [SV.singleton α]
-      go (x:[]) = [SV.snoc x α]
-      go (x:xs) = x : go xs
-
-{-# INLINE snocLV'' #-}
-snocLV'' ∷ Storable α ⇒ LV.ChunkSize → LV.Vector α → α → LV.Vector α
-snocLV'' (LV.ChunkSize cs) v α = LV.fromChunks (go (LV.chunks v))
-    where
-      {-# INLINE go #-}
-      go []     = [SV.singleton α]
-      go (x:[])
-          | SV.length x < cs
-                = [SV.snoc x α]
-          | otherwise
-                = [x, SV.singleton α]
+      go []     = [SV.singleton (singleton b)]
+      go (x:[]) = case SV.viewR x of
+                    Just (ps, p)
+                        | length p < (8 ∷ Int)
+                              → [SV.snoc ps (snoc p b)]
+                        | SV.length x < cs
+                              → [SV.snoc x (singleton b)]
+                        | otherwise
+                              → [x, SV.singleton (singleton b)]
+                    Nothing   → [SV.singleton (singleton b)]
       go (x:xs) = x : go xs
