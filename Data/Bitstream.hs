@@ -210,7 +210,7 @@ newtype Bitstream d
     = Bitstream (SV.Vector (Packet d))
     deriving (Show)
 
-instance (Ord (Packet d), G.Bitstream (Packet d)) ⇒ Eq (Bitstream d) where
+instance Ord (Bitstream d) ⇒ Eq (Bitstream d) where
     {-# INLINE (==) #-}
     x == y = case x `compare` y of
                EQ → True
@@ -219,12 +219,12 @@ instance (Ord (Packet d), G.Bitstream (Packet d)) ⇒ Eq (Bitstream d) where
 -- | 'Bitstream's are compared as two binary integers:
 --
 -- @
--- let x = 'pack' [True , False, False]
---     y = 'pack' [False, True , False]
+-- let x = 'pack' ['True' , 'False', 'False']
+--     y = 'pack' ['False', 'True' , 'False']
 -- in
 --   'compare' x y -- 'GT'
 -- @
-instance (Ord (Packet d), G.Bitstream (Packet d)) ⇒ Ord (Bitstream d) where
+instance G.Bitstream (Packet d) ⇒ Ord (Bitstream d) where
     {-# INLINEABLE compare #-}
     (Bitstream x0) `compare` (Bitstream y0) = go ((∅), x0) ((∅), y0)
         where

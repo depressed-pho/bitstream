@@ -35,6 +35,7 @@ module Data.Bitstream.Lazy
     , cons
     , cons'
     , snoc
+    , append
     )
     where
 import qualified Data.Bitstream as Strict
@@ -60,9 +61,61 @@ chunkSize = 32 ⋅ 1024
 
 newtype Bitstream d
     = Bitstream (LV.Vector (Packet d))
-    deriving (Eq, Show)
+    deriving (Show)
+
+instance Ord (Bitstream d) ⇒ Eq (Bitstream d) where
+    {-# INLINE (==) #-}
+    x == y = case x `compare` y of
+               EQ → True
+               _  → False
+
+-- | 'Bitstream's are compared as two binary integers:
+--
+-- @
+-- let x = 'pack' ['True' , 'False', 'False']
+--     y = 'pack' ['False', 'True' , 'False']
+-- in
+--   'compare' x y -- 'GT'
+-- @
+instance G.Bitstream (Packet d) ⇒ Ord (Bitstream d) where
+    {-# INLINEABLE compare #-}
+    (Bitstream x0) `compare` (Bitstream y0) = go ((∅), x0) ((∅), y0)
+        where
+          {-# INLINE go #-}
+          go (px, x) (py, y)
+              | null px
+                  = case LV.viewL x of
+                      Just (px', x')
+                          → go (px', x') (py, y)
+                      Nothing
+                          → if null py then
+                                 case LV.viewL y of
+                                   Just _  → LT
+                                   Nothing → EQ
+                            else
+                                LT
+              | null py
+                  = case LV.viewL y of
+                      Just (py', y')
+                          → go (px, x) (py', y')
+                      Nothing
+                          → GT
+              | otherwise
+                  = let len ∷ Int
+                        len = min (length px) (length py)
+                        pxH, pxT, pyH, pyT ∷ Packet d
+                        (pxH, pxT) = splitAt len px
+                        (pyH, pyT) = splitAt len py
+                    in
+                      case pxH `compare` pyH of
+                        LT → LT
+                        GT → GT
+                        EQ → go (pxT, x) (pyT, y)
 
 instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
+    {-# SPECIALISE instance G.Bitstream (Bitstream Left ) #-}
+    {-# SPECIALISE instance G.Bitstream (Bitstream Right) #-}
+
     {-# INLINE [0] pack #-}
     pack xs0 = Bitstream (LV.unfoldr chunkSize f xs0)
         where
@@ -98,6 +151,10 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
 
     {-# INLINE snoc #-}
     snoc = snoc'
+
+    {-# INLINE append #-}
+    append (Bitstream x) (Bitstream y)
+        = Bitstream (LV.append x y)
 
 {-# INLINE fromChunks #-}
 fromChunks ∷ [Strict.Bitstream d] → Bitstream d
