@@ -48,7 +48,6 @@ import qualified Data.List.Stream as L
 import qualified Data.StorableVector as SV
 import qualified Data.StorableVector.Lazy as LV
 import qualified Data.Stream as S
-import Foreign.Storable
 import Prelude ( Bool(..), Eq(..), Int, Integral, Maybe(..), Monad(..), Num(..)
                , Ord(..), Ordering(..), Show(..), ($), div, error, fmap
                , fromIntegral, fst, otherwise
@@ -56,8 +55,8 @@ import Prelude ( Bool(..), Eq(..), Int, Integral, Maybe(..), Monad(..), Num(..)
 import Prelude.Unicode
 
 -- 32 KiB * sizeOf (Packet d) == 64 KiB
-chunkSize ∷ LV.ChunkSize
-chunkSize = LV.ChunkSize (32 ⋅ 1024)
+chunkSize ∷ Num α ⇒ α
+chunkSize = 32 ⋅ 1024
 {-# INLINE chunkSize #-}
 
 newtype Bitstream d
@@ -130,32 +129,19 @@ directionRToL (Bitstream v) = Bitstream (LV.map packetRToL v)
 {-# SPECIALISE cons' ∷ Bool → Bitstream Left  → Bitstream Left  #-}
 {-# SPECIALISE cons' ∷ Bool → Bitstream Right → Bitstream Right #-}
 cons' ∷ G.Bitstream (Packet d) ⇒ Bool → Bitstream d → Bitstream d
-cons' b (Bitstream v)
-    = case LV.viewL v of
-        Just (p, v')
-            | length p < (8 ∷ Int)
-                  → Bitstream (consLV' (cons b p) v')
-            | otherwise
-                  → Bitstream (consLV'' chunkSize (singleton b) v)
-        Nothing   → Bitstream (LV.singleton (singleton b))
-
-{-# INLINE consLV' #-}
-consLV' ∷ Storable α ⇒ α → LV.Vector α → LV.Vector α
-consLV' α v
-    = case LV.chunks v of
-        (x:xs) → LV.fromChunks (SV.cons α x : xs)
-        []     → LV.singleton α
-
-{-# INLINE consLV'' #-}
-consLV'' ∷ Storable α ⇒ LV.ChunkSize → α → LV.Vector α → LV.Vector α
-consLV'' (LV.ChunkSize cs) α v
-    = case LV.chunks v of
-        (x:xs)
-            | SV.length x < cs
-                  → LV.fromChunks (SV.cons α x : xs)
-            | otherwise
-                  → LV.fromChunks (SV.singleton α : x : xs)
-        []        → LV.singleton α
+cons' b (Bitstream v) = Bitstream (LV.fromChunks (go (LV.chunks v)))
+    where
+      {-# INLINE go #-}
+      go []     = [SV.singleton (singleton b)]
+      go (x:xs) = case SV.viewL x of
+                    Just (p, ps)
+                        | length p < (8 ∷ Int)
+                              → [SV.cons (cons b p) ps]
+                        | SV.length x < chunkSize
+                              → [SV.cons (singleton b) ps]
+                        | otherwise
+                              → SV.singleton (singleton b):x:xs
+                    Nothing   → SV.singleton (singleton b):xs
 
 {-# INLINEABLE snoc' #-}
 {-# SPECIALISE snoc' ∷ Bitstream Left  → Bool → Bitstream Left  #-}
@@ -163,16 +149,13 @@ consLV'' (LV.ChunkSize cs) α v
 snoc' ∷ G.Bitstream (Packet d) ⇒ Bitstream d → Bool → Bitstream d
 snoc' (Bitstream v) b = Bitstream (LV.fromChunks (go (LV.chunks v)))
     where
-      {-# INLINE cs #-}
-      cs = case chunkSize of
-             LV.ChunkSize n → n
       {-# INLINE go #-}
       go []     = [SV.singleton (singleton b)]
       go (x:[]) = case SV.viewR x of
                     Just (ps, p)
                         | length p < (8 ∷ Int)
                               → [SV.snoc ps (snoc p b)]
-                        | SV.length x < cs
+                        | SV.length x < chunkSize
                               → [SV.snoc x (singleton b)]
                         | otherwise
                               → [x, SV.singleton (singleton b)]
