@@ -39,8 +39,13 @@ snocL xs x = xs L.++ [x]
 {-# INLINE snocL #-}
 
 class Bitstream α where
-    pack   ∷ [Bool] → α
+    pack ∷ [Bool] → α
+    pack = unstream ∘ S.stream
+    {-# INLINE pack #-}
+
     unpack ∷ α → [Bool]
+    unpack = S.unstream ∘ stream
+    {-# INLINE unpack #-}
 
     stream ∷ α → S.Stream Bool
     stream = S.stream ∘ unpack

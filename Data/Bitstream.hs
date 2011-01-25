@@ -24,6 +24,8 @@ module Data.Bitstream
     , singleton
     , pack
     , unpack
+    , fromPackets
+    , toPackets
 
       -- ** Converting from\/to strict 'BS.ByteString's
     , fromByteString
@@ -304,7 +306,7 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
                       → Bitstream (SV.cons (cons    b p) v')
                 | otherwise
                       → Bitstream (SV.cons (singleton b) v )
-            Nothing   → Bitstream (SV.cons (singleton b) v )
+            Nothing   → Bitstream (SV.singleton (singleton b))
 
     {-# INLINEABLE snoc #-}
     snoc (Bitstream v) b
@@ -314,7 +316,7 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
                       → Bitstream (SV.snoc v' (snoc    p b))
                 | otherwise
                       → Bitstream (SV.snoc v  (singleton b))
-            Nothing   → Bitstream (SV.snoc v  (singleton b))
+            Nothing   → Bitstream (SV.singleton (singleton b))
 
     {-# INLINE append #-}
     append (Bitstream x) (Bitstream y)
@@ -610,6 +612,14 @@ fromByteString = Bitstream ∘ fromBS
 {-# INLINE toByteString #-}
 toByteString ∷ G.Bitstream (Packet d) ⇒ Bitstream d → BS.ByteString
 toByteString (Bitstream v) = toBS v
+
+{-# INLINE fromPackets #-}
+fromPackets ∷ SV.Vector (Packet d) → Bitstream d
+fromPackets = Bitstream
+
+{-# INLINE toPackets #-}
+toPackets ∷ Bitstream d → SV.Vector (Packet d)
+toPackets (Bitstream d) = d
 
 {-# INLINE directionLToR #-}
 directionLToR ∷ Bitstream Left → Bitstream Right

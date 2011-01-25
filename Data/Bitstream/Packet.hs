@@ -433,5 +433,5 @@ packetReverse (Packet n o)
     where
       {-# INLINE bit' #-}
       bit' ∷ Int → Bool → Word8
-      bit' n True  = bit n
+      bit' i True  = bit i
       bit' _ False = 0
