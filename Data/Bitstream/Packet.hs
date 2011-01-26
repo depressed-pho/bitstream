@@ -25,7 +25,6 @@ module Data.Bitstream.Packet
 import Data.Bitstream.Generic
 import Data.Bits
 import qualified Data.List.Stream as L
-import qualified Data.Stream as S
 import Data.Word
 import Foreign.Storable
 import Prelude hiding (length, null)
@@ -84,30 +83,6 @@ instance Bitstream (Packet Left) where
           produce !p
               | p < n     = Just (o `testBit` p, p+1)
               | otherwise = Nothing
-
-    {-# INLINE [0] stream #-}
-    stream (Packet n o) = S.unfoldr produce 0
-        where
-          {-# INLINE produce #-}
-          produce ∷ Int → Maybe (Bool, Int)
-          produce !p
-              | p < n     = Just (o `testBit` p, p+1)
-              | otherwise = Nothing
-
-    {-# INLINE [0] unstream #-}
-    unstream (S.Stream next s0) = case consume 0 0 s0 of
-                                    (# n, o #) → Packet n o
-        where
-          {-# INLINE consume #-}
-          consume !n !o !s
-              = case next s of
-                  S.Yield x s'
-                      | n < 8     → if x
-                                     then consume (n+1) (o `setBit` n) s'
-                                     else consume (n+1)  o             s'
-                      | otherwise → error "packet overflow"
-                  S.Skip s' → consume n o s'
-                  S.Done    → (# n, o #)
 
     {-# INLINE empty #-}
     empty = Packet 0 0
@@ -234,30 +209,6 @@ instance Bitstream (Packet Right) where
           produce !p
               | p < n     = Just (b `testBit` (7-p), p+1)
               | otherwise = Nothing
-
-    {-# INLINE [0] stream #-}
-    stream (Packet n b) = S.unfoldr produce 0
-        where
-          {-# INLINE produce #-}
-          produce ∷ Int → Maybe (Bool, Int)
-          produce !p
-              | p < n     = Just (b `testBit` (7-p), p+1)
-              | otherwise = Nothing
-
-    {-# INLINE [0] unstream #-}
-    unstream (S.Stream next s0) = case consume 0 0 s0 of
-                                    (# n, o #) → Packet n o
-        where
-          {-# INLINE consume #-}
-          consume !n !o !s
-              = case next s of
-                  S.Done       → (# n, o #)
-                  S.Skip    s' → consume n o s'
-                  S.Yield x s'
-                      | n < 8     → if x
-                                    then consume (n+1) (o `setBit` (7-n)) s'
-                                    else consume (n+1)  o                 s'
-                      | otherwise → error "packet overflow"
 
     {-# INLINE empty #-}
     empty = Packet 0 0
