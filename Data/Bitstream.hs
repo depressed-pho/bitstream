@@ -208,7 +208,19 @@ import System.IO.Unsafe
 
 newtype Bitstream d
     = Bitstream (SV.Vector (Packet d))
-    deriving (Show)
+
+instance Show (Packet d) ⇒ Show (Bitstream d) where
+    {-# INLINEABLE show #-}
+    show (Bitstream v0)
+        = L.concat
+          [ "(S"
+          , L.concat (L.unfoldr go v0)
+          , ")"
+          ]
+        where
+          {-# INLINE go #-}
+          go v = do (p, v') ← SV.viewL v
+                    return (show p, v')
 
 instance Ord (Bitstream d) ⇒ Eq (Bitstream d) where
     {-# INLINE (==) #-}

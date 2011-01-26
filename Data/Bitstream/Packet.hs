@@ -35,7 +35,7 @@ data Right
 
 data Packet d = Packet {-# UNPACK #-} !Int
                        {-# UNPACK #-} !Word8
-    deriving (Eq, Show)
+    deriving (Eq)
 
 instance Storable (Packet d) where
     sizeOf _  = 2
@@ -49,6 +49,36 @@ instance Storable (Packet d) where
     poke p (Packet n o)
         = do pokeByteOff p 0 (fromIntegral n ∷ Word8)
              pokeByteOff p 1 o
+
+instance Show (Packet Left) where
+    {-# INLINEABLE show #-}
+    show (Packet n0 o0)
+        = L.concat
+          [ "["
+          , L.unfoldr go (n0, o0)
+          , "←]"
+          ]
+        where
+          {-# INLINE go #-}
+          go (0, _) = Nothing
+          go (n, o)
+              | o `testBit` (n-1) = Just ('1', (n-1, o))
+              | otherwise         = Just ('0', (n-1, o))
+
+instance Show (Packet Right) where
+    {-# INLINEABLE show #-}
+    show (Packet n0 o0)
+        = L.concat
+          [ "[→"
+          , L.unfoldr go (n0, o0)
+          , "]"
+          ]
+        where
+          {-# INLINE go #-}
+          go (0, _) = Nothing
+          go (n, o)
+              | o `testBit` (8-n) = Just ('1', (n-1, o))
+              | otherwise         = Just ('0', (n-1, o))
 
 instance Ord (Packet Left) where
     {-# INLINEABLE compare #-}

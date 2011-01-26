@@ -13,6 +13,7 @@ import Data.Bitstream.Packet
 import qualified Data.Bitstream as B
 import qualified Data.ByteString as BS
 import Data.ByteString.Char8 ()
+import qualified Data.Stream as S
 import Data.Word
 import Prelude.Unicode hiding ((⧺), (∈), (∉))
 import System.Exit
@@ -114,6 +115,16 @@ tests = [ -- ∅
         , property $ \s → B.toByteString (B.fromByteString s ∷ BitR) ≡ s
         , mapSize (⋅ 8) $ \bs → (B.length bs `mod` 8) ≡ 0
                                   ⟹ B.fromByteString (B.toByteString (bs ∷ BitR)) ≡ bs
+
+          -- stream/unstream
+        , property $ \bl → B.unstream (S.stream bl) ≡ (B.pack bl ∷ BitL)
+        , property $ \bs → S.unstream (B.stream bs) ≡ (B.unpack (bs ∷ BitL))
+
+        , property $ \bl → B.unstream (S.stream bl) ≡ (B.pack bl ∷ BitR)
+        , property $ \bs → S.unstream (B.stream bs) ≡ (B.unpack (bs ∷ BitR))
+
+          -- direction
+--        , property $
         ]
 
 n2b ∷ Int → Bool
