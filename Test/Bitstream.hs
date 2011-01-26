@@ -58,15 +58,19 @@ type BitR = Bitstream Right
 
 tests ∷ [Property]
 tests = [ -- ∅
-          property $ B.null      ((B.∅) ∷ BitL)
-        , property $ B.length    ((B.∅) ∷ BitL) ≡ 0
-        , property $ B.pack [] ≡ ((B.∅) ∷ BitL)
-        , property $ B.empty   ≡ ((B.∅) ∷ BitL)
+          conjoin
+          [ property $ B.null      ((B.∅) ∷ BitL)
+          , property $ B.length    ((B.∅) ∷ BitL) ≡ 0
+          , property $ B.pack [] ≡ ((B.∅) ∷ BitL)
+          , property $ B.empty   ≡ ((B.∅) ∷ BitL)
+          ]
 
-        , property $ B.null      ((B.∅) ∷ BitR)
-        , property $ B.length    ((B.∅) ∷ BitR) ≡ 0
-        , property $ B.pack [] ≡ ((B.∅) ∷ BitR)
-        , property $ B.empty   ≡ ((B.∅) ∷ BitR)
+        , conjoin
+          [ property $ B.null      ((B.∅) ∷ BitR)
+          , property $ B.length    ((B.∅) ∷ BitR) ≡ 0
+          , property $ B.pack [] ≡ ((B.∅) ∷ BitR)
+          , property $ B.empty   ≡ ((B.∅) ∷ BitR)
+          ]
 
           -- singleton
         , property $ \b → B.length (B.singleton b ∷ BitL) ≡ 1
@@ -78,15 +82,19 @@ tests = [ -- ∅
         , property $ \b → B.pack [b] ≡ (B.singleton b ∷ BitR)
 
           -- pack/unpack
-        , property $ B.unpack (B.pack []      ∷ BitL) ≡ []
-        , property $ B.unpack (B.pack [False] ∷ BitL) ≡ [False]
-        , property $ B.unpack (B.pack [True ] ∷ BitL) ≡ [True ]
+        , conjoin
+          [ property $ B.unpack (B.pack []      ∷ BitL) ≡ []
+          , property $ B.unpack (B.pack [False] ∷ BitL) ≡ [False]
+          , property $ B.unpack (B.pack [True ] ∷ BitL) ≡ [True ]
+          ]
         , property $ \bs → B.unpack (B.pack bs ∷ BitL) ≡ bs
         , property $ \bs → B.pack (B.unpack (bs ∷ BitL)) ≡ bs
 
-        , property $ B.unpack (B.pack []      ∷ BitR) ≡ []
-        , property $ B.unpack (B.pack [False] ∷ BitR) ≡ [False]
-        , property $ B.unpack (B.pack [True ] ∷ BitR) ≡ [True ]
+        , conjoin
+          [ property $ B.unpack (B.pack []      ∷ BitR) ≡ []
+          , property $ B.unpack (B.pack [False] ∷ BitR) ≡ [False]
+          , property $ B.unpack (B.pack [True ] ∷ BitR) ≡ [True ]
+          ]
         , property $ \bs → B.unpack (B.pack bs ∷ BitR) ≡ bs
         , property $ \bs → B.pack (B.unpack (bs ∷ BitR)) ≡ bs
 
@@ -98,6 +106,14 @@ tests = [ -- ∅
         , property $ \s → B.toByteString (B.fromByteString s ∷ BitL) ≡ s
         , mapSize (⋅ 8) $ \bs → (B.length bs `mod` 8) ≡ 0
                                   ⟹ B.fromByteString (B.toByteString (bs ∷ BitL)) ≡ bs
+
+        , property $ (B.fromByteString "UNK" ∷ BitR)
+                       ≡ B.pack (map n2b [ 0, 1, 0, 1, 0, 1, 0, 1
+                                         , 0, 1, 0, 0, 1, 1, 1, 0
+                                         , 0, 1, 0, 0, 1, 0, 1, 1 ])
+        , property $ \s → B.toByteString (B.fromByteString s ∷ BitR) ≡ s
+        , mapSize (⋅ 8) $ \bs → (B.length bs `mod` 8) ≡ 0
+                                  ⟹ B.fromByteString (B.toByteString (bs ∷ BitR)) ≡ bs
         ]
 
 n2b ∷ Int → Bool
