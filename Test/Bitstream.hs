@@ -15,7 +15,7 @@ import qualified Data.ByteString as BS
 import Data.ByteString.Char8 ()
 import qualified Data.Stream as S
 import Data.Word
-import Prelude.Unicode hiding ((⧺), (∈), (∉))
+import Prelude.Unicode
 import System.Exit
 import Test.QuickCheck
 
@@ -124,13 +124,27 @@ tests = [ -- ∅
         , property $ \bs → S.unstream (B.stream bs) ≡ (B.unpack (bs ∷ BitR))
 
           -- direction
-        , property $ B.toByteString (B.directionLToR (B.pack (map n2b [1,1,0,1,0,0,1,0, 1,0,0])))
-                       ≡ BS.pack [0x4B, 0x20]
-        , property $ B.toByteString (B.directionRToL (B.pack (map n2b [1,1,0,1,0,0,1,0, 1,0,0])))
-                       ≡ BS.pack [0xD2, 0x04]
+        , conjoin
+          [ property $ B.toByteString (B.directionLToR (B.pack (map n2b [1,1,0,1,0,0,1,0, 1,0,0])))
+                         ≡ BS.pack [0x4B, 0x20]
+          , property $ B.toByteString (B.directionRToL (B.pack (map n2b [1,1,0,1,0,0,1,0, 1,0,0])))
+                         ≡ BS.pack [0xD2, 0x04]
+          ]
         , property $ \bs → B.directionRToL (B.directionLToR bs) ≡ bs
         , property $ \bs → B.directionLToR (B.directionRToL bs) ≡ bs
-        , property $ \bs → B.length (B.directionLToR bs) ≡ B.length bs
+        , property $ \str → B.toByteString (B.directionLToR (B.fromByteString str)) ≡ str
+        , property $ \str → B.toByteString (B.directionRToL (B.fromByteString str)) ≡ str
+
+          -- basic interface
+        , property $ \(b, bl) → B.cons b (B.pack bl ∷ BitL) ≡ B.pack (b:bl)
+        , property $ \(bl, b) → B.snoc (B.pack bl ∷ BitL) b ≡ B.pack (bl ⧺ [b])
+        , property $ \(x, y) → (B.pack x ∷ BitL) B.⧺ (B.pack y) ≡ B.pack (x ⧺ y)
+        , property $ \bl → (¬) (null bl) ⟹ B.head (B.pack bl ∷ BitL) ≡ head bl
+
+        , property $ \(b, bl) → B.cons b (B.pack bl ∷ BitR) ≡ B.pack (b:bl)
+        , property $ \(bl, b) → B.snoc (B.pack bl ∷ BitR) b ≡ B.pack (bl ⧺ [b])
+        , property $ \(x, y) → (B.pack x ∷ BitR) B.⧺ (B.pack y) ≡ B.pack (x ⧺ y)
+        , property $ \bl → (¬) (null bl) ⟹ B.head (B.pack bl ∷ BitR) ≡ head bl
         ]
 
 n2b ∷ Int → Bool
