@@ -228,13 +228,15 @@ instance Ord (Bitstream d) ⇒ Eq (Bitstream d) where
                EQ → True
                _  → False
 
--- | 'Bitstream's are compared as two binary integers:
+-- | 'Bitstream's are lexicographically ordered.
 --
 -- @
 -- let x = 'pack' ['True' , 'False', 'False']
 --     y = 'pack' ['False', 'True' , 'False']
+--     z = 'pack' ['False']
 -- in
---   'compare' x y -- 'GT'
+--   [ 'compare' x y -- 'GT'
+--   , 'compare' z y -- 'LT'
 -- @
 instance G.Bitstream (Packet d) ⇒ Ord (Bitstream d) where
     {-# INLINEABLE compare #-}

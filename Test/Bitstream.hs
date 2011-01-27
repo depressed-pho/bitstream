@@ -88,7 +88,7 @@ tests = [ -- ∅
           , property $ B.unpack (B.pack [False] ∷ BitL) ≡ [False]
           , property $ B.unpack (B.pack [True ] ∷ BitL) ≡ [True ]
           ]
-        , property $ \bs → B.unpack (B.pack bs ∷ BitL) ≡ bs
+        , property $ \bl → B.unpack (B.pack bl ∷ BitL) ≡ bl
         , property $ \bs → B.pack (B.unpack (bs ∷ BitL)) ≡ bs
 
         , conjoin
@@ -96,7 +96,7 @@ tests = [ -- ∅
           , property $ B.unpack (B.pack [False] ∷ BitR) ≡ [False]
           , property $ B.unpack (B.pack [True ] ∷ BitR) ≡ [True ]
           ]
-        , property $ \bs → B.unpack (B.pack bs ∷ BitR) ≡ bs
+        , property $ \bl → B.unpack (B.pack bl ∷ BitR) ≡ bl
         , property $ \bs → B.pack (B.unpack (bs ∷ BitR)) ≡ bs
 
           -- from/toByteString
@@ -104,7 +104,7 @@ tests = [ -- ∅
                        ≡ B.pack (map n2b [ 1, 0, 1, 0, 1, 0, 1, 0
                                          , 0, 1, 1, 1, 0, 0, 1, 0
                                          , 1, 1, 0, 1, 0, 0, 1, 0 ])
-        , property $ \s → B.toByteString (B.fromByteString s ∷ BitL) ≡ s
+        , property $ \str → B.toByteString (B.fromByteString str ∷ BitL) ≡ str
         , mapSize (⋅ 8) $ \bs → (B.length bs `mod` 8) ≡ 0
                                   ⟹ B.fromByteString (B.toByteString (bs ∷ BitL)) ≡ bs
 
@@ -112,7 +112,7 @@ tests = [ -- ∅
                        ≡ B.pack (map n2b [ 0, 1, 0, 1, 0, 1, 0, 1
                                          , 0, 1, 0, 0, 1, 1, 1, 0
                                          , 0, 1, 0, 0, 1, 0, 1, 1 ])
-        , property $ \s → B.toByteString (B.fromByteString s ∷ BitR) ≡ s
+        , property $ \str → B.toByteString (B.fromByteString str ∷ BitR) ≡ str
         , mapSize (⋅ 8) $ \bs → (B.length bs `mod` 8) ≡ 0
                                   ⟹ B.fromByteString (B.toByteString (bs ∷ BitR)) ≡ bs
 
@@ -124,7 +124,13 @@ tests = [ -- ∅
         , property $ \bs → S.unstream (B.stream bs) ≡ (B.unpack (bs ∷ BitR))
 
           -- direction
---        , property $
+        , property $ B.toByteString (B.directionLToR (B.pack (map n2b [1,1,0,1,0,0,1,0, 1,0,0])))
+                       ≡ BS.pack [0x4B, 0x20]
+        , property $ B.toByteString (B.directionRToL (B.pack (map n2b [1,1,0,1,0,0,1,0, 1,0,0])))
+                       ≡ BS.pack [0xD2, 0x04]
+        , property $ \bs → B.directionRToL (B.directionLToR bs) ≡ bs
+        , property $ \bs → B.directionLToR (B.directionRToL bs) ≡ bs
+        , property $ \bs → B.length (B.directionLToR bs) ≡ B.length bs
         ]
 
 n2b ∷ Int → Bool

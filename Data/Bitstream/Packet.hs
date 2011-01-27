@@ -74,10 +74,13 @@ instance Show (Packet Right) where
           , "]"
           ]
         where
+          {-# INLINE δ #-}
+          δ ∷ Int
+          δ = 7 - n0
           {-# INLINE go #-}
           go (0, _) = Nothing
           go (n, o)
-              | o `testBit` (8-n) = Just ('1', (n-1, o))
+              | o `testBit` (n+δ) = Just ('1', (n-1, o))
               | otherwise         = Just ('0', (n-1, o))
 
 instance Ord (Packet Left) where
@@ -391,26 +394,8 @@ unsafeSnocR (Packet n o) False = Packet (n+1)  o
 
 {-# INLINE packetLToR #-}
 packetLToR ∷ Packet Left → Packet Right
-packetLToR = packetReverse
+packetLToR (Packet n o) = Packet n (o `shiftL` (8-n))
 
 {-# INLINE packetRToL #-}
 packetRToL ∷ Packet Right → Packet Left
-packetRToL = packetReverse
-
-{-# INLINE packetReverse #-}
-packetReverse ∷ Packet α → Packet β
-packetReverse (Packet n o)
-    = Packet n ( bit' 7 (o `testBit` 0) .|.
-                 bit' 6 (o `testBit` 1) .|.
-                 bit' 5 (o `testBit` 2) .|.
-                 bit' 4 (o `testBit` 3) .|.
-                 bit' 3 (o `testBit` 4) .|.
-                 bit' 2 (o `testBit` 5) .|.
-                 bit' 1 (o `testBit` 6) .|.
-                 bit' 0 (o `testBit` 7)
-               )
-    where
-      {-# INLINE bit' #-}
-      bit' ∷ Int → Bool → Word8
-      bit' i True  = bit i
-      bit' _ False = 0
+packetRToL (Packet n o) = Packet n (o `shiftR` (8-n))
