@@ -20,13 +20,16 @@ import System.Exit
 import Test.QuickCheck
 
 infixr 0 ⟹
-infixr 1 .∧.
+infixr 1 .∧., .∨.
 
 (⟹) :: Testable α => Bool -> α -> Property
 (⟹) = (==>)
 
 (.∧.) ∷ (Testable α, Testable β) ⇒ α → β → Property
 (.∧.) = (.&&.)
+
+(.∨.) ∷ (Testable α, Testable β) ⇒ α → β → Property
+(.∨.) = (.||.)
 
 main ∷ IO ()
 main = mapM_ run tests
@@ -140,11 +143,19 @@ tests = [ -- ∅
         , property $ \(bl, b) → B.snoc (B.pack bl ∷ BitL) b ≡ B.pack (bl ⧺ [b])
         , property $ \(x, y) → (B.pack x ∷ BitL) B.⧺ (B.pack y) ≡ B.pack (x ⧺ y)
         , property $ \bl → (¬) (null bl) ⟹ B.head (B.pack bl ∷ BitL) ≡ head bl
+        , property $ \bl → let uc = B.uncons (B.pack bl ∷ BitL)
+                           in case bl of
+                                []     → label "null"     $ uc ≡ Nothing
+                                (x:xs) → label "non-null" $ uc ≡ Just (x, B.pack xs)
 
         , property $ \(b, bl) → B.cons b (B.pack bl ∷ BitR) ≡ B.pack (b:bl)
         , property $ \(bl, b) → B.snoc (B.pack bl ∷ BitR) b ≡ B.pack (bl ⧺ [b])
         , property $ \(x, y) → (B.pack x ∷ BitR) B.⧺ (B.pack y) ≡ B.pack (x ⧺ y)
         , property $ \bl → (¬) (null bl) ⟹ B.head (B.pack bl ∷ BitR) ≡ head bl
+        , property $ \bl → let uc = B.uncons (B.pack bl ∷ BitR)
+                           in case bl of
+                                []     → label "null"     $ uc ≡ Nothing
+                                (x:xs) → label "non-null" $ uc ≡ Just (x, B.pack xs)
         ]
 
 n2b ∷ Int → Bool

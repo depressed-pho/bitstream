@@ -271,7 +271,7 @@ instance Bitstream (Packet Right) where
 
     {-# INLINE uncons #-}
     uncons (Packet 0 _) = Nothing
-    uncons (Packet n o) = Just ( o `testBit` 0x80
+    uncons (Packet n o) = Just ( o `testBit` 7
                                , Packet (n-1) (o `shiftL` 1) )
 
     {-# INLINE last #-}
