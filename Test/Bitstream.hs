@@ -147,6 +147,14 @@ tests = [ -- ∅
                            in case bl of
                                 []     → label "null"     $ uc ≡ Nothing
                                 (x:xs) → label "non-null" $ uc ≡ Just (x, B.pack xs)
+        , property $ \bl → (¬) (null bl) ⟹ B.last (B.pack bl ∷ BitL) ≡ last bl
+        , property $ \bl → (¬) (null bl) ⟹ B.tail (B.pack bl ∷ BitL) ≡ B.pack (tail bl)
+        , property $ \bl → (¬) (null bl) ⟹ B.init (B.pack bl ∷ BitL) ≡ B.pack (init bl)
+        , property $ \bl → let bs = B.pack bl ∷ BitL
+                           in case bl of
+                                [] → label "null"     $ B.null bs
+                                _  → label "non-null" $ (¬) (B.null bs)
+        , property $ \bl → B.length (B.pack bl ∷ BitL) ≡ length bl
 
         , property $ \(b, bl) → B.cons b (B.pack bl ∷ BitR) ≡ B.pack (b:bl)
         , property $ \(bl, b) → B.snoc (B.pack bl ∷ BitR) b ≡ B.pack (bl ⧺ [b])
@@ -156,6 +164,14 @@ tests = [ -- ∅
                            in case bl of
                                 []     → label "null"     $ uc ≡ Nothing
                                 (x:xs) → label "non-null" $ uc ≡ Just (x, B.pack xs)
+        , property $ \bl → (¬) (null bl) ⟹ B.last (B.pack bl ∷ BitR) ≡ last bl
+        , property $ \bl → (¬) (null bl) ⟹ B.tail (B.pack bl ∷ BitR) ≡ B.pack (tail bl)
+        , property $ \bl → (¬) (null bl) ⟹ B.init (B.pack bl ∷ BitR) ≡ B.pack (init bl)
+        , property $ \bl → let bs = B.pack bl ∷ BitR
+                           in case bl of
+                                [] → label "null"     $ B.null bs
+                                _  → label "non-null" $ (¬) (B.null bs)
+        , property $ \bl → B.length (B.pack bl ∷ BitR) ≡ length bl
         ]
 
 n2b ∷ Int → Bool
