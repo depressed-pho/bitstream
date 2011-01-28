@@ -1,5 +1,7 @@
 *.hi
 *.o
 
+.hpc
+*.tix
 Setup
 dist

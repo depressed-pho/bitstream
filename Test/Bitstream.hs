@@ -7,7 +7,7 @@
   #-}
 module Main where
 import Control.Monad
-import Data.Bitstream (Bitstream, Left)
+import Data.Bitstream (Bitstream)
 import qualified Data.Bitstream.Generic as G
 import Data.Bitstream.Packet
 import qualified Data.Bitstream as B
@@ -64,24 +64,24 @@ tests ∷ [Property]
 tests = [ -- ∅
           conjoin
           [ property $ B.null      ((B.∅) ∷ BitL)
-          , property $ B.length    ((B.∅) ∷ BitL) ≡ 0
+          , property $ B.length    ((B.∅) ∷ BitL) ≡ (0 ∷Int)
           , property $ B.pack [] ≡ ((B.∅) ∷ BitL)
           , property $ B.empty   ≡ ((B.∅) ∷ BitL)
           ]
 
         , conjoin
           [ property $ B.null      ((B.∅) ∷ BitR)
-          , property $ B.length    ((B.∅) ∷ BitR) ≡ 0
+          , property $ B.length    ((B.∅) ∷ BitR) ≡ (0 ∷ Int)
           , property $ B.pack [] ≡ ((B.∅) ∷ BitR)
           , property $ B.empty   ≡ ((B.∅) ∷ BitR)
           ]
 
           -- singleton
-        , property $ \b → B.length (B.singleton b ∷ BitL) ≡ 1
+        , property $ \b → B.length (B.singleton b ∷ BitL) ≡ (1 ∷ Int)
         , property $ \b → B.head   (B.singleton b ∷ BitL) ≡ b
         , property $ \b → B.pack [b] ≡ (B.singleton b ∷ BitL)
 
-        , property $ \b → B.length (B.singleton b ∷ BitR) ≡ 1
+        , property $ \b → B.length (B.singleton b ∷ BitR) ≡ (1 ∷ Int)
         , property $ \b → B.head   (B.singleton b ∷ BitR) ≡ b
         , property $ \b → B.pack [b] ≡ (B.singleton b ∷ BitR)
 
@@ -108,7 +108,7 @@ tests = [ -- ∅
                                          , 0, 1, 1, 1, 0, 0, 1, 0
                                          , 1, 1, 0, 1, 0, 0, 1, 0 ])
         , property $ \str → B.toByteString (B.fromByteString str ∷ BitL) ≡ str
-        , mapSize (⋅ 8) $ \bs → (B.length bs `mod` 8) ≡ 0
+        , mapSize (⋅ 8) $ \bs → (B.length bs `mod` 8) ≡ (0 ∷ Int)
                                   ⟹ B.fromByteString (B.toByteString (bs ∷ BitL)) ≡ bs
 
         , property $ (B.fromByteString "UNK" ∷ BitR)
@@ -116,7 +116,7 @@ tests = [ -- ∅
                                          , 0, 1, 0, 0, 1, 1, 1, 0
                                          , 0, 1, 0, 0, 1, 0, 1, 1 ])
         , property $ \str → B.toByteString (B.fromByteString str ∷ BitR) ≡ str
-        , mapSize (⋅ 8) $ \bs → (B.length bs `mod` 8) ≡ 0
+        , mapSize (⋅ 8) $ \bs → (B.length bs `mod` 8) ≡ (0 ∷ Int)
                                   ⟹ B.fromByteString (B.toByteString (bs ∷ BitR)) ≡ bs
 
           -- stream/unstream

@@ -14,6 +14,7 @@ RM_RF    ?= rm -rf
 SUDO     ?= sudo
 AUTOCONF ?= autoconf
 HLINT    ?= hlint
+HPC      ?= hpc
 
 CONFIGURE_ARGS ?= --disable-optimization
 
@@ -86,6 +87,11 @@ sdist: setup-config
 
 test: build
 	./Setup test
+	find . -depth 1 -and -name '*.tix' \
+		-exec $(HPC) markup \
+				--destdir="dist/hpc" \
+				--fun-entry-count \
+				{} \;
 
 lint:
 	$(HLINT) . --report \
