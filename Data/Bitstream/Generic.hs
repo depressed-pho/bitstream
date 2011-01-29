@@ -1,5 +1,6 @@
 {-# LANGUAGE
-    RankNTypes
+    BangPatterns
+  , RankNTypes
   , UnicodeSyntax
   #-}
 module Data.Bitstream.Generic
@@ -20,7 +21,7 @@ module Data.Bitstream.Generic
 import qualified Data.List.Stream as L
 import Data.Maybe
 import qualified Data.Stream as S
-import Prelude ( Bool(..), Integer, Integral(..), Num(..), Ord(..), flip
+import Prelude ( Bool(..), Integer, Integral(..), Num(..), Ord(..), error, flip
                , otherwise
                )
 import Prelude.Unicode hiding ((∈), (∉), (⧺))
@@ -130,29 +131,45 @@ class Ord α ⇒ Bitstream α where
                            : transpose (as : L.map tail αs)
     {-# INLINEABLE transpose #-}
 
+    {-# INLINEABLE foldl #-}
     foldl ∷ (β → Bool → β) → β → α → β
-    foldl f β = L.foldl f β ∘ unpack
-    {-# INLINE foldl #-}
+    foldl f β0 α0 = go β0 α0
+        where
+          {-# INLINE go #-}
+          go β α = case uncons α of
+                       Just (a, α') → go (f β a) α'
+                       Nothing      → β
 
-    foldl' ∷ (β → Bool → β) → β → α → β
-    foldl' f β = L.foldl' f β ∘ unpack
     {-# INLINE foldl' #-}
+    foldl' ∷ (β → Bool → β) → β → α → β
+    foldl' f !β0 α0 = go β0 α0
+        where
+          {-# INLINE go #-}
+          go !β α = case uncons α of
+                        Just (a, α') → go (f β a) α'
+                        Nothing      → β
 
-    foldl1 ∷ (Bool → Bool → Bool) → α → Bool
-    foldl1 = (∘ unpack) ∘ L.foldl1
     {-# INLINE foldl1 #-}
+    foldl1 ∷ (Bool → Bool → Bool) → α → Bool
+    foldl1 f α
+        = case uncons α of
+            Just (a, α') → foldl f a α'
+            Nothing      → emptyStream
 
-    foldl1' ∷ (Bool → Bool → Bool) → α → Bool
-    foldl1' = (∘ unpack) ∘ L.foldl1'
     {-# INLINE foldl1' #-}
+    foldl1' ∷ (Bool → Bool → Bool) → α → Bool
+    foldl1' f α
+        = case uncons α of
+            Just (a, α') → foldl' f a α'
+            Nothing      → emptyStream
 
+    {-# INLINE foldr #-}
     foldr ∷ (Bool → β → β) → β → α → β
     foldr f β = L.foldr f β ∘ unpack
-    {-# INLINE foldr #-}
 
+    {-# INLINE foldr1 #-}
     foldr1 ∷ (Bool → Bool → Bool) → α → Bool
     foldr1 = (∘ unpack) ∘ L.foldr1
-    {-# INLINE foldr1 #-}
 
     concat ∷ [α] → α
     concat = pack ∘ L.concatMap unpack
@@ -247,10 +264,17 @@ class Ord α ⇒ Bitstream α where
     {-# INLINE cycle #-}
 -}
 
-    unfoldr ∷ (β → Maybe (Bool, β)) → β → α
-    unfoldr = (pack ∘) ∘ L.unfoldr
     {-# INLINE unfoldr #-}
+    unfoldr ∷ (β → Maybe (Bool, β)) → β → α
+    unfoldr f β0 = loop_unfoldr β0 (∅)
+        where
+          {-# INLINE loop_unfoldr #-}
+          loop_unfoldr β α
+              = case f β of
+                  Nothing      → α
+                  Just (a, β') → loop_unfoldr β' (α `snoc` a)
 
+    {-# INLINE unfoldrN #-}
     unfoldrN ∷ Integral n ⇒ n → (β → Maybe (Bool, β)) → β → (α, Maybe β)
     unfoldrN n0 f β0
         | n0 < 0    = ((∅), Just β0)
@@ -261,7 +285,6 @@ class Ord α ⇒ Bitstream α where
               = case f β of
                   Nothing      → (α, Nothing)
                   Just (a, β') → loop_unfoldrN (n-1) β' (α `snoc` a)
-    {-# INLINE unfoldrN #-}
 
     take ∷ Integral n ⇒ n → α → α
     take = (pack ∘) ∘ (∘ unpack) ∘ L.genericTake
@@ -582,6 +605,10 @@ class Ord α ⇒ Bitstream α where
                           in
                             (a `cons` β) : groupBy f γ
     {-# INLINEABLE groupBy #-}
+
+emptyStream ∷ α
+emptyStream
+    = error "Data.Bitstream.Generic: empty stream"
 
 (∅) ∷ Bitstream α ⇒ α
 (∅) = empty

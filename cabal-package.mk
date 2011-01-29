@@ -41,6 +41,7 @@ all: build
 
 build: setup-config build-hook
 	./Setup build
+	$(RM_RF) *.tix
 
 build-hook:
 
@@ -71,7 +72,7 @@ Setup: $(SETUP_FILE)
 	$(GHC) --make Setup
 
 clean: clean-hook
-	$(RM_RF) dist Setup *.o *.hi .setup-config *.buildinfo
+	$(RM_RF) dist Setup *.o *.hi .setup-config *.buildinfo *.tix .hpc
 	$(FIND) . -name '*~' -exec rm -f {} \;
 
 clean-hook:
@@ -86,8 +87,9 @@ sdist: setup-config
 	./Setup sdist
 
 test: build
+	$(RM_RF) dist/test
 	./Setup test
-	find . -depth 1 -and -name '*.tix' \
+	$(FIND) . -depth 1 -and -name '*.tix' \
 		-exec $(HPC) markup \
 				--destdir="dist/hpc" \
 				--fun-entry-count \

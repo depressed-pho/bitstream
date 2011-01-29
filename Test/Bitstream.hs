@@ -13,6 +13,7 @@ import Data.Bitstream.Packet
 import qualified Data.Bitstream as B
 import qualified Data.ByteString as BS
 import Data.ByteString.Char8 ()
+import Data.List
 import qualified Data.Stream as S
 import Data.Word
 import Prelude.Unicode
@@ -62,7 +63,7 @@ type BitR = Bitstream Right
 
 tests ∷ [Property]
 tests = [ -- ∅
-          conjoin
+          {-conjoin
           [ property $ B.null      ((B.∅) ∷ BitL)
           , property $ B.length    ((B.∅) ∷ BitL) ≡ (0 ∷Int)
           , property $ B.pack [] ≡ ((B.∅) ∷ BitL)
@@ -172,9 +173,55 @@ tests = [ -- ∅
                                 [] → label "null"     $ B.null bs
                                 _  → label "non-null" $ (¬) (B.null bs)
         , property $ \bl → B.length (B.pack bl ∷ BitR) ≡ length bl
+
+          -- transformation
+        , property $ \bl → B.map (¬) (B.pack bl ∷ BitL) ≡ B.pack (map (¬) bl)
+        , property $ \bl → B.reverse (B.pack bl ∷ BitL) ≡ B.pack (reverse bl)
+        , property $ \(bl, b) → B.intersperse b (B.pack bl ∷ BitL) ≡ B.pack (intersperse b bl)
+        , property $ \(bl, bls) → B.intercalate (B.pack bl ∷ BitL) (map B.pack bls) ≡ B.pack (intercalate bl bls)
+        , property $ let rows  = sized $ \n → listOf (row n)
+                         row n = n `vectorOf` arbitrary
+                     in forAll rows
+                        $ \bls → B.transpose (map B.pack bls ∷ [BitL]) ≡ map B.pack (transpose bls)
+
+        , property $ \bl → B.map (¬) (B.pack bl ∷ BitR) ≡ B.pack (map (¬) bl)
+        , property $ \bl → B.reverse (B.pack bl ∷ BitL) ≡ B.pack (reverse bl)
+        , property $ \(bl, b) → B.intersperse b (B.pack bl ∷ BitR) ≡ B.pack (intersperse b bl)
+        , property $ \(bl, bls) → B.intercalate (B.pack bl ∷ BitR) (map B.pack bls) ≡ B.pack (intercalate bl bls)
+        , property $ let rows  = sized $ \n → listOf (row n)
+                         row n = n `vectorOf` arbitrary
+                     in forAll rows
+                        $ \bls → B.transpose (map B.pack bls ∷ [BitR]) ≡ map B.pack (transpose bls)
+
+         -- reduction
+        , property $ \(n, bl) → B.foldl doubleIf n (B.pack bl ∷ BitL) ≡ foldl doubleIf n bl
+        , property $ \(n, bl) → B.foldl' doubleIf n (B.pack bl ∷ BitL) ≡ foldl doubleIf n bl
+        , property $ \bl → (¬) (null bl) ⟹ B.foldl1 xor (B.pack bl ∷ BitL) ≡ foldl1 xor bl
+        , property $ \bl → (¬) (null bl) ⟹ B.foldl1' xor (B.pack bl ∷ BitL) ≡ foldl1' xor bl
+        , property $ \(n, bl) → B.foldr (flip doubleIf) n (B.pack bl ∷ BitL) ≡ foldr (flip doubleIf) n bl
+        , property $ \bl → (¬) (null bl) ⟹ B.foldr1 xor (B.pack bl ∷ BitL) ≡ foldr1 xor bl
+
+        , property $ \(n, bl) → B.foldl doubleIf n (B.pack bl ∷ BitR) ≡ foldl doubleIf n bl
+        , property $ \(n, bl) → B.foldl' doubleIf n (B.pack bl ∷ BitR) ≡ foldl doubleIf n bl
+        , property $ \bl → (¬) (null bl) ⟹ B.foldl1 xor (B.pack bl ∷ BitR) ≡ foldl1 xor bl
+        , property $ \bl → (¬) (null bl) ⟹ B.foldl1' xor (B.pack bl ∷ BitR) ≡ foldl1' xor bl
+        , property $ \(n, bl) → B.foldr (flip doubleIf) n (B.pack bl ∷ BitR) ≡ foldr (flip doubleIf) n bl
+        , property $ \bl → (¬) (null bl) ⟹ B.foldr1 xor (B.pack bl ∷ BitR) ≡ foldr1 xor bl
+
+          -- special folds
+        ,-}
         ]
 
 n2b ∷ Int → Bool
 n2b 0 = False
 n2b 1 = True
 n2b _ = (⊥)
+
+doubleIf ∷ Int → Bool → Int
+doubleIf n True  = n ⋅ 2
+doubleIf n False = n
+
+xor ∷ Bool → Bool → Bool
+xor False False = False
+xor True  True  = False
+xor _     _     = True

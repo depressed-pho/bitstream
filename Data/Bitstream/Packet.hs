@@ -27,7 +27,7 @@ import Data.Bits
 import qualified Data.List.Stream as L
 import Data.Word
 import Foreign.Storable
-import Prelude hiding (length, null)
+import Prelude hiding (init, last, length, null, tail)
 import Prelude.Unicode
 
 data Left
@@ -164,9 +164,18 @@ instance Bitstream (Packet Left) where
     null (Packet 0 _) = True
     null _            = False
 
+    {-# INLINE length #-}
     {-# SPECIALISE length ∷ Packet Left → Int #-}
     length (Packet n _) = fromIntegral n
-    {-# INLINE length #-}
+
+    {-# INLINE reverse #-}
+    reverse = reversePacket
+
+    {-# INLINE foldr #-}
+    foldr = foldrPacket
+
+    {-# INLINE foldr1 #-}
+    foldr1 = foldr1Packet
 
     {-# INLINE and #-}
     and (Packet n o) = (0xff `shiftR` (8-n)) ≡ o
@@ -174,6 +183,7 @@ instance Bitstream (Packet Left) where
     {-# INLINE or #-}
     or (Packet _ o) = o ≢ 0
 
+    {-# INLINE replicate #-}
     {-# SPECIALISE replicate ∷ Int → Bool → Packet Left #-}
     replicate n b
         | n > 8     = packetOverflow
@@ -182,8 +192,8 @@ instance Bitstream (Packet Left) where
                               else 0
                       in
                         Packet (fromIntegral n) o
-    {-# INLINE replicate #-}
 
+    {-# INLINEABLE unfoldrN #-}
     {-# SPECIALISE
         unfoldrN ∷ Int → (β → Maybe (Bool, β)) → β → (Packet Left, Maybe β) #-}
     unfoldrN n0 f β0
@@ -196,7 +206,6 @@ instance Bitstream (Packet Left) where
               = case f β of
                   Nothing      → (α, Nothing)
                   Just (a, β') → loop_unfoldrN (n-1) β' (α `unsafeSnocL` a)
-    {-# INLINEABLE unfoldrN #-}
 
     {-# SPECIALISE take ∷ Int → Packet Left → Packet Left #-}
     take l (Packet _ o)
@@ -290,9 +299,18 @@ instance Bitstream (Packet Right) where
     null (Packet 0 _) = True
     null _            = False
 
+    {-# INLINE length #-}
     {-# SPECIALISE length ∷ Packet Right → Int #-}
     length (Packet n _) = fromIntegral n
-    {-# INLINE length #-}
+
+    {-# INLINE reverse #-}
+    reverse = reversePacket
+
+    {-# INLINE foldr #-}
+    foldr = foldrPacket
+
+    {-# INLINE foldr1 #-}
+    foldr1 = foldr1Packet
 
     {-# INLINE and #-}
     and (Packet n o) = (0xff `shiftL` (8-n)) ≡ o
@@ -300,6 +318,7 @@ instance Bitstream (Packet Right) where
     {-# INLINE or #-}
     or (Packet _ o) = o ≢ 0
 
+    {-# INLINE replicate #-}
     {-# SPECIALISE replicate ∷ Int → Bool → Packet Right #-}
     replicate n b
         | n > 8     = packetOverflow
@@ -308,7 +327,6 @@ instance Bitstream (Packet Right) where
                               else 0
                       in
                         Packet (fromIntegral n) o
-    {-# INLINE replicate #-}
 
     {-# SPECIALISE
         unfoldrN ∷ Int → (β → Maybe (Bool, β)) → β → (Packet Right, Maybe β) #-}
@@ -399,3 +417,26 @@ packetLToR (Packet n o) = Packet n (o `shiftL` (8-n))
 {-# INLINE packetRToL #-}
 packetRToL ∷ Packet Right → Packet Left
 packetRToL (Packet n o) = Packet n (o `shiftR` (8-n))
+
+{-# INLINE reversePacket #-}
+reversePacket ∷ Bitstream (Packet d) ⇒ Packet d → Packet d
+reversePacket α0@(Packet n0 _) = fst $ unfoldrN n0 go α0
+    where
+      {-# INLINE go #-}
+      go α | null α    = Nothing
+           | otherwise = Just (last α, init α)
+
+{-# INLINEABLE foldrPacket #-}
+foldrPacket ∷ Bitstream (Packet d) ⇒ (Bool → β → β) → β → Packet d → β
+foldrPacket f β0 α0 = go β0 α0
+    where
+      {-# INLINE go #-}
+      go β α
+          | null α    = β
+          | otherwise = go (f (last α) β) (init α)
+
+{-# INLINE foldr1Packet #-}
+foldr1Packet ∷ Bitstream (Packet d) ⇒ (Bool → Bool → Bool) → Packet d → Bool
+foldr1Packet f α
+    | null α    = packetEmpty
+    | otherwise = foldrPacket f (last α) (init α)

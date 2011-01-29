@@ -391,13 +391,42 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
     reverse (Bitstream v)
         = Bitstream (SV.reverse (SV.map reverse v))
 
+    {-# INLINEABLE foldl #-}
+    foldl f β0 (Bitstream v0) = go β0 v0
+        where
+          {-# INLINE go #-}
+          go β v = case SV.viewL v of
+                      Just (p, v') → go (foldl f β p) v'
+                      Nothing      → β
+
+    {-# INLINEABLE foldl' #-}
+    foldl' f β0 (Bitstream v0) = go β0 v0
+        where
+          {-# INLINE go #-}
+          go β v = case SV.viewL v of
+                      Just (p, v') → go (foldl' f β p) v'
+                      Nothing      → β
+
+    {-# INLINEABLE foldr #-}
+    foldr f β0 (Bitstream v0) = go β0 v0
+        where
+          {-# INLINE go #-}
+          go β v = case SV.viewR v of
+                      Just (v', p) → go (foldr f β p) v'
+                      Nothing      → β
+
+    {-# INLINEABLE foldr1 #-}
+    foldr1 f α
+        | null α    = emptyStream
+        | otherwise = foldr f (last α) (init α)
+
     {-# INLINE concat #-}
     concat = Bitstream ∘ SV.concat ∘ L.map g
         where
           {-# INLINE g #-}
           g (Bitstream v) = v
 
-    {-# INLINEABLE concatMap #-}
+    {-# INLINE concatMap #-}
     concatMap f (Bitstream v)
         = Bitstream (SV.concatMap g v)
         where
