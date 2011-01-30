@@ -6,6 +6,7 @@
   , UnicodeSyntax
   #-}
 module Main where
+import Control.Arrow
 import Control.Monad
 import Data.Bitstream (Bitstream)
 import qualified Data.Bitstream.Generic as G
@@ -228,7 +229,7 @@ tests = [ -- ∅
         , property $ \bl → B.all id (B.pack bl ∷ BitR) ≡ all id bl
 
           -- scans
-        ,-} property $ \(b, bl) → B.scanl xor b (B.pack bl ∷ BitL) ≡ B.pack (scanl xor b bl)
+        , property $ \(b, bl) → B.scanl xor b (B.pack bl ∷ BitL) ≡ B.pack (scanl xor b bl)
         , property $ \bl → (¬) (null bl) ⟹ B.scanl1 xor (B.pack bl ∷ BitL) ≡ B.pack (scanl1 xor bl)
         , property $ \(b, bl) → B.scanr xor b (B.pack bl ∷ BitL) ≡ B.pack (scanr xor b bl)
         , property $ \bl → (¬) (null bl) ⟹ B.scanr1 xor (B.pack bl ∷ BitL) ≡ B.pack (scanr1 xor bl)
@@ -237,6 +238,17 @@ tests = [ -- ∅
         , property $ \bl → (¬) (null bl) ⟹ B.scanl1 xor (B.pack bl ∷ BitR) ≡ B.pack (scanl1 xor bl)
         , property $ \(b, bl) → B.scanr xor b (B.pack bl ∷ BitR) ≡ B.pack (scanr xor b bl)
         , property $ \bl → (¬) (null bl) ⟹ B.scanr1 xor (B.pack bl ∷ BitR) ≡ B.pack (scanr1 xor bl)
+
+          -- accumulating maps
+        ,-} property $ \(n, bl) → B.mapAccumL doubleIf' n (B.pack bl ∷ BitL)
+                       ≡ second B.pack (mapAccumL doubleIf' n bl)
+        , property $ \(n, bl) → B.mapAccumR doubleIf' n (B.pack bl ∷ BitL)
+                       ≡ second B.pack (mapAccumR doubleIf' n bl)
+
+        , property $ \(n, bl) → B.mapAccumL doubleIf' n (B.pack bl ∷ BitR)
+                       ≡ second B.pack (mapAccumL doubleIf' n bl)
+        , property $ \(n, bl) → B.mapAccumR doubleIf' n (B.pack bl ∷ BitR)
+                       ≡ second B.pack (mapAccumR doubleIf' n bl)
         ]
 
 n2b ∷ Int → Bool
@@ -247,6 +259,10 @@ n2b _ = (⊥)
 doubleIf ∷ Int → Bool → Int
 doubleIf n True  = n ⋅ 2
 doubleIf n False = n
+
+doubleIf' ∷ Int → Bool → (Int, Bool)
+doubleIf' n True  = (n ⋅ 2, False)
+doubleIf' n False = (n    , True )
 
 xor ∷ Bool → Bool → Bool
 xor False False = False
