@@ -209,7 +209,7 @@ tests = [ -- ∅
         , property $ \bl → (¬) (null bl) ⟹ B.foldr1 xor (B.pack bl ∷ BitR) ≡ foldr1 xor bl
 
           -- special folds
-        ,-} property $ \bls → B.concat (map B.pack bls ∷ [BitL]) ≡ B.pack (concat bls)
+        , property $ \bls → B.concat (map B.pack bls ∷ [BitL]) ≡ B.pack (concat bls)
         , property $ \bl → let f True  = [True , True , True ]
                                f False = [False, False, False]
                            in B.concatMap (B.pack ∘ f) (B.pack bl ∷ BitL) ≡ B.pack (concatMap f bl)
@@ -228,6 +228,15 @@ tests = [ -- ∅
         , property $ \bl → B.all id (B.pack bl ∷ BitR) ≡ all id bl
 
           -- scans
+        ,-} property $ \(b, bl) → B.scanl xor b (B.pack bl ∷ BitL) ≡ B.pack (scanl xor b bl)
+        , property $ \bl → (¬) (null bl) ⟹ B.scanl1 xor (B.pack bl ∷ BitL) ≡ B.pack (scanl1 xor bl)
+        , property $ \(b, bl) → B.scanr xor b (B.pack bl ∷ BitL) ≡ B.pack (scanr xor b bl)
+        , property $ \bl → (¬) (null bl) ⟹ B.scanr1 xor (B.pack bl ∷ BitL) ≡ B.pack (scanr1 xor bl)
+
+        , property $ \(b, bl) → B.scanl xor b (B.pack bl ∷ BitR) ≡ B.pack (scanl xor b bl)
+        , property $ \bl → (¬) (null bl) ⟹ B.scanl1 xor (B.pack bl ∷ BitR) ≡ B.pack (scanl1 xor bl)
+        , property $ \(b, bl) → B.scanr xor b (B.pack bl ∷ BitR) ≡ B.pack (scanr xor b bl)
+        , property $ \bl → (¬) (null bl) ⟹ B.scanr1 xor (B.pack bl ∷ BitR) ≡ B.pack (scanr1 xor bl)
         ]
 
 n2b ∷ Int → Bool

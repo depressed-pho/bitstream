@@ -196,11 +196,11 @@ class Ord α ⇒ Bitstream α where
     {-# INLINE all #-}
 
     scanl ∷ (Bool → Bool → Bool) → Bool → α → α
-    scanl f β α = pack (L.scanl f β (snocL (unpack α) (⊥)))
+    scanl f β α = pack (L.scanl f β (unpack α))
     {-# INLINE scanl #-}
 
     scanl1 ∷ (Bool → Bool → Bool) → α → α
-    scanl1 f α = pack (L.scanl1 f (snocL (unpack α) (⊥)))
+    scanl1 f α = pack (L.scanl1 f (unpack α))
     {-# INLINE scanl1 #-}
 
     scanr ∷ (Bool → Bool → Bool) → Bool → α → α
