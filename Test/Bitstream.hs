@@ -279,12 +279,16 @@ tests = [ -- ∅
         , property $ \(n, bl) → B.splitAt n (B.pack bl ∷ BitL) ≡ fmapT2 B.pack (splitAt n bl)
         , property $ \bl → B.takeWhile id (B.pack bl ∷ BitL) ≡ B.pack (takeWhile id bl)
         , property $ \bl → B.dropWhile id (B.pack bl ∷ BitL) ≡ B.pack (dropWhile id bl)
+        , property $ \bl → B.span id (B.pack bl ∷ BitL) ≡ fmapT2 B.pack (span id bl)
+        , property $ \bl → B.break id (B.pack bl ∷ BitL) ≡ fmapT2 B.pack (break id bl)
 
         , property $ \(n, bl) → B.take n (B.pack bl ∷ BitR) ≡ B.pack (take n bl)
         , property $ \(n, bl) → B.drop n (B.pack bl ∷ BitR) ≡ B.pack (drop n bl)
         , property $ \(n, bl) → B.splitAt n (B.pack bl ∷ BitR) ≡ fmapT2 B.pack (splitAt n bl)
         , property $ \bl → B.takeWhile id (B.pack bl ∷ BitR) ≡ B.pack (takeWhile id bl)
         , property $ \bl → B.dropWhile id (B.pack bl ∷ BitR) ≡ B.pack (dropWhile id bl)
+        , property $ \bl → B.span id (B.pack bl ∷ BitR) ≡ fmapT2 B.pack (span id bl)
+        , property $ \bl → B.break id (B.pack bl ∷ BitR) ≡ fmapT2 B.pack (break id bl)
         ]
 
 n2b ∷ Int → Bool
