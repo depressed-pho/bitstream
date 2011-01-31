@@ -507,7 +507,9 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
 
     {-# SPECIALISE take ∷ Int → Bitstream Left  → Bitstream Left  #-}
     {-# SPECIALISE take ∷ Int → Bitstream Right → Bitstream Right #-}
-    take n0 (Bitstream v0) = Bitstream (SV.unfoldr g (n0, v0))
+    take n0 (Bitstream v0)
+        | n0 ≤ 0    = (∅)
+        | otherwise = Bitstream (SV.unfoldr g (n0, v0))
         where
           {-# INLINE g #-}
           g (0, _) = Nothing
@@ -519,7 +521,9 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
 
     {-# SPECIALISE drop ∷ Int → Bitstream Left  → Bitstream Left  #-}
     {-# SPECIALISE drop ∷ Int → Bitstream Right → Bitstream Right #-}
-    drop n0 (Bitstream v0) = Bitstream (g n0 v0)
+    drop n0 (Bitstream v0)
+        | n0 ≤ 0    = Bitstream v0
+        | otherwise = Bitstream (g n0 v0)
         where
           {-# INLINE g #-}
           g 0 v = v

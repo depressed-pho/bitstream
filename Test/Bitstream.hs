@@ -251,7 +251,7 @@ tests = [ -- ∅
                        ≡ second B.pack (mapAccumR doubleIf' n bl)
 
           -- replication
-        ,-} property $ \(n, b) → (B.replicate (n `mod` 800) b ∷ BitL) ≡ B.pack (replicate (n `mod` 800) b)
+        , property $ \(n, b) → (B.replicate (n `mod` 800) b ∷ BitL) ≡ B.pack (replicate (n `mod` 800) b)
         , property $ \(n, b) → (B.replicate (n `mod` 800) b ∷ BitR) ≡ B.pack (replicate (n `mod` 800) b)
 
           -- unfolding
@@ -272,6 +272,19 @@ tests = [ -- ∅
                                                                            , Just (n' - m) )
                                      | otherwise = label "otherwise" $ r ≡ (B.pack (unfoldr decr n'), Nothing)
                                in p
+
+          -- substreams
+        ,-} property $ \(n, bl) → B.take n (B.pack bl ∷ BitL) ≡ B.pack (take n bl)
+        , property $ \(n, bl) → B.drop n (B.pack bl ∷ BitL) ≡ B.pack (drop n bl)
+        , property $ \(n, bl) → B.splitAt n (B.pack bl ∷ BitL) ≡ fmapT2 B.pack (splitAt n bl)
+        , property $ \bl → B.takeWhile id (B.pack bl ∷ BitL) ≡ B.pack (takeWhile id bl)
+        , property $ \bl → B.dropWhile id (B.pack bl ∷ BitL) ≡ B.pack (dropWhile id bl)
+
+        , property $ \(n, bl) → B.take n (B.pack bl ∷ BitR) ≡ B.pack (take n bl)
+        , property $ \(n, bl) → B.drop n (B.pack bl ∷ BitR) ≡ B.pack (drop n bl)
+        , property $ \(n, bl) → B.splitAt n (B.pack bl ∷ BitR) ≡ fmapT2 B.pack (splitAt n bl)
+        , property $ \bl → B.takeWhile id (B.pack bl ∷ BitR) ≡ B.pack (takeWhile id bl)
+        , property $ \bl → B.dropWhile id (B.pack bl ∷ BitR) ≡ B.pack (dropWhile id bl)
         ]
 
 n2b ∷ Int → Bool
@@ -295,3 +308,6 @@ xor ∷ Bool → Bool → Bool
 xor False False = False
 xor True  True  = False
 xor _     _     = True
+
+fmapT2 ∷ (a → b) → (a, a) → (b, b)
+fmapT2 f (x, y) = (f x, f y)

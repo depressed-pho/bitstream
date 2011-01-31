@@ -208,20 +208,24 @@ instance Bitstream (Packet Left) where
                   Just (a, β') → loop_unfoldrN (n-1) β' (α `unsafeSnocL` a)
 
     {-# SPECIALISE take ∷ Int → Packet Left → Packet Left #-}
-    take l (Packet _ o)
-        = let n' = fromIntegral (min 8 l)
-              o' = (0xFF `shiftR` (8-n')) .&. o
-          in
-            Packet n' o'
+    take l (Packet n o)
+        | l ≤ 0      = (∅)
+        | otherwise
+            = let n' = fromIntegral (min (fromIntegral n) l)
+                  o' = (0xFF `shiftR` (8-n')) .&. o
+              in
+                Packet n' o'
     {-# INLINE take #-}
 
     {-# SPECIALISE drop ∷ Int → Packet Left → Packet Left #-}
     drop l (Packet n o)
-        = let d  = fromIntegral (min (fromIntegral n) l)
-              n' = n-d
-              o' = o `shiftR` d
-          in
-            Packet n' o'
+        | l ≤ 0      = Packet n o
+        | otherwise
+            = let d  = fromIntegral (min (fromIntegral n) l)
+                  n' = n-d
+                  o' = o `shiftR` d
+              in
+                Packet n' o'
     {-# INLINE drop #-}
 
     {-# SPECIALISE (!!) ∷ Packet Left → Int → Bool #-}
@@ -343,20 +347,24 @@ instance Bitstream (Packet Right) where
     {-# INLINEABLE unfoldrN #-}
 
     {-# SPECIALISE take ∷ Int → Packet Right → Packet Right #-}
-    take n (Packet _ o)
-        = let n' = fromIntegral (min 8 n)
-              o' = (0xFF `shiftL` (8-n')) .&. o
-          in
-            Packet n' o'
+    take l (Packet n o)
+        | l ≤ 0      = (∅)
+        | otherwise
+            = let n' = fromIntegral (min (fromIntegral n) l)
+                  o' = (0xFF `shiftL` (8-n')) .&. o
+              in
+                Packet n' o'
     {-# INLINE take #-}
 
     {-# SPECIALISE drop ∷ Int → Packet Right → Packet Right #-}
     drop l (Packet n o)
-        = let d  = fromIntegral (min (fromIntegral n) l)
-              n' = n-d
-              o' = o `shiftL` d
-          in
-            Packet n' o'
+        | l ≤ 0      = Packet n o
+        | otherwise
+            = let d  = fromIntegral (min (fromIntegral n) l)
+                  n' = n-d
+                  o' = o `shiftL` d
+              in
+                Packet n' o'
     {-# INLINE drop #-}
 
     {-# SPECIALISE (!!) ∷ Packet Right → Int → Bool #-}
