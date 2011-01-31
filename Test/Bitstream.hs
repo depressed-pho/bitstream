@@ -281,6 +281,10 @@ tests = [ -- ∅
         , property $ \bl → B.dropWhile id (B.pack bl ∷ BitL) ≡ B.pack (dropWhile id bl)
         , property $ \bl → B.span id (B.pack bl ∷ BitL) ≡ fmapT2 B.pack (span id bl)
         , property $ \bl → B.break id (B.pack bl ∷ BitL) ≡ fmapT2 B.pack (break id bl)
+        , property $ \bl → B.group (B.pack bl ∷ BitL) ≡ fmap B.pack (group bl)
+        , property $ \bl → B.groupBy xor (B.pack bl ∷ BitL) ≡ fmap B.pack (groupBy xor bl)
+        , property $ \bl → B.inits (B.pack bl ∷ BitL) ≡ fmap B.pack (inits bl)
+        , property $ \bl → B.tails (B.pack bl ∷ BitL) ≡ fmap B.pack (tails bl)
 
         , property $ \(n, bl) → B.take n (B.pack bl ∷ BitR) ≡ B.pack (take n bl)
         , property $ \(n, bl) → B.drop n (B.pack bl ∷ BitR) ≡ B.pack (drop n bl)
@@ -289,6 +293,10 @@ tests = [ -- ∅
         , property $ \bl → B.dropWhile id (B.pack bl ∷ BitR) ≡ B.pack (dropWhile id bl)
         , property $ \bl → B.span id (B.pack bl ∷ BitR) ≡ fmapT2 B.pack (span id bl)
         , property $ \bl → B.break id (B.pack bl ∷ BitR) ≡ fmapT2 B.pack (break id bl)
+        , property $ \bl → B.group (B.pack bl ∷ BitR) ≡ fmap B.pack (group bl)
+        , property $ \bl → B.groupBy xor (B.pack bl ∷ BitR) ≡ fmap B.pack (groupBy xor bl)
+        , property $ \bl → B.inits (B.pack bl ∷ BitR) ≡ fmap B.pack (inits bl)
+        , property $ \bl → B.tails (B.pack bl ∷ BitR) ≡ fmap B.pack (tails bl)
         ]
 
 n2b ∷ Int → Bool

@@ -600,10 +600,10 @@ class Ord α ⇒ Bitstream α where
     groupBy ∷ (Bool → Bool → Bool) → α → [α]
     groupBy f α
         = case uncons α of
-            Nothing     → []
-            Just (a, _) → let (β, γ) = span (f a) α
-                          in
-                            (a `cons` β) : groupBy f γ
+            Nothing      → []
+            Just (a, α') → let (β, γ) = span (f a) α'
+                           in
+                             (a `cons` β) : groupBy f γ
     {-# INLINEABLE groupBy #-}
 
 emptyStream ∷ α
