@@ -199,7 +199,7 @@ import qualified Data.Stream as S
 import Foreign.Marshal.Array
 import Foreign.Storable
 import Prelude ( Bool(..), Eq(..), Int, Integral, Maybe(..), Monad(..), Num(..)
-               , Ord(..), Ordering(..), Show(..), ($), div, error, fmap
+               , Ord(..), Ordering(..), Show(..), ($), const, div, error, fmap
                , fromIntegral, fst, otherwise
                )
 import Prelude.Unicode hiding ((⧺), (∈), (∉))
@@ -451,7 +451,9 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
 
     {-# SPECIALISE replicate ∷ Int → Bool → Bitstream Left  #-}
     {-# SPECIALISE replicate ∷ Int → Bool → Bitstream Right #-}
-    replicate n0 = Bitstream ∘ SV.unfoldr g ∘ ((,) n0)
+    replicate n0
+        | n0 ≤ 0    = const (∅)
+        | otherwise = Bitstream ∘ SV.unfoldr g ∘ ((,) n0)
         where
           {-# INLINE g #-}
           g (0, _) = Nothing

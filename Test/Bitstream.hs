@@ -240,7 +240,7 @@ tests = [ -- ∅
         , property $ \bl → (¬) (null bl) ⟹ B.scanr1 xor (B.pack bl ∷ BitR) ≡ B.pack (scanr1 xor bl)
 
           -- accumulating maps
-        ,-} property $ \(n, bl) → B.mapAccumL doubleIf' n (B.pack bl ∷ BitL)
+        , property $ \(n, bl) → B.mapAccumL doubleIf' n (B.pack bl ∷ BitL)
                        ≡ second B.pack (mapAccumL doubleIf' n bl)
         , property $ \(n, bl) → B.mapAccumR doubleIf' n (B.pack bl ∷ BitL)
                        ≡ second B.pack (mapAccumR doubleIf' n bl)
@@ -249,6 +249,10 @@ tests = [ -- ∅
                        ≡ second B.pack (mapAccumL doubleIf' n bl)
         , property $ \(n, bl) → B.mapAccumR doubleIf' n (B.pack bl ∷ BitR)
                        ≡ second B.pack (mapAccumR doubleIf' n bl)
+
+          -- replication
+        ,-} mapSize (`div` 5) $ \(n, b) → (B.replicate n b ∷ BitL) ≡ B.pack (replicate n b)
+        , mapSize (`div` 5) $ \(n, b) → (B.replicate n b ∷ BitR) ≡ B.pack (replicate n b)
         ]
 
 n2b ∷ Int → Bool
