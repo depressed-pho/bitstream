@@ -230,14 +230,14 @@ tests = [ -- ∅
 
           -- scans
         , property $ \(b, bl) → B.scanl xor b (B.pack bl ∷ BitL) ≡ B.pack (scanl xor b bl)
-        , property $ \bl → (¬) (null bl) ⟹ B.scanl1 xor (B.pack bl ∷ BitL) ≡ B.pack (scanl1 xor bl)
+        , property $ \bl → B.scanl1 xor (B.pack bl ∷ BitL) ≡ B.pack (scanl1 xor bl)
         , property $ \(b, bl) → B.scanr xor b (B.pack bl ∷ BitL) ≡ B.pack (scanr xor b bl)
-        , property $ \bl → (¬) (null bl) ⟹ B.scanr1 xor (B.pack bl ∷ BitL) ≡ B.pack (scanr1 xor bl)
+        , property $ \bl → B.scanr1 xor (B.pack bl ∷ BitL) ≡ B.pack (scanr1 xor bl)
 
         , property $ \(b, bl) → B.scanl xor b (B.pack bl ∷ BitR) ≡ B.pack (scanl xor b bl)
-        , property $ \bl → (¬) (null bl) ⟹ B.scanl1 xor (B.pack bl ∷ BitR) ≡ B.pack (scanl1 xor bl)
+        , property $ \bl → B.scanl1 xor (B.pack bl ∷ BitR) ≡ B.pack (scanl1 xor bl)
         , property $ \(b, bl) → B.scanr xor b (B.pack bl ∷ BitR) ≡ B.pack (scanr xor b bl)
-        , property $ \bl → (¬) (null bl) ⟹ B.scanr1 xor (B.pack bl ∷ BitR) ≡ B.pack (scanr1 xor bl)
+        , property $ \bl → B.scanr1 xor (B.pack bl ∷ BitR) ≡ B.pack (scanr1 xor bl)
 
           -- accumulating maps
         , property $ \(n, bl) → B.mapAccumL doubleIf' n (B.pack bl ∷ BitL)

@@ -27,7 +27,7 @@ import Data.Bits
 import qualified Data.List.Stream as L
 import Data.Word
 import Foreign.Storable
-import Prelude hiding (init, last, length, null, tail)
+import Prelude hiding ((!!), drop, init, last, length, null, take, tail)
 import Prelude.Unicode
 
 data Left
@@ -207,6 +207,7 @@ instance Bitstream (Packet Left) where
                   Nothing      → (α, Nothing)
                   Just (a, β') → loop_unfoldrN (n-1) β' (α `unsafeSnocL` a)
 
+    {-# INLINE take #-}
     {-# SPECIALISE take ∷ Int → Packet Left → Packet Left #-}
     take l (Packet n o)
         | l ≤ 0      = (∅)
@@ -215,8 +216,8 @@ instance Bitstream (Packet Left) where
                   o' = (0xFF `shiftR` (8-n')) .&. o
               in
                 Packet n' o'
-    {-# INLINE take #-}
 
+    {-# INLINE drop #-}
     {-# SPECIALISE drop ∷ Int → Packet Left → Packet Left #-}
     drop l (Packet n o)
         | l ≤ 0      = Packet n o
@@ -226,13 +227,18 @@ instance Bitstream (Packet Left) where
                   o' = o `shiftR` d
               in
                 Packet n' o'
-    {-# INLINE drop #-}
 
+    {-# INLINE takeWhile #-}
+    takeWhile = takeWhilePacket
+
+    {-# INLINE dropWhile #-}
+    dropWhile = dropWhilePacket
+
+    {-# INLINE (!!) #-}
     {-# SPECIALISE (!!) ∷ Packet Left → Int → Bool #-}
     (Packet n o) !! i
         | i < 0 ∨ i ≥ fromIntegral n = indexOutOfRange i
         | otherwise                  = o `testBit` fromIntegral i
-    {-# INLINE (!!) #-}
 
 instance Bitstream (Packet Right) where
     {-# INLINE [0] pack #-}
@@ -332,6 +338,7 @@ instance Bitstream (Packet Right) where
                       in
                         Packet (fromIntegral n) o
 
+    {-# INLINEABLE unfoldrN #-}
     {-# SPECIALISE
         unfoldrN ∷ Int → (β → Maybe (Bool, β)) → β → (Packet Right, Maybe β) #-}
     unfoldrN n0 f β0
@@ -344,8 +351,8 @@ instance Bitstream (Packet Right) where
               = case f β of
                   Nothing      → (α, Nothing)
                   Just (a, β') → loop_unfoldrN (n-1) β' (α `unsafeSnocR` a)
-    {-# INLINEABLE unfoldrN #-}
 
+    {-# INLINE take #-}
     {-# SPECIALISE take ∷ Int → Packet Right → Packet Right #-}
     take l (Packet n o)
         | l ≤ 0      = (∅)
@@ -354,8 +361,8 @@ instance Bitstream (Packet Right) where
                   o' = (0xFF `shiftL` (8-n')) .&. o
               in
                 Packet n' o'
-    {-# INLINE take #-}
 
+    {-# INLINE drop #-}
     {-# SPECIALISE drop ∷ Int → Packet Right → Packet Right #-}
     drop l (Packet n o)
         | l ≤ 0      = Packet n o
@@ -365,13 +372,18 @@ instance Bitstream (Packet Right) where
                   o' = o `shiftL` d
               in
                 Packet n' o'
-    {-# INLINE drop #-}
 
+    {-# INLINE takeWhile #-}
+    takeWhile = takeWhilePacket
+
+    {-# INLINE dropWhile #-}
+    dropWhile = dropWhilePacket
+
+    {-# INLINE (!!) #-}
     {-# SPECIALISE (!!) ∷ Packet Right → Int → Bool #-}
     (Packet n o) !! i
         | i < 0 ∨ i ≥ fromIntegral n = indexOutOfRange i
         | otherwise                  = o `testBit` (7 - fromIntegral i)
-    {-# INLINE (!!) #-}
 
 {-# INLINE packetEmpty #-}
 packetEmpty ∷ α
@@ -448,3 +460,21 @@ foldr1Packet ∷ Bitstream (Packet d) ⇒ (Bool → Bool → Bool) → Packet d 
 foldr1Packet f α
     | null α    = packetEmpty
     | otherwise = foldrPacket f (last α) (init α)
+
+{-# INLINEABLE takeWhilePacket #-}
+takeWhilePacket ∷ Bitstream (Packet d) ⇒ (Bool → Bool) → Packet d → Packet d
+takeWhilePacket f α = take (go 0 ∷ Int) α
+    where
+      {-# INLINE go #-}
+      go i | i ≥ length α = i
+           | f (α !! i)   = go (i+1)
+           | otherwise    = i
+
+{-# INLINEABLE dropWhilePacket #-}
+dropWhilePacket ∷ Bitstream (Packet d) ⇒ (Bool → Bool) → Packet d → Packet d
+dropWhilePacket f α = drop (go 0 ∷ Int) α
+    where
+      {-# INLINE go #-}
+      go i | i ≥ length α = i
+           | f (α !! i)   = go (i+1)
+           | otherwise    = i
