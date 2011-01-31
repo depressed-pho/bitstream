@@ -476,7 +476,7 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
     {-# SPECIALISE unfoldrN ∷ Int → (β → Maybe (Bool, β)) → β → (Bitstream Left , Maybe β) #-}
     {-# SPECIALISE unfoldrN ∷ Int → (β → Maybe (Bool, β)) → β → (Bitstream Right, Maybe β) #-}
     unfoldrN n0 f β0
-        | n0 < 0    = ((∅), Just β0)
+        | n0 ≤ 0    = ((∅), Just β0)
         | otherwise = case unsafePerformIO $ SV.createAndTrim' l $ \p → go p l n0 β0 of
                         (v, mβ1) → (Bitstream v, mβ1)
         where
@@ -493,7 +493,7 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
                           (pk, Nothing)
                               | null pk   → return (0, l-i, Nothing)
                               | otherwise → do poke p pk
-                                               return (0, l-i, Nothing)
+                                               return (0, l-i+1, Nothing)
           {-# INLINE consume8 #-}
           consume8 0 β p  = (p, Just β)
           consume8 n β p

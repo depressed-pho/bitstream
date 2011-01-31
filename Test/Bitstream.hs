@@ -251,8 +251,27 @@ tests = [ -- ∅
                        ≡ second B.pack (mapAccumR doubleIf' n bl)
 
           -- replication
-        ,-} mapSize (`div` 5) $ \(n, b) → (B.replicate n b ∷ BitL) ≡ B.pack (replicate n b)
-        , mapSize (`div` 5) $ \(n, b) → (B.replicate n b ∷ BitR) ≡ B.pack (replicate n b)
+        ,-} property $ \(n, b) → (B.replicate (n `mod` 800) b ∷ BitL) ≡ B.pack (replicate (n `mod` 800) b)
+        , property $ \(n, b) → (B.replicate (n `mod` 800) b ∷ BitR) ≡ B.pack (replicate (n `mod` 800) b)
+
+          -- unfolding
+        , property $ \n → (B.unfoldr decr (abs (n `mod` 800)) ∷ BitL) ≡ B.pack (unfoldr decr (abs (n `mod` 800)))
+        , property $ \(m, n) → let n'            = abs (n `mod` 800)
+                                   r             = B.unfoldrN m decr n'
+                                   p | m ≤ 0     = label "m ≤ 0"     $ r ≡ ((B.∅), Just n')
+                                     | m ≤ n'    = label "m ≤ n'"    $ r ≡ ( B.pack (take m (unfoldr decr n')) ∷ BitL
+                                                                           , Just (n' - m) )
+                                     | otherwise = label "otherwise" $ r ≡ (B.pack (unfoldr decr n'), Nothing)
+                               in p
+
+        , property $ \n → (B.unfoldr decr (abs (n `mod` 800)) ∷ BitR) ≡ B.pack (unfoldr decr (abs (n `mod` 800)))
+        , property $ \(m, n) → let n'            = abs (n `mod` 800)
+                                   r             = B.unfoldrN m decr n'
+                                   p | m ≤ 0     = label "m ≤ 0"     $ r ≡ ((B.∅), Just n')
+                                     | m ≤ n'    = label "m ≤ n'"    $ r ≡ ( B.pack (take m (unfoldr decr n')) ∷ BitR
+                                                                           , Just (n' - m) )
+                                     | otherwise = label "otherwise" $ r ≡ (B.pack (unfoldr decr n'), Nothing)
+                               in p
         ]
 
 n2b ∷ Int → Bool
@@ -267,6 +286,10 @@ doubleIf n False = n
 doubleIf' ∷ Int → Bool → (Int, Bool)
 doubleIf' n True  = (n ⋅ 2, False)
 doubleIf' n False = (n    , True )
+
+decr ∷ Int → Maybe (Bool, Int)
+decr 0 = Nothing
+decr n = Just (n `mod` 2 ≡ 0, n-1)
 
 xor ∷ Bool → Bool → Bool
 xor False False = False
