@@ -59,6 +59,32 @@ instance Arbitrary BS.ByteString where
           uncons []     = Nothing
           uncons (x:xs) = Just (x, xs)
 
+instance ( Arbitrary α, Arbitrary β, Arbitrary γ
+         , Arbitrary δ, Arbitrary ε, Arbitrary ζ
+         )
+         ⇒ Arbitrary (α, β, γ, δ, ε, ζ) where
+    arbitrary = do α ← arbitrary
+                   β ← arbitrary
+                   γ ← arbitrary
+                   δ ← arbitrary
+                   ε ← arbitrary
+                   ζ ← arbitrary
+                   return (α, β, γ, δ, ε, ζ)
+
+instance ( Arbitrary α, Arbitrary β, Arbitrary γ
+         , Arbitrary δ, Arbitrary ε, Arbitrary ζ
+         , Arbitrary η
+         )
+         ⇒ Arbitrary (α, β, γ, δ, ε, ζ, η) where
+    arbitrary = do α ← arbitrary
+                   β ← arbitrary
+                   γ ← arbitrary
+                   δ ← arbitrary
+                   ε ← arbitrary
+                   ζ ← arbitrary
+                   η ← arbitrary
+                   return (α, β, γ, δ, ε, ζ, η)
+
 type BitL = Bitstream Left
 type BitR = Bitstream Right
 
@@ -274,7 +300,7 @@ tests = [ -- ∅
                                in p
 
           -- substreams
-        ,-} property $ \(n, bl) → B.take n (B.pack bl ∷ BitL) ≡ B.pack (take n bl)
+        , property $ \(n, bl) → B.take n (B.pack bl ∷ BitL) ≡ B.pack (take n bl)
         , property $ \(n, bl) → B.drop n (B.pack bl ∷ BitL) ≡ B.pack (drop n bl)
         , property $ \(n, bl) → B.splitAt n (B.pack bl ∷ BitL) ≡ fmapT2 B.pack (splitAt n bl)
         , property $ \bl → B.takeWhile id (B.pack bl ∷ BitL) ≡ B.pack (takeWhile id bl)
@@ -297,6 +323,87 @@ tests = [ -- ∅
         , property $ \bl → B.groupBy xor (B.pack bl ∷ BitR) ≡ fmap B.pack (groupBy xor bl)
         , property $ \bl → B.inits (B.pack bl ∷ BitR) ≡ fmap B.pack (inits bl)
         , property $ \bl → B.tails (B.pack bl ∷ BitR) ≡ fmap B.pack (tails bl)
+
+          -- predicates
+        , property $ \(bl1, bl2) → B.isPrefixOf (B.pack bl1 ∷ BitL) (B.pack bl2) ≡ isPrefixOf bl1 bl2
+        , property $ \(bl1, bl2) → B.isSuffixOf (B.pack bl1 ∷ BitL) (B.pack bl2) ≡ isSuffixOf bl1 bl2
+        , property $ \(bl1, bl2) → B.isInfixOf (B.pack bl1 ∷ BitL) (B.pack bl2) ≡ isInfixOf bl1 bl2
+
+        , property $ \(bl1, bl2) → B.isPrefixOf (B.pack bl1 ∷ BitR) (B.pack bl2) ≡ isPrefixOf bl1 bl2
+        , property $ \(bl1, bl2) → B.isSuffixOf (B.pack bl1 ∷ BitR) (B.pack bl2) ≡ isSuffixOf bl1 bl2
+        , property $ \(bl1, bl2) → B.isInfixOf (B.pack bl1 ∷ BitR) (B.pack bl2) ≡ isInfixOf bl1 bl2
+
+          -- searching by equality
+        , property $ \(b, bl) → (b B.∈ (B.pack bl ∷ BitL)) ≡ (b ∈ bl)
+        , property $ \(b, bl) → (b B.∉ (B.pack bl ∷ BitL)) ≡ (b ∉ bl)
+
+        , property $ \(b, bl) → (b B.∈ (B.pack bl ∷ BitR)) ≡ (b ∈ bl)
+        , property $ \(b, bl) → (b B.∉ (B.pack bl ∷ BitR)) ≡ (b ∉ bl)
+
+          -- searching with a predicate
+        , property $ \bl → B.find id (B.pack bl ∷ BitL) ≡ find id bl
+        , property $ \bl → B.filter id (B.pack bl ∷ BitL) ≡ B.pack (filter id bl)
+        , property $ \bl → B.partition id (B.pack bl ∷ BitL) ≡ fmapT2 B.pack (partition id bl)
+
+        , property $ \bl → B.find id (B.pack bl ∷ BitR) ≡ find id bl
+        , property $ \bl → B.filter id (B.pack bl ∷ BitR) ≡ B.pack (filter id bl)
+        , property $ \bl → B.partition id (B.pack bl ∷ BitR) ≡ fmapT2 B.pack (partition id bl)
+
+          -- indexing streams
+        , property $ \bl → (¬) (null bl) ⟹
+                             let ig = choose (0, length bl - 1)
+                                 bs = B.pack bl ∷ BitL
+                             in forAll ig $ \ i → bs B.!! i ≡ bl !! i
+        , property $ \(b, bl) → B.elemIndex b (B.pack bl ∷ BitL) ≡ elemIndex b bl
+        , property $ \(b, bl) → B.elemIndices b (B.pack bl ∷ BitL) ≡ elemIndices b bl
+
+        , property $ \bl → (¬) (null bl) ⟹
+                               let ig = choose (0, length bl - 1)
+                                   bs = B.pack bl ∷ BitR
+                               in forAll ig $ \ i → bs B.!! i ≡ bl !! i
+        , property $ \(b, bl) → B.elemIndex b (B.pack bl ∷ BitR) ≡ elemIndex b bl
+        , property $ \(b, bl) → B.elemIndices b (B.pack bl ∷ BitR) ≡ elemIndices b bl
+
+          -- zipping and unzipping streams
+        , property $ \(bl1, bl2)
+                       → B.zip (B.pack bl1 ∷ BitL) (B.pack bl2)
+                              ≡ zip bl1 bl2
+        , property $ \(bl1, bl2, bl3)
+                       → B.zip3 (B.pack bl1 ∷ BitL) (B.pack bl2) (B.pack bl3)
+                              ≡ zip3 bl1 bl2 bl3
+        , property $ \(bl1, bl2, bl3, bl4)
+                       → B.zip4 (B.pack bl1 ∷ BitL) (B.pack bl2) (B.pack bl3) (B.pack bl4)
+                              ≡ zip4 bl1 bl2 bl3 bl4
+        , property $ \(bl1, bl2, bl3, bl4, bl5)
+                       → B.zip5 (B.pack bl1 ∷ BitL) (B.pack bl2) (B.pack bl3) (B.pack bl4) (B.pack bl5)
+                              ≡ zip5 bl1 bl2 bl3 bl4 bl5
+        , property $ \(bl1, bl2, bl3, bl4, bl5, bl6)
+                       → B.zip6 (B.pack bl1 ∷ BitL) (B.pack bl2) (B.pack bl3) (B.pack bl4) (B.pack bl5) (B.pack bl6)
+                              ≡ zip6 bl1 bl2 bl3 bl4 bl5 bl6
+        , property $ \(bl1, bl2, bl3, bl4, bl5, bl6, bl7)
+                       → B.zip7 (B.pack bl1 ∷ BitL) (B.pack bl2) (B.pack bl3) (B.pack bl4) (B.pack bl5) (B.pack bl6) (B.pack bl7)
+                              ≡ zip7 bl1 bl2 bl3 bl4 bl5 bl6 bl7
+
+        , property $ \(bl1, bl2)
+                       → B.zip (B.pack bl1 ∷ BitR) (B.pack bl2)
+                              ≡ zip bl1 bl2
+        , property $ \(bl1, bl2, bl3)
+                       → B.zip3 (B.pack bl1 ∷ BitR) (B.pack bl2) (B.pack bl3)
+                              ≡ zip3 bl1 bl2 bl3
+        , property $ \(bl1, bl2, bl3, bl4)
+                       → B.zip4 (B.pack bl1 ∷ BitR) (B.pack bl2) (B.pack bl3) (B.pack bl4)
+                              ≡ zip4 bl1 bl2 bl3 bl4
+        , property $ \(bl1, bl2, bl3, bl4, bl5)
+                       → B.zip5 (B.pack bl1 ∷ BitR) (B.pack bl2) (B.pack bl3) (B.pack bl4) (B.pack bl5)
+                              ≡ zip5 bl1 bl2 bl3 bl4 bl5
+        , property $ \(bl1, bl2, bl3, bl4, bl5, bl6)
+                       → B.zip6 (B.pack bl1 ∷ BitR) (B.pack bl2) (B.pack bl3) (B.pack bl4) (B.pack bl5) (B.pack bl6)
+                              ≡ zip6 bl1 bl2 bl3 bl4 bl5 bl6
+        ,-} property $ \(bl1, bl2, bl3, bl4, bl5, bl6, bl7)
+                       → B.zip7 (B.pack bl1 ∷ BitR) (B.pack bl2) (B.pack bl3) (B.pack bl4) (B.pack bl5) (B.pack bl6) (B.pack bl7)
+                              ≡ zip7 bl1 bl2 bl3 bl4 bl5 bl6 bl7
+
+        
         ]
 
 n2b ∷ Int → Bool

@@ -56,4 +56,4 @@ Test-Suite test-strict-bitstream
         storablevector       == 0.2.*,
         stream-fusion        == 0.1.*
     GHC-Options:
-        -Wall -fhpc
+        -Wall -fhpc -fno-warn-orphans

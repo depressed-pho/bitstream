@@ -391,6 +391,7 @@ class Ord α ⇒ Bitstream α where
     findIndex = (listToMaybe ∘) ∘ findIndices
     {-# INLINE findIndex #-}
 
+    {-# INLINEABLE findIndices #-}
     findIndices ∷ Integral n ⇒ (Bool → Bool) → α → [n]
     findIndices f = find' 0
         where
@@ -400,10 +401,9 @@ class Ord α ⇒ Bitstream α where
                   Just (a, as)
                       | f a       → n : find' (n+1) as
                       | otherwise →     find' (n+1) as
-    {-# INLINEABLE findIndices #-}
 
     zip ∷ α → α → [(Bool, Bool)]
-    zip a b = L.zip (unpack a) (unpack b)
+    zip = zipWith (,)
     {-# INLINE zip #-}
 
     zip3 ∷ α → α → α → [(Bool, Bool, Bool)]

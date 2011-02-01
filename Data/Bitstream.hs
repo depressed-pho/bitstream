@@ -577,6 +577,30 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
                   Nothing
                       → SV.empty
 
+    {-# INLINEABLE isPrefixOf #-}
+    isPrefixOf (Bitstream x0) (Bitstream y0) = go ((∅), x0) ((∅), y0)
+        where
+          {-# INLINE go #-}
+          go (px, x) (py, y)
+              | null px
+                  = case SV.viewL x of
+                      Just (px', x') → go (px', x') (py, y)
+                      Nothing        → True
+              | null py
+                  = case SV.viewL y of
+                      Just (py', y') → go (px, x) (py', y')
+                      Nothing        → False
+              | otherwise
+                  = let n          ∷ Int
+                        n          = min (length px) (length py)
+                        (pxH, pxT) = splitAt n px
+                        (pyH, pyT) = splitAt n py
+                    in
+                      if pxH ≡ pyH then
+                          go (pxT, x) (pyT, y)
+                      else
+                          False
+
     {-# INLINEABLE find #-}
     find f (Bitstream v0) = go v0
         where
@@ -626,21 +650,20 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
                         Nothing → go v' (i + length p)
     {-# INLINEABLE findIndex #-}
 
+    {-# INLINEABLE findIndices #-}
     {-# SPECIALISE findIndices ∷ (Bool → Bool) → Bitstream Left  → [Int] #-}
     {-# SPECIALISE findIndices ∷ (Bool → Bool) → Bitstream Right → [Int] #-}
-    findIndices f (Bitstream v0) = go v0 0 []
+    findIndices f (Bitstream v0) = go 0 v0
         where
           {-# INLINE go #-}
-          go v i is = case SV.viewL v of
-                        Just (p, v')
-                            → let js  = L.map (i +) (findIndices f p)
-                                  is' = js : is
-                                  i'  = i + length p
-                              in
-                                go v' i' is'
-                        Nothing
-                            → L.concat (L.reverse is)
-    {-# INLINE findIndices #-}
+          go i v = case SV.viewL v of
+                     Just (p, v')
+                         → let is   = L.map (+ i) (findIndices f p)
+                               rest = go (i + length p) v'
+                           in
+                             is L.++ rest
+                     Nothing
+                         → []
 
 inconsistentState ∷ α
 inconsistentState
