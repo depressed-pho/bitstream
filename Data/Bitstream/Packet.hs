@@ -85,15 +85,17 @@ instance Show (Packet Right) where
 
 instance Ord (Packet Left) where
     {-# INLINEABLE compare #-}
-    x `compare` y
-        = packetLToR x `compare` packetLToR y
+    (Packet nx ox) `compare` (Packet ny oy)
+        = compare
+          (reverseBits ox `shiftR` (8-nx))
+          (reverseBits oy `shiftR` (8-ny))
 
 instance Ord (Packet Right) where
     {-# INLINE compare #-}
     (Packet nx ox) `compare` (Packet ny oy)
-        | nx < ny   = LT
-        | nx > ny   = GT
-        | otherwise = ox `compare` oy
+        = compare
+          (ox `shiftR` (8-nx))
+          (oy `shiftR` (8-ny))
 
 instance Bitstream (Packet Left) where
     {-# INLINE [0] pack #-}
@@ -169,7 +171,8 @@ instance Bitstream (Packet Left) where
     length (Packet n _) = fromIntegral n
 
     {-# INLINE reverse #-}
-    reverse = reversePacket
+    reverse (Packet n o)
+        = Packet n (reverseBits o `shiftR` (8-n))
 
     {-# INLINE foldr #-}
     foldr = foldrPacket
@@ -314,7 +317,8 @@ instance Bitstream (Packet Right) where
     length (Packet n _) = fromIntegral n
 
     {-# INLINE reverse #-}
-    reverse = reversePacket
+    reverse (Packet n o)
+        = Packet n (reverseBits o `shiftL` (8-n))
 
     {-# INLINE foldr #-}
     foldr = foldrPacket
@@ -438,13 +442,17 @@ packetLToR (Packet n o) = Packet n (o `shiftL` (8-n))
 packetRToL ∷ Packet Right → Packet Left
 packetRToL (Packet n o) = Packet n (o `shiftR` (8-n))
 
-{-# INLINE reversePacket #-}
-reversePacket ∷ Bitstream (Packet d) ⇒ Packet d → Packet d
-reversePacket α0@(Packet n0 _) = fst $ unfoldrN n0 go α0
-    where
-      {-# INLINE go #-}
-      go α | null α    = Nothing
-           | otherwise = Just (last α, init α)
+{-# INLINE reverseBits #-}
+reverseBits ∷ Word8 → Word8
+reverseBits x
+    = ((x .&. 0x01) `shiftL` 7) .|.
+      ((x .&. 0x02) `shiftL` 5) .|.
+      ((x .&. 0x04) `shiftL` 3) .|.
+      ((x .&. 0x08) `shiftL` 1) .|.
+      ((x .&. 0x10) `shiftR` 1) .|.
+      ((x .&. 0x20) `shiftR` 3) .|.
+      ((x .&. 0x40) `shiftR` 5) .|.
+      ((x .&. 0x80) `shiftR` 7)
 
 {-# INLINEABLE foldrPacket #-}
 foldrPacket ∷ Bitstream (Packet d) ⇒ (Bool → β → β) → β → Packet d → β

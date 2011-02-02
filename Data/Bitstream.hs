@@ -160,7 +160,9 @@ module Data.Bitstream
     , (∖)
     , (∆)
     , union
+    , (∪)
     , intersect
+    , (∩)
     , nubBy
     , deleteBy
     , deleteFirstsBy

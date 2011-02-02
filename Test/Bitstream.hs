@@ -15,6 +15,9 @@ import qualified Data.Bitstream as B
 import qualified Data.ByteString as BS
 import Data.ByteString.Char8 ()
 import Data.List
+import Data.List.Unicode
+import qualified Data.Monoid as M
+import qualified Data.Monoid.Unicode as M
 import qualified Data.Stream as S
 import Data.Word
 import Prelude.Unicode
@@ -90,7 +93,7 @@ type BitR = Bitstream Right
 
 tests ∷ [Property]
 tests = [ -- ∅
-          {-conjoin
+          conjoin
           [ property $ B.null      ((B.∅) ∷ BitL)
           , property $ B.length    ((B.∅) ∷ BitL) ≡ (0 ∷Int)
           , property $ B.pack [] ≡ ((B.∅) ∷ BitL)
@@ -165,6 +168,38 @@ tests = [ -- ∅
         , property $ \bs → B.directionLToR (B.directionRToL bs) ≡ bs
         , property $ \str → B.toByteString (B.directionLToR (B.fromByteString str)) ≡ str
         , property $ \str → B.toByteString (B.directionRToL (B.fromByteString str)) ≡ str
+
+          -- show
+        , conjoin
+          [ property $ show (B.pack [ True , False, False, True, True
+                                    , False, False, False, True, False
+                                    , True , False, True , True, True  ] ∷ BitL)
+                       ≡ "(S[00011001←][1110101←])"
+          , property $ show (B.pack [ True , False, False, True, True
+                                    , False, False, False, True, False
+                                    , True , False, True , True, True  ] ∷ BitR)
+                       ≡ "(S[→10011000][→1010111])"
+          ]
+
+          -- equality
+        , property $ \(bl1, bl2) → ((B.pack bl1 ∷ BitL) ≡ B.pack bl2) ≡ (bl1 ≡ bl2)
+        , property $ \(bl1, bl2) → ((B.pack bl1 ∷ BitR) ≡ B.pack bl2) ≡ (bl1 ≡ bl2)
+
+          -- ordering
+        , property $ \(bl1, bl2) → (B.pack bl1 ∷ BitL) `compare` B.pack bl2 ≡ bl1 `compare` bl2
+        , property $ \(bl1, bl2) → (B.pack bl1 ∷ BitR) `compare` B.pack bl2 ≡ bl1 `compare` bl2
+
+          -- monoid
+        , conjoin
+          [ property $ ((M.∅) ∷ BitL) ≡ B.pack (M.∅)
+          , property $ ((M.∅) ∷ BitR) ≡ B.pack (M.∅)
+          ]
+
+        , property $ \(bl1, bl2) → (B.pack bl1 ∷ BitL) M.⊕ (B.pack bl2) ≡ B.pack (bl1 M.⊕ bl2)
+        , property $ \bls → M.mconcat (map B.pack bls ∷ [BitL]) ≡ B.pack (M.mconcat bls)
+
+        , property $ \(bl1, bl2) → (B.pack bl1 ∷ BitR) M.⊕ (B.pack bl2) ≡ B.pack (bl1 M.⊕ bl2)
+        , property $ \bls → M.mconcat (map B.pack bls ∷ [BitR]) ≡ B.pack (M.mconcat bls)
 
           -- basic interface
         , property $ \(b, bl) → B.cons b (B.pack bl ∷ BitL) ≡ B.pack (b:bl)
@@ -399,11 +434,32 @@ tests = [ -- ∅
         , property $ \(bl1, bl2, bl3, bl4, bl5, bl6)
                        → B.zip6 (B.pack bl1 ∷ BitR) (B.pack bl2) (B.pack bl3) (B.pack bl4) (B.pack bl5) (B.pack bl6)
                               ≡ zip6 bl1 bl2 bl3 bl4 bl5 bl6
-        ,-} property $ \(bl1, bl2, bl3, bl4, bl5, bl6, bl7)
+        , property $ \(bl1, bl2, bl3, bl4, bl5, bl6, bl7)
                        → B.zip7 (B.pack bl1 ∷ BitR) (B.pack bl2) (B.pack bl3) (B.pack bl4) (B.pack bl5) (B.pack bl6) (B.pack bl7)
                               ≡ zip7 bl1 bl2 bl3 bl4 bl5 bl6 bl7
 
-        
+          -- set operations
+        , property $ \bl → B.nub (B.pack bl ∷ BitL) ≡ B.pack (nub bl)
+        , property $ \(b, bl) → B.delete b (B.pack bl ∷ BitL) ≡ B.pack (delete b bl)
+        , property $ \(bl1, bl2) → (B.pack bl1 ∷ BitL) B.∖ B.pack bl2 ≡ B.pack (bl1 ∖ bl2)
+        , property $ \(bl1, bl2) → (B.pack bl1 ∷ BitL) B.∆ B.pack bl2 ≡ B.pack (bl1 ∆ bl2)
+        , property $ \(bl1, bl2) → (B.pack bl1 ∷ BitL) B.∪ B.pack bl2 ≡ B.pack (bl1 ∪ bl2)
+        , property $ \bl → B.nubBy xor (B.pack bl ∷ BitL) ≡ B.pack (nubBy xor bl)
+        , property $ \(b, bl) → B.deleteBy xor b (B.pack bl ∷ BitL) ≡ B.pack (deleteBy xor b bl)
+        , property $ \(bl1, bl2) → B.deleteFirstsBy xor (B.pack bl1 ∷ BitL) (B.pack bl2) ≡ B.pack (deleteFirstsBy xor bl1 bl2)
+        , property $ \(bl1, bl2) → B.unionBy xor (B.pack bl1 ∷ BitL) (B.pack bl2) ≡ B.pack (unionBy xor bl1 bl2)
+        , property $ \(bl1, bl2) → B.intersectBy xor (B.pack bl1 ∷ BitL) (B.pack bl2) ≡ B.pack (intersectBy xor bl1 bl2)
+
+        , property $ \bl → B.nub (B.pack bl ∷ BitR) ≡ B.pack (nub bl)
+        , property $ \(b, bl) → B.delete b (B.pack bl ∷ BitR) ≡ B.pack (delete b bl)
+        , property $ \(bl1, bl2) → (B.pack bl1 ∷ BitR) B.∖ B.pack bl2 ≡ B.pack (bl1 ∖ bl2)
+        , property $ \(bl1, bl2) → (B.pack bl1 ∷ BitR) B.∆ B.pack bl2 ≡ B.pack (bl1 ∆ bl2)
+        , property $ \(bl1, bl2) → (B.pack bl1 ∷ BitR) B.∪ B.pack bl2 ≡ B.pack (bl1 ∪ bl2)
+        , property $ \bl → B.nubBy xor (B.pack bl ∷ BitR) ≡ B.pack (nubBy xor bl)
+        , property $ \(b, bl) → B.deleteBy xor b (B.pack bl ∷ BitR) ≡ B.pack (deleteBy xor b bl)
+        , property $ \(bl1, bl2) → B.deleteFirstsBy xor (B.pack bl1 ∷ BitR) (B.pack bl2) ≡ B.pack (deleteFirstsBy xor bl1 bl2)
+        , property $ \(bl1, bl2) → B.unionBy xor (B.pack bl1 ∷ BitR) (B.pack bl2) ≡ B.pack (unionBy xor bl1 bl2)
+        , property $ \(bl1, bl2) → B.intersectBy xor (B.pack bl1 ∷ BitR) (B.pack bl2) ≡ B.pack (intersectBy xor bl1 bl2)
         ]
 
 n2b ∷ Int → Bool
