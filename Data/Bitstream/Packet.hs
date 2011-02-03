@@ -84,11 +84,9 @@ instance Show (Packet Right) where
               | otherwise         = Just ('0', (n-1, o))
 
 instance Ord (Packet Left) where
-    {-# INLINEABLE compare #-}
-    (Packet nx ox) `compare` (Packet ny oy)
-        = compare
-          (reverseBits ox `shiftR` (8-nx))
-          (reverseBits oy `shiftR` (8-ny))
+    {-# INLINE compare #-}
+    px `compare` py
+        = packetLToR px `compare` packetLToR py
 
 instance Ord (Packet Right) where
     {-# INLINE compare #-}
@@ -436,11 +434,11 @@ unsafeSnocR (Packet n o) False = Packet (n+1)  o
 
 {-# INLINE packetLToR #-}
 packetLToR ∷ Packet Left → Packet Right
-packetLToR (Packet n o) = Packet n (o `shiftL` (8-n))
+packetLToR (Packet n o) = Packet n (reverseBits o)
 
 {-# INLINE packetRToL #-}
 packetRToL ∷ Packet Right → Packet Left
-packetRToL (Packet n o) = Packet n (o `shiftR` (8-n))
+packetRToL (Packet n o) = Packet n (reverseBits o)
 
 {-# INLINE reverseBits #-}
 reverseBits ∷ Word8 → Word8

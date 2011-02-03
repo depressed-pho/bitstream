@@ -160,14 +160,12 @@ tests = [ -- ∅
           -- direction
         , conjoin
           [ property $ B.toByteString (B.directionLToR (B.pack (map n2b [1,1,0,1,0,0,1,0, 1,0,0])))
-                         ≡ BS.pack [0x4B, 0x20]
+                         ≡ BS.pack [0xD2, 0x80]
           , property $ B.toByteString (B.directionRToL (B.pack (map n2b [1,1,0,1,0,0,1,0, 1,0,0])))
-                         ≡ BS.pack [0xD2, 0x04]
+                         ≡ BS.pack [0x4B, 0x01]
           ]
         , property $ \bs → B.directionRToL (B.directionLToR bs) ≡ bs
         , property $ \bs → B.directionLToR (B.directionRToL bs) ≡ bs
-        , property $ \str → B.toByteString (B.directionLToR (B.fromByteString str)) ≡ str
-        , property $ \str → B.toByteString (B.directionRToL (B.fromByteString str)) ≡ str
 
           -- show
         , conjoin
