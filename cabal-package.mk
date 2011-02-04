@@ -89,11 +89,8 @@ sdist: setup-config
 test: build
 	$(RM_RF) dist/test
 	./Setup test
-	$(FIND) . -depth 1 -and -name '*.tix' \
-		-exec $(HPC) markup \
-				--destdir="dist/hpc" \
-				--fun-entry-count \
-				{} \;
+	$(HPC) sum --output="merged.tix" --union *.tix
+	$(HPC) markup --destdir="dist/hpc" --fun-entry-count "merged.tix"
 
 lint:
 	$(HLINT) . --report \

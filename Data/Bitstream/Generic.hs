@@ -163,46 +163,54 @@ class Ord α ⇒ Bitstream α where
             Just (a, α') → foldl' f a α'
             Nothing      → emptyStream
 
-    {-# INLINE foldr #-}
+    {-# INLINEABLE foldr #-}
     foldr ∷ (Bool → β → β) → β → α → β
-    foldr f β = L.foldr f β ∘ unpack
+    foldr f β0 α0 = go β0 α0
+        where
+          {-# INLINE go #-}
+          go β α
+              | null α    = β
+              | otherwise = go (f (last α) β) (init α)
 
     {-# INLINE foldr1 #-}
     foldr1 ∷ (Bool → Bool → Bool) → α → Bool
-    foldr1 = (∘ unpack) ∘ L.foldr1
+    foldr1 f α
+        | null α    = emptyStream
+        | otherwise = foldr f (last α) (init α)
 
+    {-# INLINE concat #-}
     concat ∷ [α] → α
     concat = pack ∘ L.concatMap unpack
-    {-# INLINE concat #-}
 
+    {-# INLINE concatMap #-}
     concatMap ∷ (Bool → α) → α → α
     concatMap f = pack ∘ L.concatMap (unpack ∘ f) ∘ unpack
-    {-# INLINE concatMap #-}
 
+    {-# INLINE and #-}
     and ∷ α → Bool
     and = L.and ∘ unpack
-    {-# INLINE and #-}
 
+    {-# INLINE or #-}
     or ∷ α → Bool
     or = L.or ∘ unpack
-    {-# INLINE or #-}
 
+    {-# INLINE any #-}
     any ∷ (Bool → Bool) → α → Bool
     any = (∘ unpack) ∘ L.any
-    {-# INLINE any #-}
 
+    {-# INLINE all #-}
     all ∷ (Bool → Bool) → α → Bool
     all = (∘ unpack) ∘ L.all
-    {-# INLINE all #-}
 
+    {-# INLINE scanl #-}
     scanl ∷ (Bool → Bool → Bool) → Bool → α → α
     scanl f β α = pack (L.scanl f β (unpack α))
-    {-# INLINE scanl #-}
 
+    {-# INLINE scanl1 #-}
     scanl1 ∷ (Bool → Bool → Bool) → α → α
     scanl1 f α = pack (L.scanl1 f (unpack α))
-    {-# INLINE scanl1 #-}
 
+    {-# INLINEABLE scanr #-}
     scanr ∷ (Bool → Bool → Bool) → Bool → α → α
     scanr f β α
         = case uncons α of
@@ -210,8 +218,8 @@ class Ord α ⇒ Bitstream α where
             Just (a, as) → let α' = scanr f β as
                            in
                              f a (head α') `cons` α'
-    {-# INLINEABLE scanr #-}
 
+    {-# INLINEABLE scanr1 #-}
     scanr1 ∷ (Bool → Bool → Bool) → α → α
     scanr1 f α
         = case uncons α of
@@ -221,8 +229,8 @@ class Ord α ⇒ Bitstream α where
                 | otherwise → let α' = scanr1 f as
                               in
                                 f a (head α') `cons` α'
-    {-# INLINEABLE scanr1 #-}
 
+    {-# INLINEABLE mapAccumL #-}
     mapAccumL ∷ (β → Bool → (β, Bool)) → β → α → (β, α)
     mapAccumL f s α
         = case uncons α of
@@ -231,8 +239,8 @@ class Ord α ⇒ Bitstream α where
                                (s'', α') = mapAccumL f s' as
                            in
                              (s'', b `cons` α')
-    {-# INLINEABLE mapAccumL #-}
 
+    {-# INLINEABLE mapAccumR #-}
     mapAccumR ∷ (β → Bool → (β, Bool)) → β → α → (β, α)
     mapAccumR f s α
         = case uncons α of
@@ -241,30 +249,14 @@ class Ord α ⇒ Bitstream α where
                                (s' , α') = mapAccumR f s as
                            in
                              (s'', b `cons` α')
-    {-# INLINEABLE mapAccumR #-}
 
+    {-# INLINEABLE replicate #-}
     replicate ∷ Integral n ⇒ n → Bool → α
     replicate n b
         | n ≤ 0     = (∅)
         | otherwise = b `cons` replicate (n-1) b
-    {-# INLINEABLE replicate #-}
 
--- FIXME: Provide these only for lazy streams!
-{-
-    iterate ∷ (Bool → Bool) → Bool → α
-    iterate = (pack ∘) ∘ L.iterate
-    {-# INLINE iterate #-}
-
-    repeat ∷ Bool → α
-    repeat = pack ∘ L.repeat
-    {-# INLINE repeat #-}
-
-    cycle ∷ α → α
-    cycle = pack ∘ L.cycle ∘ unpack
-    {-# INLINE cycle #-}
--}
-
-    {-# INLINE unfoldr #-}
+    {-# INLINEABLE unfoldr #-}
     unfoldr ∷ (β → Maybe (Bool, β)) → β → α
     unfoldr f β0 = loop_unfoldr β0 (∅)
         where
@@ -274,7 +266,7 @@ class Ord α ⇒ Bitstream α where
                   Nothing      → α
                   Just (a, β') → loop_unfoldr β' (α `snoc` a)
 
-    {-# INLINE unfoldrN #-}
+    {-# INLINEABLE unfoldrN #-}
     unfoldrN ∷ Integral n ⇒ n → (β → Maybe (Bool, β)) → β → (α, Maybe β)
     unfoldrN n0 f β0
         | n0 < 0    = ((∅), Just β0)

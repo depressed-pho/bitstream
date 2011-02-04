@@ -172,12 +172,6 @@ instance Bitstream (Packet Left) where
     reverse (Packet n o)
         = Packet n (reverseBits o `shiftR` (8-n))
 
-    {-# INLINE foldr #-}
-    foldr = foldrPacket
-
-    {-# INLINE foldr1 #-}
-    foldr1 = foldr1Packet
-
     {-# INLINE and #-}
     and (Packet n o) = (0xff `shiftR` (8-n)) ≡ o
 
@@ -318,12 +312,6 @@ instance Bitstream (Packet Right) where
     reverse (Packet n o)
         = Packet n (reverseBits o `shiftL` (8-n))
 
-    {-# INLINE foldr #-}
-    foldr = foldrPacket
-
-    {-# INLINE foldr1 #-}
-    foldr1 = foldr1Packet
-
     {-# INLINE and #-}
     and (Packet n o) = (0xff `shiftL` (8-n)) ≡ o
 
@@ -451,21 +439,6 @@ reverseBits x
       ((x .&. 0x20) `shiftR` 3) .|.
       ((x .&. 0x40) `shiftR` 5) .|.
       ((x .&. 0x80) `shiftR` 7)
-
-{-# INLINEABLE foldrPacket #-}
-foldrPacket ∷ Bitstream (Packet d) ⇒ (Bool → β → β) → β → Packet d → β
-foldrPacket f β0 α0 = go β0 α0
-    where
-      {-# INLINE go #-}
-      go β α
-          | null α    = β
-          | otherwise = go (f (last α) β) (init α)
-
-{-# INLINE foldr1Packet #-}
-foldr1Packet ∷ Bitstream (Packet d) ⇒ (Bool → Bool → Bool) → Packet d → Bool
-foldr1Packet f α
-    | null α    = packetEmpty
-    | otherwise = foldrPacket f (last α) (init α)
 
 {-# INLINEABLE takeWhilePacket #-}
 takeWhilePacket ∷ Bitstream (Packet d) ⇒ (Bool → Bool) → Packet d → Packet d

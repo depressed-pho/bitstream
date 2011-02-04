@@ -13,7 +13,6 @@ import qualified Data.Bitstream.Lazy as LB
 import Data.Bitstream.Packet
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as LS
-import Data.Word
 import Prelude.Unicode
 import System.Exit
 import Test.QuickCheck

@@ -51,6 +51,46 @@ module Data.Bitstream.Lazy
     , intersperse
     , intercalate
     , transpose
+
+      -- * Reducing 'Bitstream's
+    , foldl
+    , foldl'
+    , foldl1
+    , foldl1'
+    , foldr
+    , foldr1
+
+      -- ** Special folds
+    , concat
+    , concatMap
+    , and
+    , or
+    , any
+    , all
+
+      -- * Building lists
+      -- ** Scans
+    , scanl
+    , scanl1
+    , scanr
+    , scanr1
+
+      -- ** Accumulating maps
+    , mapAccumL
+    , mapAccumR
+
+      -- ** Replications
+    , iterate
+    , repeat
+    , replicate
+    , cycle
+
+      -- ** Unfolding
+    , unfoldr
+    , unfoldrN
+
+      -- * Substreams
+    , take
     )
     where
 import qualified Data.Bitstream as Strict
@@ -65,9 +105,9 @@ import qualified Data.StorableVector as SV
 import qualified Data.StorableVector.Lazy as LV
 import qualified Data.Stream as S
 import Foreign.Storable
-import Prelude ( Bool(..), Eq(..), Int, Integral, Maybe(..), Monad(..), Num(..)
-               , Ord(..), Ordering(..), Show(..), ($), div, error, fmap
-               , fromIntegral, fst, otherwise
+import Prelude ( Bool(..), Either(..), Eq(..), Int, Integral, Maybe(..)
+               , Monad(..), Num(..), Ord(..), Ordering(..), Show(..), ($), div
+               , error, fmap, fromIntegral, fst, otherwise
                )
 import Prelude.Unicode hiding ((⧺), (∈), (∉))
 
@@ -151,13 +191,17 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
     {-# SPECIALISE instance G.Bitstream (Bitstream Right) #-}
 
     {-# INLINE [0] pack #-}
-    pack xs0 = Bitstream (LV.unfoldr chunkSize f xs0)
+    pack = Bitstream ∘ LV.unfoldr chunkSize f ∘ Just
         where
           {-# INLINE f #-}
-          f xs = case L.splitAt 8 xs of
-                   (hd, tl)
-                       | L.null hd → Nothing
-                       | otherwise → Just (pack hd, tl)
+          f Nothing   = Nothing
+          f (Just xs) = case unfoldrN (8 ∷ Int) g xs of
+                          (p, mxs')
+                              | null p    → Nothing
+                              | otherwise → Just (p, mxs')
+          {-# INLINE g #-}
+          g []     = Nothing
+          g (x:xs) = Just (x, xs)
 
     {-# INLINE [0] unpack #-}
     unpack (Bitstream v) = L.concatMap unpack (LV.unpack v)
@@ -247,6 +291,110 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
     reverse (Bitstream v)
         = Bitstream (LV.reverse (LV.map reverse v))
 
+    {-# INLINEABLE foldl #-}
+    foldl f β0 (Bitstream v0) = go β0 v0
+        where
+          {-# INLINE go #-}
+          go β v = case LV.viewL v of
+                      Just (p, v') → go (foldl f β p) v'
+                      Nothing      → β
+
+    {-# INLINEABLE foldl' #-}
+    foldl' f β0 (Bitstream v0) = go β0 v0
+        where
+          {-# INLINE go #-}
+          go β v = case LV.viewL v of
+                      Just (p, v') → go (foldl' f β p) v'
+                      Nothing      → β
+
+    {-# INLINEABLE foldr #-}
+    foldr f β0 (Bitstream v0) = go β0 v0
+        where
+          {-# INLINE go #-}
+          go β v = case LV.viewR v of
+                      Just (v', p) → go (foldr f β p) v'
+                      Nothing      → β
+
+    {-# INLINE concat #-}
+    concat = Bitstream ∘ LV.fromChunks ∘ L.concatMap g
+        where
+          {-# INLINE g #-}
+          g (Bitstream v) = LV.chunks v
+
+    {-# INLINE concatMap #-}
+    concatMap f (Bitstream v0) = Bitstream (LV.concat (L.map g (LV.unpack v0)))
+        where
+          {-# INLINE g #-}
+          g = LV.concat ∘ L.map (i ∘ f) ∘ unpack
+          {-# INLINE i #-}
+          i (Bitstream v) = v
+
+    {-# INLINE and #-}
+    and (Bitstream v) = LV.all and v
+
+    {-# INLINE or #-}
+    or (Bitstream v) = LV.any or v
+
+    {-# INLINE any #-}
+    any f (Bitstream v) = LV.any (any f) v
+
+    {-# INLINE all #-}
+    all f (Bitstream v) = LV.all (all f) v
+
+    {-# INLINEABLE replicate #-}
+    {-# SPECIALISE replicate ∷ Int → Bool → Bitstream Left  #-}
+    {-# SPECIALISE replicate ∷ Int → Bool → Bitstream Right #-}
+    replicate n0 b
+        | n0 ≤ 0    = (∅)
+        | otherwise = Bitstream (LV.unfoldr chunkSize g n0)
+        where
+          {-# INLINE g #-}
+          g 0 = Nothing
+          g n = let n' = min 8 n
+                    p  = replicate n' b
+                in
+                  Just (p, n-n')
+
+    {-# INLINEABLE unfoldr #-}
+    unfoldr f = Bitstream ∘ LV.unfoldr chunkSize g ∘ Just
+        where
+          {-# INLINE g #-}
+          g Nothing  = Nothing
+          g (Just β) = case unfoldrN (8 ∷ Int) f β of
+                          (p, mβ')
+                              | null p    → Nothing
+                              | otherwise → Just (p, mβ')
+
+    {-# INLINEABLE unfoldrN #-}
+    {-# SPECIALISE unfoldrN ∷ Int → (β → Maybe (Bool, β)) → β → (Bitstream Left , Maybe β) #-}
+    {-# SPECIALISE unfoldrN ∷ Int → (β → Maybe (Bool, β)) → β → (Bitstream Right, Maybe β) #-}
+    unfoldrN n0 f β0
+        | n0 ≤ 0    = ((∅), Just β0)
+        | otherwise = case LV.unfoldrResult chunkSize g (n0, Just β0) of
+                        (v, mβ1) → (Bitstream v, mβ1)
+        where
+          {-# INLINE g #-}
+          g (0, mβ     ) = Left mβ
+          g (_, Nothing) = Left Nothing
+          g (n, Just β ) = case unfoldrN (min 8 n) f β of
+                            (p, mβ')
+                                | null p    → Left Nothing
+                                | otherwise → Right (p, (n - length p, mβ'))
+
+    {-# INLINEABLE take #-}
+    {-# SPECIALISE take ∷ Int → Bitstream Left  → Bitstream Left  #-}
+    {-# SPECIALISE take ∷ Int → Bitstream Right → Bitstream Right #-}
+    take n0 (Bitstream v0)
+        | n0 ≤ 0    = (∅)
+        | otherwise = Bitstream (LV.unfoldr chunkSize g (n0, v0))
+        where
+          {-# INLINE g #-}
+          g (0, _) = Nothing
+          g (n, v) = do (p, v') ← LV.viewL v
+                        let p' = take n p
+                            n' = n - length p'
+                        return (p', (n', v'))
+
 inconsistentState ∷ α
 inconsistentState
     = error "Data.Bitstream.Lazy: internal error: inconsistent state"
@@ -255,16 +403,9 @@ emptyStream ∷ α
 emptyStream
     = error "Data.Bitstream.Lazy: empty stream"
 
-{-
-{-# INLINE consLV' #-}
-consLV' ∷ Storable α ⇒ α → LV.Vector α → LV.Vector α
-consLV' α (LV.SV []    ) = LV.singleton α
-consLV' α (LV.SV (x:xs)) = LV.SV (α `SV.cons` x : xs)
--}
-
 {-# INLINE snocLV' #-}
 snocLV' ∷ Storable α ⇒ LV.Vector α → α → LV.Vector α
-snocLV' (LV.SV chunks) α = LV.SV (go chunks)
+snocLV' v α = LV.fromChunks (go (LV.chunks v))
     where
       {-# INLINE go #-}
       go []     = [SV.singleton α]
@@ -308,10 +449,10 @@ cons' b (Bitstream v) = Bitstream (LV.fromChunks (go (LV.chunks v)))
                         | length p < (8 ∷ Int)
                               → SV.cons (cons b p) ps : xs
                         | SV.length x < chunkSize
-                              → SV.cons (singleton b) ps : xs
+                              → SV.cons (singleton b) x : xs
                         | otherwise
                               → SV.singleton (singleton b) : x : xs
-                    Nothing   → SV.singleton (singleton b) : xs
+                    Nothing   → inconsistentState
 
 {-# INLINEABLE snoc' #-}
 {-# SPECIALISE snoc' ∷ Bitstream Left  → Bool → Bitstream Left  #-}
@@ -331,3 +472,15 @@ snoc' (Bitstream v) b = Bitstream (LV.fromChunks (go (LV.chunks v)))
                               → [x, SV.singleton (singleton b)]
                     Nothing   → [SV.singleton (singleton b)]
       go (x:xs) = x : go xs
+
+{-# INLINE iterate #-}
+iterate ∷ G.Bitstream (Packet d) ⇒ (Bool → Bool) → Bool → Bitstream d
+iterate = (pack ∘) ∘ L.iterate
+
+{-# INLINE repeat #-}
+repeat ∷ G.Bitstream (Packet d) ⇒ Bool → Bitstream d
+repeat = pack ∘ L.repeat
+
+{-# INLINE cycle #-}
+cycle ∷ G.Bitstream (Packet d) ⇒ Bitstream d → Bitstream d
+cycle (Bitstream v) = Bitstream (LV.cycle v)

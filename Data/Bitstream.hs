@@ -201,7 +201,7 @@ import qualified Data.Stream as S
 import Foreign.Marshal.Array
 import Foreign.Storable
 import Prelude ( Bool(..), Eq(..), Int, Integral, Maybe(..), Monad(..), Num(..)
-               , Ord(..), Ordering(..), Show(..), ($), const, div, error, fmap
+               , Ord(..), Ordering(..), Show(..), ($), div, error, fmap
                , fromIntegral, fst, otherwise
                )
 import Prelude.Unicode hiding ((⧺), (∈), (∉))
@@ -415,11 +415,6 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
                       Just (v', p) → go (foldr f β p) v'
                       Nothing      → β
 
-    {-# INLINEABLE foldr1 #-}
-    foldr1 f α
-        | null α    = emptyStream
-        | otherwise = foldr f (last α) (init α)
-
     {-# INLINE concat #-}
     concat = Bitstream ∘ SV.concat ∘ L.map g
         where
@@ -427,15 +422,12 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
           g (Bitstream v) = v
 
     {-# INLINE concatMap #-}
-    concatMap f (Bitstream v)
-        = Bitstream (SV.concatMap g v)
+    concatMap f (Bitstream v0) = Bitstream (SV.concatMap g v0)
         where
           {-# INLINE g #-}
-          g = SV.concatMap h ∘ SV.pack ∘ unpack
-          {-# INLINE h #-}
-          h = i ∘ f
+          g = SV.concat ∘ L.map (i ∘ f) ∘ unpack
           {-# INLINE i #-}
-          i (Bitstream v') = v'
+          i (Bitstream v) = v
 
     {-# INLINE and #-}
     and (Bitstream v) = SV.all and v
@@ -449,19 +441,22 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
     {-# INLINE all #-}
     all f (Bitstream v) = SV.all (all f) v
 
+    {-# INLINEABLE replicate #-}
     {-# SPECIALISE replicate ∷ Int → Bool → Bitstream Left  #-}
     {-# SPECIALISE replicate ∷ Int → Bool → Bitstream Right #-}
-    replicate n0
-        | n0 ≤ 0    = const (∅)
-        | otherwise = Bitstream ∘ SV.unfoldr g ∘ ((,) n0)
+    replicate n0 b
+        | n0 ≤ 0    = (∅)
+        | otherwise = Bitstream (fst $ SV.unfoldrN len g n0)
         where
+          {-# INLINE len #-}
+          len ∷ Int
+          len = fromIntegral ((n0 + 7) `div` 8)
           {-# INLINE g #-}
-          g (0, _) = Nothing
-          g (n, b) = let n' = min 8 n
-                         p  = replicate n' b
-                     in
-                       Just (p, (n-n', b))
-    {-# INLINEABLE replicate #-}
+          g 0 = Nothing
+          g n = let n' = min 8 n
+                    p  = replicate n' b
+                in
+                  Just (p, n-n')
 
     {-# INLINEABLE unfoldr #-}
     unfoldr f = Bitstream ∘ SV.unfoldr g ∘ Just
@@ -469,10 +464,11 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
           {-# INLINE g #-}
           g Nothing  = Nothing
           g (Just β) = case unfoldrN (8 ∷ Int) f β of
-                          (p, β')
+                          (p, mβ')
                               | null p    → Nothing
-                              | otherwise → Just (p, β')
+                              | otherwise → Just (p, mβ')
 
+    {-# INLINEABLE unfoldrN #-}
     {-# SPECIALISE unfoldrN ∷ Int → (β → Maybe (Bool, β)) → β → (Bitstream Left , Maybe β) #-}
     {-# SPECIALISE unfoldrN ∷ Int → (β → Maybe (Bool, β)) → β → (Bitstream Right, Maybe β) #-}
     unfoldrN n0 f β0
@@ -503,8 +499,8 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
                                   → (p, Nothing)
                               Just (b, β')
                                   → consume8 (n-1) β' (p `snoc` b)
-    {-# INLINEABLE unfoldrN #-}
 
+    {-# INLINEABLE take #-}
     {-# SPECIALISE take ∷ Int → Bitstream Left  → Bitstream Left  #-}
     {-# SPECIALISE take ∷ Int → Bitstream Right → Bitstream Right #-}
     take n0 (Bitstream v0)
@@ -517,8 +513,8 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
                         let p' = take n p
                             n' = n - length p'
                         return (p', (n', v'))
-    {-# INLINEABLE take #-}
 
+    {-# INLINEABLE drop #-}
     {-# SPECIALISE drop ∷ Int → Bitstream Left  → Bitstream Left  #-}
     {-# SPECIALISE drop ∷ Int → Bitstream Right → Bitstream Right #-}
     drop n0 (Bitstream v0)
@@ -532,8 +528,8 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
                         | n ≥ length p → g (n - length p) v'
                         | otherwise    → drop n p `SV.cons` v'
                     Nothing            → v
-    {-# INLINEABLE drop #-}
 
+    {-# INLINEABLE splitAt #-}
     {-# SPECIALISE splitAt ∷ Int → Bitstream Left  → (Bitstream Left , Bitstream Left ) #-}
     {-# SPECIALISE splitAt ∷ Int → Bitstream Right → (Bitstream Right, Bitstream Right) #-}
     splitAt n0 (Bitstream v0)
@@ -550,7 +546,6 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
                                return (h, (t, v'))
               | otherwise = do (h , t ) ← uncons p
                                return (h, (t, v))
-    {-# INLINEABLE splitAt #-}
 
     {-# INLINEABLE takeWhile #-}
     takeWhile f (Bitstream v0)

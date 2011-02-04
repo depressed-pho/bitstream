@@ -6,6 +6,7 @@
   , UnicodeSyntax
   #-}
 module Main where
+import Control.Arrow
 import Data.Bitstream.Lazy (Bitstream, Left, Right)
 import Data.ByteString.Lazy.Char8 ()
 import qualified Data.Bitstream.Lazy as B
@@ -134,6 +135,7 @@ tests = [ -- ∅
 
           -- basic interface
         , property $ \(b, bl) → B.cons b (B.pack bl ∷ BitL) ≡ B.pack (b:bl)
+        , property $ \(b, bl) → B.cons' b (B.pack bl ∷ BitL) ≡ B.pack (b:bl)
         , property $ \(bl, b) → B.snoc (B.pack bl ∷ BitL) b ≡ B.pack (bl ⧺ [b])
         , property $ \(x, y) → (B.pack x ∷ BitL) B.⧺ (B.pack y) ≡ B.pack (x ⧺ y)
         , property $ \bl → (¬) (null bl) ⟹ B.head (B.pack bl ∷ BitL) ≡ head bl
@@ -151,6 +153,7 @@ tests = [ -- ∅
         , property $ \bl → B.length (B.pack bl ∷ BitL) ≡ length bl
 
         , property $ \(b, bl) → B.cons b (B.pack bl ∷ BitR) ≡ B.pack (b:bl)
+        , property $ \(b, bl) → B.cons' b (B.pack bl ∷ BitR) ≡ B.pack (b:bl)
         , property $ \(bl, b) → B.snoc (B.pack bl ∷ BitR) b ≡ B.pack (bl ⧺ [b])
         , property $ \(x, y) → (B.pack x ∷ BitR) B.⧺ (B.pack y) ≡ B.pack (x ⧺ y)
         , property $ \bl → (¬) (null bl) ⟹ B.head (B.pack bl ∷ BitR) ≡ head bl
@@ -168,7 +171,7 @@ tests = [ -- ∅
         , property $ \bl → B.length (B.pack bl ∷ BitR) ≡ length bl
 
           -- transformation
-        , -}property $ \bl → B.map (¬) (B.pack bl ∷ BitL) ≡ B.pack (map (¬) bl)
+        , property $ \bl → B.map (¬) (B.pack bl ∷ BitL) ≡ B.pack (map (¬) bl)
         , property $ \bl → B.reverse (B.pack bl ∷ BitL) ≡ B.pack (reverse bl)
         , property $ \(bl, b) → B.intersperse b (B.pack bl ∷ BitL) ≡ B.pack (intersperse b bl)
         , property $ \(bl, bls) → B.intercalate (B.pack bl ∷ BitL) (map B.pack bls) ≡ B.pack (intercalate bl bls)
@@ -185,4 +188,95 @@ tests = [ -- ∅
                          row n = n `vectorOf` arbitrary
                      in forAll rows
                         $ \bls → B.transpose (map B.pack bls ∷ [BitR]) ≡ map B.pack (transpose bls)
+
+         -- reduction
+        , property $ \(n, bl) → B.foldl doubleIf n (B.pack bl ∷ BitL) ≡ foldl doubleIf n bl
+        , property $ \(n, bl) → B.foldl' doubleIf n (B.pack bl ∷ BitL) ≡ foldl doubleIf n bl
+        , property $ \bl → (¬) (null bl) ⟹ B.foldl1 xor (B.pack bl ∷ BitL) ≡ foldl1 xor bl
+        , property $ \bl → (¬) (null bl) ⟹ B.foldl1' xor (B.pack bl ∷ BitL) ≡ foldl1' xor bl
+        , property $ \(n, bl) → B.foldr (flip doubleIf) n (B.pack bl ∷ BitL) ≡ foldr (flip doubleIf) n bl
+        , property $ \bl → (¬) (null bl) ⟹ B.foldr1 xor (B.pack bl ∷ BitL) ≡ foldr1 xor bl
+
+        , property $ \(n, bl) → B.foldl doubleIf n (B.pack bl ∷ BitR) ≡ foldl doubleIf n bl
+        , property $ \(n, bl) → B.foldl' doubleIf n (B.pack bl ∷ BitR) ≡ foldl doubleIf n bl
+        , property $ \bl → (¬) (null bl) ⟹ B.foldl1 xor (B.pack bl ∷ BitR) ≡ foldl1 xor bl
+        , property $ \bl → (¬) (null bl) ⟹ B.foldl1' xor (B.pack bl ∷ BitR) ≡ foldl1' xor bl
+        , property $ \(n, bl) → B.foldr (flip doubleIf) n (B.pack bl ∷ BitR) ≡ foldr (flip doubleIf) n bl
+        , property $ \bl → (¬) (null bl) ⟹ B.foldr1 xor (B.pack bl ∷ BitR) ≡ foldr1 xor bl
+
+          -- special folds
+        , property $ \bls → B.concat (map B.pack bls ∷ [BitL]) ≡ B.pack (concat bls)
+        , property $ \bl → let f True  = [True , True , True ]
+                               f False = [False, False, False]
+                           in B.concatMap (B.pack ∘ f) (B.pack bl ∷ BitL) ≡ B.pack (concatMap f bl)
+        , property $ \bl → B.and (B.pack bl ∷ BitL) ≡ and bl
+        , property $ \bl → B.or  (B.pack bl ∷ BitL) ≡ or  bl
+        , property $ \bl → B.any id (B.pack bl ∷ BitL) ≡ any id bl
+        , property $ \bl → B.all id (B.pack bl ∷ BitL) ≡ all id bl
+
+        , property $ \bls → B.concat (map B.pack bls ∷ [BitR]) ≡ B.pack (concat bls)
+        , property $ \bl → let f True  = [True , True , True ]
+                               f False = [False, False, False]
+                           in B.concatMap (B.pack ∘ f) (B.pack bl ∷ BitR) ≡ B.pack (concatMap f bl)
+        , property $ \bl → B.and (B.pack bl ∷ BitR) ≡ and bl
+        , property $ \bl → B.or  (B.pack bl ∷ BitR) ≡ or  bl
+        , property $ \bl → B.any id (B.pack bl ∷ BitR) ≡ any id bl
+        , property $ \bl → B.all id (B.pack bl ∷ BitR) ≡ all id bl
+
+          -- scans
+        , property $ \(b, bl) → B.scanl xor b (B.pack bl ∷ BitL) ≡ B.pack (scanl xor b bl)
+        , property $ \bl → B.scanl1 xor (B.pack bl ∷ BitL) ≡ B.pack (scanl1 xor bl)
+        , property $ \(b, bl) → B.scanr xor b (B.pack bl ∷ BitL) ≡ B.pack (scanr xor b bl)
+        , property $ \bl → B.scanr1 xor (B.pack bl ∷ BitL) ≡ B.pack (scanr1 xor bl)
+
+        , property $ \(b, bl) → B.scanl xor b (B.pack bl ∷ BitR) ≡ B.pack (scanl xor b bl)
+        , property $ \bl → B.scanl1 xor (B.pack bl ∷ BitR) ≡ B.pack (scanl1 xor bl)
+        , property $ \(b, bl) → B.scanr xor b (B.pack bl ∷ BitR) ≡ B.pack (scanr xor b bl)
+        , property $ \bl → B.scanr1 xor (B.pack bl ∷ BitR) ≡ B.pack (scanr1 xor bl)
+
+          -- accumulating maps
+        , property $ \(n, bl) → B.mapAccumL doubleIf' n (B.pack bl ∷ BitL)
+                       ≡ second B.pack (mapAccumL doubleIf' n bl)
+        , property $ \(n, bl) → B.mapAccumR doubleIf' n (B.pack bl ∷ BitL)
+                       ≡ second B.pack (mapAccumR doubleIf' n bl)
+
+        , property $ \(n, bl) → B.mapAccumL doubleIf' n (B.pack bl ∷ BitR)
+                       ≡ second B.pack (mapAccumL doubleIf' n bl)
+        , property $ \(n, bl) → B.mapAccumR doubleIf' n (B.pack bl ∷ BitR)
+                       ≡ second B.pack (mapAccumR doubleIf' n bl)
+
+          -- replications
+        ,-} property $ \(n, b) → B.take (n `mod` 800) (B.iterate (¬) b ∷ BitL) ≡ B.pack (take (n `mod` 800) (iterate (¬) b))
+        , property $ \(n, b) → B.take (n `mod` 800) (B.repeat b ∷ BitL) ≡ B.pack (take (n `mod` 800) (repeat b))
+        , property $ \(n, b) → (B.replicate (n `mod` 800) b ∷ BitL) ≡ B.pack (replicate (n `mod` 800) b)
+        , property $ \(n, bl) → (¬) (null bl) ⟹
+                         B.take (n `mod` 800) (B.cycle (B.pack bl ∷ BitL)) ≡ B.pack (take (n `mod` 800) (cycle bl))
+
+        , property $ \(n, b) → B.take (n `mod` 800) (B.iterate (¬) b ∷ BitR) ≡ B.pack (take (n `mod` 800) (iterate (¬) b))
+        , property $ \(n, b) → B.take (n `mod` 800) (B.repeat b ∷ BitR) ≡ B.pack (take (n `mod` 800) (repeat b))
+        , property $ \(n, b) → (B.replicate (n `mod` 800) b ∷ BitR) ≡ B.pack (replicate (n `mod` 800) b)
+        , property $ \(n, bl) → (¬) (null bl) ⟹
+                       B.take (n `mod` 800) (B.cycle (B.pack bl ∷ BitR)) ≡ B.pack (take (n `mod` 800) (cycle bl))
+
+          -- unfolding
+        , property $ \n → (B.unfoldr decr (abs (n `mod` 800)) ∷ BitL) ≡ B.pack (unfoldr decr (abs (n `mod` 800)))
+        , property $ \(m, n) → let n'            = abs (n `mod` 800)
+                                   r             = B.unfoldrN m decr n'
+                                   p | m ≤ 0     = label "m ≤ 0"     $ r ≡ ((B.∅), Just n')
+                                     | m ≤ n'    = label "m ≤ n'"    $ r ≡ ( B.pack (take m (unfoldr decr n')) ∷ BitL
+                                                                           , Just (n' - m) )
+                                     | otherwise = label "otherwise" $ r ≡ (B.pack (unfoldr decr n'), Nothing)
+                               in p
+
+        , property $ \n → (B.unfoldr decr (abs (n `mod` 800)) ∷ BitR) ≡ B.pack (unfoldr decr (abs (n `mod` 800)))
+        , property $ \(m, n) → let n'            = abs (n `mod` 800)
+                                   r             = B.unfoldrN m decr n'
+                                   p | m ≤ 0     = label "m ≤ 0"     $ r ≡ ((B.∅), Just n')
+                                     | m ≤ n'    = label "m ≤ n'"    $ r ≡ ( B.pack (take m (unfoldr decr n')) ∷ BitR
+                                                                           , Just (n' - m) )
+                                     | otherwise = label "otherwise" $ r ≡ (B.pack (unfoldr decr n'), Nothing)
+                               in p
+
+          -- substreams
+        , property $ \(n, bl) → B.take n (B.pack bl ∷ BitL) ≡ B.pack (take n bl)
         ]
