@@ -553,11 +553,9 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
     {-# INLINEABLE splitAt #-}
 
     {-# INLINEABLE takeWhile #-}
-    takeWhile f (Bitstream v0) = Bitstream (fst $ SV.unfoldrN l g (Just v0))
+    takeWhile f (Bitstream v0)
+        = Bitstream (fst $ SV.unfoldrN (SV.length v0) g (Just v0))
         where
-          {-# INLINE l #-}
-          l ∷ Int
-          l = SV.length v0
           {-# INLINE g #-}
           g mv = do v       ← mv
                     (p, v') ← SV.viewL v
@@ -614,11 +612,9 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
                        → Nothing
 
     {-# INLINEABLE filter #-}
-    filter f (Bitstream v0) = Bitstream (fst $ SV.unfoldrN l g v0)
+    filter f (Bitstream v0)
+        = Bitstream (fst $ SV.unfoldrN (SV.length v0) g v0)
         where
-          {-# INLINE l #-}
-          l ∷ Int
-          l = SV.length v0
           {-# INLINE g #-}
           g v = do (p, v') ← SV.viewL v
                    case filter f p of

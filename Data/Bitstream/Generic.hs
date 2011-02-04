@@ -40,88 +40,89 @@ snocL xs x = xs L.++ [x]
 {-# INLINE snocL #-}
 
 class Ord α ⇒ Bitstream α where
+    {-# INLINE pack #-}
     pack ∷ [Bool] → α
     pack = unstream ∘ S.stream
-    {-# INLINE pack #-}
 
+    {-# INLINE unpack #-}
     unpack ∷ α → [Bool]
     unpack = S.unstream ∘ stream
-    {-# INLINE unpack #-}
 
+    {-# INLINE stream #-}
     stream ∷ α → S.Stream Bool
     stream = S.stream ∘ unpack
-    {-# INLINE stream #-}
 
+    {-# INLINE unstream #-}
     unstream ∷ S.Stream Bool → α
     unstream = pack ∘ S.unstream
-    {-# INLINE unstream #-}
 
+    {-# INLINE empty #-}
     empty ∷ α
     empty = pack []
-    {-# INLINE empty #-}
 
+    {-# INLINE singleton #-}
     singleton ∷ Bool → α
     singleton = pack ∘ flip (:) []
-    {-# INLINE singleton #-}
 
+    {-# INLINE cons #-}
     cons ∷ Bool → α → α
     cons = (pack ∘) ∘ (∘ unpack) ∘ (:)
-    {-# INLINE cons #-}
 
+    {-# INLINE snoc #-}
     snoc ∷ α → Bool → α
     snoc α a = pack (unpack α `snocL` a)
-    {-# INLINE snoc #-}
 
+    {-# INLINE append #-}
     append ∷ α → α → α
     append = (pack ∘) ∘ (∘ unpack) ∘ (L.++) ∘ unpack
-    {-# INLINE append #-}
 
+    {-# INLINE head #-}
     head ∷ α → Bool
     head = L.head ∘ unpack
-    {-# INLINE head #-}
 
+    {-# INLINE uncons #-}
     uncons ∷ α → Maybe (Bool, α)
     uncons α
         | null α    = Nothing
         | otherwise = Just (head α, tail α)
-    {-# INLINE uncons #-}
 
+    {-# INLINE last #-}
     last ∷ α → Bool
     last = L.last ∘ unpack
-    {-# INLINE last #-}
 
+    {-# INLINE tail #-}
     tail ∷ α → α
     tail = pack ∘ L.tail ∘ unpack
-    {-# INLINE tail #-}
 
+    {-# INLINE init #-}
     init ∷ α → α
     init = pack ∘ L.init ∘ unpack
-    {-# INLINE init #-}
 
+    {-# INLINE null #-}
     null ∷ α → Bool
     null = L.null ∘ unpack
-    {-# INLINE null #-}
 
+    {-# INLINE length #-}
     length ∷ Num n ⇒ α → n
     length = L.genericLength ∘ unpack
-    {-# INLINE length #-}
 
+    {-# INLINE map #-}
     map ∷ (Bool → Bool) → α → α
     map = (pack ∘) ∘ (∘ unpack) ∘ L.map
-    {-# INLINE map #-}
 
+    {-# INLINE reverse #-}
     reverse ∷ α → α
     reverse = foldl' (flip cons) (∅)
-    {-# INLINE reverse #-}
 
+    {-# INLINE intersperse #-}
     intersperse ∷ Bool → α → α
     intersperse = (pack ∘) ∘ (∘ unpack) ∘ L.intersperse
-    {-# INLINE intersperse #-}
 
-    intercalate ∷ α → [α] → α
-    intercalate α αs = pack (L.intercalate (unpack α) (L.map unpack αs))
     {-# INLINE intercalate #-}
+    intercalate ∷ α → [α] → α
+    intercalate α αs = concat (L.intersperse α αs)
 
+    {-# INLINEABLE transpose #-}
     transpose ∷ [α] → [α]
     transpose []     = []
     transpose (α:αs)
@@ -129,7 +130,6 @@ class Ord α ⇒ Bitstream α where
             Nothing      → transpose αs
             Just (a, as) → (a `cons` pack (L.map head αs))
                            : transpose (as : L.map tail αs)
-    {-# INLINEABLE transpose #-}
 
     {-# INLINEABLE foldl #-}
     foldl ∷ (β → Bool → β) → β → α → β
