@@ -37,6 +37,13 @@ module Data.Bitstream.Lazy
     , snoc
     , append
     , (⧺)
+    , head
+    , uncons
+    , last
+    , tail
+    , init
+    , null
+    , length
     )
     where
 import qualified Data.Bitstream as Strict
@@ -46,9 +53,11 @@ import Data.Bitstream.Internal
 import Data.Bitstream.Packet
 import qualified Data.ByteString.Lazy as LS
 import qualified Data.List.Stream as L
+import Data.Monoid
 import qualified Data.StorableVector as SV
 import qualified Data.StorableVector.Lazy as LV
 import qualified Data.Stream as S
+import Foreign.Storable
 import Prelude ( Bool(..), Eq(..), Int, Integral, Maybe(..), Monad(..), Num(..)
                , Ord(..), Ordering(..), Show(..), ($), div, error, fmap
                , fromIntegral, fst, otherwise
@@ -57,7 +66,7 @@ import Prelude.Unicode hiding ((⧺), (∈), (∉))
 
 -- 32 KiB * sizeOf (Packet d) == 64 KiB
 chunkSize ∷ Num α ⇒ α
-chunkSize = 32 ⋅ 1024
+chunkSize = fromInteger (32 ⋅ 1024)
 {-# INLINE chunkSize #-}
 
 newtype Bitstream d
@@ -67,7 +76,7 @@ instance Show (Packet d) ⇒ Show (Bitstream d) where
     {-# INLINEABLE show #-}
     show (Bitstream v0)
         = L.concat
-          [ "(S"
+          [ "(L"
           , L.concat (L.unfoldr go v0)
           , ")"
           ]
@@ -78,9 +87,7 @@ instance Show (Packet d) ⇒ Show (Bitstream d) where
 
 instance Ord (Bitstream d) ⇒ Eq (Bitstream d) where
     {-# INLINE (==) #-}
-    x == y = case x `compare` y of
-               EQ → True
-               _  → False
+    x == y = (x `compare` y) ≡ EQ
 
 -- | 'Bitstream's are lexicographically ordered.
 --
@@ -127,6 +134,11 @@ instance G.Bitstream (Packet d) ⇒ Ord (Bitstream d) where
                         GT → GT
                         EQ → go (pxT, x) (pyT, y)
 
+instance G.Bitstream (Packet d) ⇒ Monoid (Bitstream d) where
+    mempty  = (∅)
+    mappend = (⧺)
+    mconcat = concat
+
 instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
     {-# SPECIALISE instance G.Bitstream (Bitstream Left ) #-}
     {-# SPECIALISE instance G.Bitstream (Bitstream Right) #-}
@@ -168,6 +180,81 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
     {-# INLINE append #-}
     append (Bitstream x) (Bitstream y)
         = Bitstream (LV.append x y)
+
+    {-# INLINE head #-}
+    head (Bitstream v)
+        = case LV.viewL v of
+            Just (p, _) → head p
+            Nothing     → emptyStream
+
+    {-# INLINEABLE uncons #-}
+    uncons (Bitstream v)
+        = do (p, v') ← LV.viewL v
+             case uncons p of
+               Just (b, p')
+                   | null p'   → return (b, Bitstream v')
+                   | otherwise → return (b, Bitstream (p' `LV.cons` v'))
+               Nothing         → inconsistentState
+
+    {-# INLINE last #-}
+    last (Bitstream v)
+        = case LV.viewR v of
+            Just (_, p) → last p
+            Nothing     → emptyStream
+
+    {-# INLINEABLE tail #-}
+    tail (Bitstream v)
+        = case LV.viewL v of
+            Just (p, v')
+                → case tail p of
+                     p' | null p'   → Bitstream v'
+                        | otherwise → Bitstream (p' `LV.cons` v')
+            Nothing
+                → emptyStream
+
+    {-# INLINEABLE init #-}
+    init (Bitstream v)
+        = case LV.viewR v of
+            Just (v', p)
+                → case init p of
+                     p' | null p'   → Bitstream v'
+                        | otherwise → Bitstream (v' `snocLV'` p')
+            Nothing
+                → emptyStream
+
+    {-# INLINE null #-}
+    null (Bitstream v)
+        = LV.null v
+
+    {-# SPECIALISE length ∷ Bitstream Left  → Int #-}
+    {-# SPECIALISE length ∷ Bitstream Right → Int #-}
+    length (Bitstream v)
+        = LV.foldl' (\n p → n + length p) 0 v
+    {-# INLINE length #-}
+
+inconsistentState ∷ α
+inconsistentState
+    = error "Data.Bitstream.Lazy: internal error: inconsistent state"
+
+emptyStream ∷ α
+emptyStream
+    = error "Data.Bitstream.Lazy: empty stream"
+
+{-
+{-# INLINE consLV' #-}
+consLV' ∷ Storable α ⇒ α → LV.Vector α → LV.Vector α
+consLV' α (LV.SV []    ) = LV.singleton α
+consLV' α (LV.SV (x:xs)) = LV.SV (α `SV.cons` x : xs)
+-}
+
+{-# INLINE snocLV' #-}
+snocLV' ∷ Storable α ⇒ LV.Vector α → α → LV.Vector α
+snocLV' (LV.SV chunks) α = LV.SV (go chunks)
+    where
+      {-# INLINE go #-}
+      go []     = [SV.singleton α]
+      go [x]    = [x `SV.snoc` α]
+      go (x:xs) = x : go xs
 
 {-# INLINE fromChunks #-}
 fromChunks ∷ [Strict.Bitstream d] → Bitstream d

@@ -48,6 +48,23 @@ Library
 Test-Suite test-strict-bitstream
     Type:    exitcode-stdio-1.0
     Main-Is: Test/Bitstream.hs
+    Other-Modules:
+        Test.Bitstream.Utils
+    Build-Depends:
+        QuickCheck           == 2.4.*,
+        base                 == 4.*,
+        base-unicode-symbols == 0.2.*,
+        bytestring           == 0.9.*,
+        storablevector       == 0.2.*,
+        stream-fusion        == 0.1.*
+    GHC-Options:
+        -Wall -fhpc -fno-warn-orphans
+
+Test-Suite test-lazy-bitstream
+    Type:    exitcode-stdio-1.0
+    Main-Is: Test/Bitstream/Lazy.hs
+    Other-Modules:
+        Test.Bitstream.Utils
     Build-Depends:
         QuickCheck           == 2.4.*,
         base                 == 4.*,

@@ -7,10 +7,7 @@
   #-}
 module Main where
 import Control.Arrow
-import Control.Monad
-import Data.Bitstream (Bitstream)
-import qualified Data.Bitstream.Generic as G
-import Data.Bitstream.Packet
+import Data.Bitstream (Bitstream, Left, Right)
 import qualified Data.Bitstream as B
 import qualified Data.ByteString as BS
 import Data.ByteString.Char8 ()
@@ -19,74 +16,12 @@ import Data.List.Unicode
 import qualified Data.Monoid as M
 import qualified Data.Monoid.Unicode as M
 import qualified Data.Stream as S
-import Data.Word
 import Prelude.Unicode
-import System.Exit
+import Test.Bitstream.Utils
 import Test.QuickCheck
 
-infixr 0 ⟹
-infixr 1 .∧., .∨.
-
-(⟹) :: Testable α => Bool -> α -> Property
-(⟹) = (==>)
-
-(.∧.) ∷ (Testable α, Testable β) ⇒ α → β → Property
-(.∧.) = (.&&.)
-
-(.∨.) ∷ (Testable α, Testable β) ⇒ α → β → Property
-(.∨.) = (.||.)
-
 main ∷ IO ()
-main = mapM_ run tests
-    where
-      run ∷ Property → IO ()
-      run prop
-          = do r ← quickCheckResult prop
-               case r of
-                 Success {}           → return ()
-                 GaveUp  {}           → exitFailure
-                 Failure {}           → exitFailure
-                 NoExpectedFailure {} → exitFailure
-
-instance G.Bitstream (Packet d) ⇒ Arbitrary (Bitstream d) where
-    arbitrary = sized $ \ n →
-                do xs ← replicateM n arbitrary
-                   return (B.pack xs)
-
-instance Arbitrary BS.ByteString where
-    arbitrary = sized $ \ n →
-                do xs ← replicateM n arbitrary
-                   return (BS.unfoldr uncons xs)
-        where
-          uncons ∷ [Word8] → Maybe (Word8, [Word8])
-          uncons []     = Nothing
-          uncons (x:xs) = Just (x, xs)
-
-instance ( Arbitrary α, Arbitrary β, Arbitrary γ
-         , Arbitrary δ, Arbitrary ε, Arbitrary ζ
-         )
-         ⇒ Arbitrary (α, β, γ, δ, ε, ζ) where
-    arbitrary = do α ← arbitrary
-                   β ← arbitrary
-                   γ ← arbitrary
-                   δ ← arbitrary
-                   ε ← arbitrary
-                   ζ ← arbitrary
-                   return (α, β, γ, δ, ε, ζ)
-
-instance ( Arbitrary α, Arbitrary β, Arbitrary γ
-         , Arbitrary δ, Arbitrary ε, Arbitrary ζ
-         , Arbitrary η
-         )
-         ⇒ Arbitrary (α, β, γ, δ, ε, ζ, η) where
-    arbitrary = do α ← arbitrary
-                   β ← arbitrary
-                   γ ← arbitrary
-                   δ ← arbitrary
-                   ε ← arbitrary
-                   ζ ← arbitrary
-                   η ← arbitrary
-                   return (α, β, γ, δ, ε, ζ, η)
+main = mapM_ runTest tests
 
 type BitL = Bitstream Left
 type BitR = Bitstream Right
@@ -459,28 +394,3 @@ tests = [ -- ∅
         , property $ \(bl1, bl2) → B.unionBy xor (B.pack bl1 ∷ BitR) (B.pack bl2) ≡ B.pack (unionBy xor bl1 bl2)
         , property $ \(bl1, bl2) → B.intersectBy xor (B.pack bl1 ∷ BitR) (B.pack bl2) ≡ B.pack (intersectBy xor bl1 bl2)
         ]
-
-n2b ∷ Int → Bool
-n2b 0 = False
-n2b 1 = True
-n2b _ = (⊥)
-
-doubleIf ∷ Int → Bool → Int
-doubleIf n True  = n ⋅ 2
-doubleIf n False = n
-
-doubleIf' ∷ Int → Bool → (Int, Bool)
-doubleIf' n True  = (n ⋅ 2, False)
-doubleIf' n False = (n    , True )
-
-decr ∷ Int → Maybe (Bool, Int)
-decr 0 = Nothing
-decr n = Just (n `mod` 2 ≡ 0, n-1)
-
-xor ∷ Bool → Bool → Bool
-xor False False = False
-xor True  True  = False
-xor _     _     = True
-
-fmapT2 ∷ (a → b) → (a, a) → (b, b)
-fmapT2 f (x, y) = (f x, f y)

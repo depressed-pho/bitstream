@@ -226,9 +226,7 @@ instance Show (Packet d) ⇒ Show (Bitstream d) where
 
 instance Ord (Bitstream d) ⇒ Eq (Bitstream d) where
     {-# INLINE (==) #-}
-    x == y = case x `compare` y of
-               EQ → True
-               _  → False
+    x == y = (x `compare` y) ≡ EQ
 
 -- | 'Bitstream's are lexicographically ordered.
 --
@@ -348,7 +346,7 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
              case uncons p of
                Just (b, p')
                    | null p'   → return (b, Bitstream v')
-                   | otherwise → return (b, Bitstream (SV.cons p' v'))
+                   | otherwise → return (b, Bitstream (p' `SV.cons` v'))
                Nothing         → inconsistentState
 
     {-# INLINE last #-}
@@ -361,7 +359,7 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
             Just (p, v')
                 → case tail p of
                      p' | null p'   → Bitstream v'
-                        | otherwise → Bitstream (SV.cons p' v')
+                        | otherwise → Bitstream (p' `SV.cons` v')
             Nothing
                 → emptyStream
 
@@ -371,7 +369,7 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
             Just (v', p)
                 → case init p of
                      p' | null p'   → Bitstream v'
-                        | otherwise → Bitstream (SV.snoc v' p')
+                        | otherwise → Bitstream (v' `SV.snoc` p')
             Nothing
                 → emptyStream
 
