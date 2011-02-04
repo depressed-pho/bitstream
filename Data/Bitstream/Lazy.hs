@@ -44,6 +44,13 @@ module Data.Bitstream.Lazy
     , init
     , null
     , length
+
+      -- * Transforming 'Bitstream's
+    , map
+    , reverse
+    , intersperse
+    , intercalate
+    , transpose
     )
     where
 import qualified Data.Bitstream as Strict
@@ -226,11 +233,19 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
     null (Bitstream v)
         = LV.null v
 
+    {-# INLINE length #-}
     {-# SPECIALISE length ∷ Bitstream Left  → Int #-}
     {-# SPECIALISE length ∷ Bitstream Right → Int #-}
     length (Bitstream v)
         = LV.foldl' (\n p → n + length p) 0 v
-    {-# INLINE length #-}
+
+    {-# INLINE map #-}
+    map f (Bitstream v)
+        = Bitstream (LV.map (map f) v)
+
+    {-# INLINE reverse #-}
+    reverse (Bitstream v)
+        = Bitstream (LV.reverse (LV.map reverse v))
 
 inconsistentState ∷ α
 inconsistentState

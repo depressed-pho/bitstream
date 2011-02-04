@@ -10,6 +10,7 @@ import Data.Bitstream.Lazy (Bitstream, Left, Right)
 import Data.ByteString.Lazy.Char8 ()
 import qualified Data.Bitstream.Lazy as B
 import qualified Data.ByteString.Lazy as BS
+import Data.List
 import qualified Data.Monoid as M
 import qualified Data.Monoid.Unicode as M
 import qualified Data.Stream as S
@@ -132,7 +133,7 @@ tests = [ -- ∅
         , property $ \bls → M.mconcat (map B.pack bls ∷ [BitR]) ≡ B.pack (M.mconcat bls)
 
           -- basic interface
-        , -}property $ \(b, bl) → B.cons b (B.pack bl ∷ BitL) ≡ B.pack (b:bl)
+        , property $ \(b, bl) → B.cons b (B.pack bl ∷ BitL) ≡ B.pack (b:bl)
         , property $ \(bl, b) → B.snoc (B.pack bl ∷ BitL) b ≡ B.pack (bl ⧺ [b])
         , property $ \(x, y) → (B.pack x ∷ BitL) B.⧺ (B.pack y) ≡ B.pack (x ⧺ y)
         , property $ \bl → (¬) (null bl) ⟹ B.head (B.pack bl ∷ BitL) ≡ head bl
@@ -165,4 +166,23 @@ tests = [ -- ∅
                                 [] → label "null"     $ B.null bs
                                 _  → label "non-null" $ (¬) (B.null bs)
         , property $ \bl → B.length (B.pack bl ∷ BitR) ≡ length bl
+
+          -- transformation
+        , -}property $ \bl → B.map (¬) (B.pack bl ∷ BitL) ≡ B.pack (map (¬) bl)
+        , property $ \bl → B.reverse (B.pack bl ∷ BitL) ≡ B.pack (reverse bl)
+        , property $ \(bl, b) → B.intersperse b (B.pack bl ∷ BitL) ≡ B.pack (intersperse b bl)
+        , property $ \(bl, bls) → B.intercalate (B.pack bl ∷ BitL) (map B.pack bls) ≡ B.pack (intercalate bl bls)
+        , property $ let rows  = sized $ \n → listOf (row n)
+                         row n = n `vectorOf` arbitrary
+                     in forAll rows
+                        $ \bls → B.transpose (map B.pack bls ∷ [BitL]) ≡ map B.pack (transpose bls)
+
+        , property $ \bl → B.map (¬) (B.pack bl ∷ BitR) ≡ B.pack (map (¬) bl)
+        , property $ \bl → B.reverse (B.pack bl ∷ BitL) ≡ B.pack (reverse bl)
+        , property $ \(bl, b) → B.intersperse b (B.pack bl ∷ BitR) ≡ B.pack (intersperse b bl)
+        , property $ \(bl, bls) → B.intercalate (B.pack bl ∷ BitR) (map B.pack bls) ≡ B.pack (intercalate bl bls)
+        , property $ let rows  = sized $ \n → listOf (row n)
+                         row n = n `vectorOf` arbitrary
+                     in forAll rows
+                        $ \bls → B.transpose (map B.pack bls ∷ [BitR]) ≡ map B.pack (transpose bls)
         ]

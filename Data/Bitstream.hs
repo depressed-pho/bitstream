@@ -377,11 +377,11 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
     null (Bitstream v)
         = SV.null v
 
+    {-# INLINE length #-}
     {-# SPECIALISE length ∷ Bitstream Left  → Int #-}
     {-# SPECIALISE length ∷ Bitstream Right → Int #-}
     length (Bitstream v)
         = SV.foldl' (\n p → n + length p) 0 v
-    {-# INLINE length #-}
 
     {-# INLINE map #-}
     map f (Bitstream v)
