@@ -95,6 +95,75 @@ module Data.Bitstream.Lazy
     , splitAt
     , takeWhile
     , dropWhile
+    , span
+    , break
+    , group
+    , groupBy
+    , inits
+    , tails
+
+      -- * Predicates
+    , isPrefixOf
+    , isSuffixOf
+    , isInfixOf
+
+      -- * Searching streams
+      -- ** Searching by equality
+    , elem
+    , (∈)
+    , (∋)
+    , notElem
+    , (∉)
+    , (∌)
+
+      -- ** Searching with a predicate
+    , find
+    , filter
+    , partition
+
+      -- ** Indexing streams
+    , (!!)
+    , elemIndex
+    , elemIndices
+    , findIndex
+    , findIndices
+
+      -- * Zipping and unzipping streams
+    , zip
+    , zip3
+    , zip4
+    , zip5
+    , zip6
+    , zip7
+    , zipWith
+    , zipWith3
+    , zipWith4
+    , zipWith5
+    , zipWith6
+    , zipWith7
+    , unzip
+    , unzip3
+    , unzip4
+    , unzip5
+    , unzip6
+    , unzip7
+
+      -- * Special streams
+      -- ** \"Set\" operations
+    , nub
+    , delete
+    , (\\)
+    , (∖)
+    , (∆)
+    , union
+    , (∪)
+    , intersect
+    , (∩)
+    , nubBy
+    , deleteBy
+    , deleteFirstsBy
+    , unionBy
+    , intersectBy
     )
     where
 import qualified Data.Bitstream as Strict
@@ -455,6 +524,92 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
                   Nothing
                       → LV.empty
 
+    {-# INLINEABLE isPrefixOf #-}
+    isPrefixOf (Bitstream x0) (Bitstream y0) = go ((∅), x0) ((∅), y0)
+        where
+          {-# INLINE go #-}
+          go (px, x) (py, y)
+              | null px
+                  = case LV.viewL x of
+                      Just (px', x') → go (px', x') (py, y)
+                      Nothing        → True
+              | null py
+                  = case LV.viewL y of
+                      Just (py', y') → go (px, x) (py', y')
+                      Nothing        → False
+              | otherwise
+                  = let n          ∷ Int
+                        n          = min (length px) (length py)
+                        (pxH, pxT) = splitAt n px
+                        (pyH, pyT) = splitAt n py
+                    in
+                      if pxH ≡ pyH then
+                          go (pxT, x) (pyT, y)
+                      else
+                          False
+
+    {-# INLINEABLE find #-}
+    find f (Bitstream v0) = go v0
+        where
+          {-# INLINE go #-}
+          go v = case LV.viewL v of
+                   Just (p, v')
+                       → case find f p of
+                            r@(Just _) → r
+                            Nothing    → go v'
+                   Nothing
+                       → Nothing
+
+    {-# INLINEABLE filter #-}
+    filter f (Bitstream v0)
+        = Bitstream (LV.unfoldr chunkSize g v0)
+        where
+          {-# INLINE g #-}
+          g v = do (p, v') ← LV.viewL v
+                   case filter f p of
+                     p' | null p'   → g v'
+                        | otherwise → return (p', v')
+
+    {-# INLINEABLE (!!) #-}
+    {-# SPECIALISE (!!) ∷ Bitstream Left  → Int → Bool #-}
+    {-# SPECIALISE (!!) ∷ Bitstream Right → Int → Bool #-}
+    (Bitstream v0) !! i0
+        | i0 < 0    = indexOutOfRange i0
+        | otherwise = go v0 i0
+        where
+          {-# INLINE go #-}
+          go v i = case LV.viewL v of
+                     Just (p, v')
+                         | i < length p → p !! i
+                         | otherwise    → go v' (i - length p)
+                     Nothing            → indexOutOfRange i
+
+    {-# INLINEABLE findIndex #-}
+    {-# SPECIALISE findIndex ∷ (Bool → Bool) → Bitstream Left  → Maybe Int #-}
+    {-# SPECIALISE findIndex ∷ (Bool → Bool) → Bitstream Right → Maybe Int #-}
+    findIndex f (Bitstream v0) = go v0 0
+        where
+          {-# INLINE go #-}
+          go v i = do (p, v') ← LV.viewL v
+                      case findIndex f p of
+                        Just j  → return (i + j)
+                        Nothing → go v' (i + length p)
+
+    {-# INLINEABLE findIndices #-}
+    {-# SPECIALISE findIndices ∷ (Bool → Bool) → Bitstream Left  → [Int] #-}
+    {-# SPECIALISE findIndices ∷ (Bool → Bool) → Bitstream Right → [Int] #-}
+    findIndices f (Bitstream v0) = go 0 v0
+        where
+          {-# INLINE go #-}
+          go i v = case LV.viewL v of
+                     Just (p, v')
+                         → let is   = L.map (+ i) (findIndices f p)
+                               rest = go (i + length p) v'
+                           in
+                             is L.++ rest
+                     Nothing
+                         → []
+
 inconsistentState ∷ α
 inconsistentState
     = error "Data.Bitstream.Lazy: internal error: inconsistent state"
@@ -462,6 +617,10 @@ inconsistentState
 emptyStream ∷ α
 emptyStream
     = error "Data.Bitstream.Lazy: empty stream"
+
+{-# INLINE indexOutOfRange #-}
+indexOutOfRange ∷ Integral n ⇒ n → α
+indexOutOfRange n = error ("Data.Bitstream.Lazy: index out of range: " L.++ show n)
 
 {-# INLINE snocLV' #-}
 snocLV' ∷ Storable α ⇒ LV.Vector α → α → LV.Vector α
@@ -548,16 +707,14 @@ snoc' (Bitstream v) b = Bitstream (LV.fromChunks (go (LV.chunks v)))
 {-# INLINE iterate #-}
 iterate ∷ G.Bitstream (Packet d) ⇒ (Bool → Bool) → Bool → Bitstream d
 iterate f b
-    = let p = pack (L.take 8 (L.iterate f b))
-      in
-        Bitstream (LV.repeat chunkSize p)
+    = case pack (L.take 8 (L.iterate f b)) of
+        p → Bitstream (LV.repeat chunkSize p)
 
 {-# INLINE repeat #-}
 repeat ∷ G.Bitstream (Packet d) ⇒ Bool → Bitstream d
 repeat b
-    = let p = pack (L.replicate 8 b)
-      in
-        Bitstream (LV.repeat chunkSize p)
+    = case pack (L.replicate 8 b) of
+        p → Bitstream (LV.repeat chunkSize p)
 
 {-# INLINE cycle #-}
 cycle ∷ G.Bitstream (Packet d) ⇒ Bitstream d → Bitstream d

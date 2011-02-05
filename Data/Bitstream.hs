@@ -616,6 +616,7 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
                      p' | null p'   → g v'
                         | otherwise → return (p', v')
 
+    {-# INLINEABLE (!!) #-}
     {-# SPECIALISE (!!) ∷ Bitstream Left  → Int → Bool #-}
     {-# SPECIALISE (!!) ∷ Bitstream Right → Int → Bool #-}
     (Bitstream v0) !! i0
@@ -628,8 +629,8 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
                          | i < length p → p !! i
                          | otherwise    → go v' (i - length p)
                      Nothing            → indexOutOfRange i
-    {-# INLINEABLE (!!) #-}
 
+    {-# INLINEABLE findIndex #-}
     {-# SPECIALISE findIndex ∷ (Bool → Bool) → Bitstream Left  → Maybe Int #-}
     {-# SPECIALISE findIndex ∷ (Bool → Bool) → Bitstream Right → Maybe Int #-}
     findIndex f (Bitstream v0) = go v0 0
@@ -639,7 +640,6 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
                       case findIndex f p of
                         Just j  → return (i + j)
                         Nothing → go v' (i + length p)
-    {-# INLINEABLE findIndex #-}
 
     {-# INLINEABLE findIndices #-}
     {-# SPECIALISE findIndices ∷ (Bool → Bool) → Bitstream Left  → [Int] #-}

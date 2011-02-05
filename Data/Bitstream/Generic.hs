@@ -520,6 +520,7 @@ class Ord α ⇒ Bitstream α where
                           , g `cons` gs )) ((∅), (∅), (∅), (∅), (∅), (∅), (∅))
     {-# INLINEABLE unzip7 #-}
 
+    {-# INLINEABLE nub #-}
     nub ∷ α → α
     nub = flip nub' (∅)
         where
@@ -530,24 +531,24 @@ class Ord α ⇒ Bitstream α where
                   Just (a, as)
                       | a ∈ α'    → nub' as α'
                       | otherwise → a `cons` nub' as (a `cons` α')
-    {-# INLINEABLE nub #-}
 
+    {-# INLINE delete #-}
     delete ∷ Bool → α → α
     delete = deleteBy (≡)
-    {-# INLINE delete #-}
 
+    {-# INLINE (\\) #-}
     (\\) ∷ α → α → α
     (\\) = foldl (flip delete)
-    {-# INLINE (\\) #-}
 
+    {-# INLINE union #-}
     union ∷ α → α → α
     union = unionBy (≡)
-    {-# INLINE union #-}
 
+    {-# INLINE intersect #-}
     intersect ∷ α → α → α
     intersect = intersectBy (≡)
-    {-# INLINE intersect #-}
 
+    {-# INLINEABLE nubBy #-}
     nubBy ∷ (Bool → Bool → Bool) → α → α
     nubBy f = flip nubBy' (∅)
         where
@@ -566,8 +567,8 @@ class Ord α ⇒ Bitstream α where
                   Just (a, as)
                       | f b a     → True
                       | otherwise → elemBy' b as
-    {-# INLINEABLE nubBy #-}
 
+    {-# INLINEABLE deleteBy #-}
     deleteBy ∷ (Bool → Bool → Bool) → Bool → α → α
     deleteBy f b α
         = case uncons α of
@@ -575,20 +576,20 @@ class Ord α ⇒ Bitstream α where
             Just (a, as)
                 | f b a     → as
                 | otherwise → a `cons` deleteBy f b as
-    {-# INLINEABLE deleteBy #-}
 
+    {-# INLINEABLE deleteFirstsBy #-}
     deleteFirstsBy ∷ (Bool → Bool → Bool) → α → α → α
     deleteFirstsBy = foldl ∘ flip ∘ deleteBy
-    {-# INLINEABLE deleteFirstsBy #-}
 
+    {-# INLINEABLE unionBy #-}
     unionBy ∷ (Bool → Bool → Bool) → α → α → α
     unionBy f x y = x ⧺ foldl (flip (deleteBy f)) (nubBy f y) x
-    {-# INLINEABLE unionBy #-}
 
+    {-# INLINEABLE intersectBy #-}
     intersectBy ∷ (Bool → Bool → Bool) → α → α → α
     intersectBy f x y = filter (\a → any (f a) y) x
-    {-# INLINEABLE intersectBy #-}
 
+    {-# INLINEABLE groupBy #-}
     groupBy ∷ (Bool → Bool → Bool) → α → [α]
     groupBy f α
         = case uncons α of
@@ -596,7 +597,6 @@ class Ord α ⇒ Bitstream α where
             Just (a, α') → let (β, γ) = span (f a) α'
                            in
                              (a `cons` β) : groupBy f γ
-    {-# INLINEABLE groupBy #-}
 
 emptyStream ∷ α
 emptyStream
