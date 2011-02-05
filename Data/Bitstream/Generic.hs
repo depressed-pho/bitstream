@@ -50,10 +50,61 @@ class Ord α ⇒ Bitstream α where
     unpack ∷ α → [Bool]
     unpack = S.unstream ∘ stream
 
+    -- | /O(n)/ Convert a 'Bitstream' into a 'S.Stream' of 'Bool'.
     {-# INLINE stream #-}
     stream ∷ α → S.Stream Bool
     stream = S.stream ∘ unpack
 
+    -- | /O(n)/ Convert a 'S.Stream' of 'Bool' into a 'Bitstream'.
+    --
+    -- You should be careful when you use 'stream' / 'unstream'. Most
+    -- functions in this package are optimised to minimise frequency
+    -- of memory allocations, but getting 'Bitstream's back from
+    -- @'S.Stream' 'Bool'@ requires the whole 'Bitstream' to be
+    -- constructed from scratch. Moreover, for lazy 'Bitstream's this
+    -- leads to be an incorrect strictness behaviour because lazy
+    -- 'Bitstream's are represented as lists of strict 'Bitstream'
+    -- chunks and 'stream' / 'unstream' can't preserve the original
+    -- chunk structure. Let's say you have a lazy 'Bitstream' with the
+    -- following chunks:
+    --
+    -- @
+    -- bs = [chunk1, chunk2, chunk3, ...]
+    -- @
+    --
+    -- and you want to drop the first bit of such stream. Our 'tail'
+    -- is only strict on the @chunk1@ and will produce the following
+    -- chunks:
+    --
+    -- @
+    -- 'tail' bs = [chunk0, chunk1', chunk2, chunk3, ...]
+    -- @
+    --
+    -- where @chunk0@ is a singleton vector of the first packet of
+    -- @chunk1@ whose first bit is dropped, and @chunk1'@ is a vector
+    -- of remaining packets of the @chunk1@. Neither @chunk2@ nor
+    -- @chunk3@ have to be evaluated here as you might expect.
+    --
+    -- But think about the following expression:
+    --
+    -- @
+    -- import qualified Data.Stream as Stream
+    -- 'unstream' $ Stream.tail $ 'stream' bs
+    -- @
+    --
+    -- the resulting chunk structure will be:
+    --
+    -- @
+    -- [chunk1', chunk2', chunk3', ...]
+    -- @
+    --
+    -- where each and every chunks are slightly different from the
+    -- original chunks, and this time @chunk1'@ has the same length as
+    -- @chunk1@ but the last bit of @chunk1'@ is from the first bit of
+    -- @chunk2@. This means when you next time apply some functions
+    -- strict on the first chunk, you end up fully evaluating @chunk2@
+    -- as well as @chunk1@ and this can be a serious misbehaviour for
+    -- lazy 'Bitstream's.
     {-# INLINE unstream #-}
     unstream ∷ S.Stream Bool → α
     unstream = pack ∘ S.unstream

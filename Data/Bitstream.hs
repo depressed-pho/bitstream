@@ -4,13 +4,19 @@
   , UndecidableInstances
   , UnicodeSyntax
   #-}
--- | Fast, packed, strict bit vectors.
+-- | Fast, packed, strict bit streams with optional stream fusion.
 --
 -- This module is intended to be imported @qualified@, to avoid name
 -- clashes with "Prelude" functions. e.g.
 --
 -- > import qualified Data.BitStream as BS
 --
+-- Strict 'Bitstream's are made of strict 'SV.Vector' of 'Packet's,
+-- and each 'Packet's have at least 1 bit.
+--
+-- Note that stream fusion does NOT automatically occurs as there are
+-- possibilities that stream fusion produces a slower code for this
+-- data structure. See 'unstream' for more details.
 module Data.Bitstream
     ( -- * Types
       Bitstream
@@ -675,10 +681,14 @@ emptyStream
 indexOutOfRange ∷ Integral n ⇒ n → α
 indexOutOfRange n = error ("Data.Bitstream: index out of range: " L.++ show n)
 
+-- | /O(n)/ Convert a 'BS.ByteString' into a 'Bitstream'.
 {-# INLINE fromByteString #-}
 fromByteString ∷ BS.ByteString → Bitstream d
 fromByteString = Bitstream ∘ fromBS
 
+-- | /O(n)/ @'toByteString' bits@ converts a 'Bitstream' @bits@ into a
+-- 'BS.ByteString'. The resulting octets will be padded with zeroes if
+-- the 'length' of @bits@ is not multiple of 8.
 {-# INLINE toByteString #-}
 toByteString ∷ G.Bitstream (Packet d) ⇒ Bitstream d → BS.ByteString
 toByteString (Bitstream v) = toBS v
