@@ -91,6 +91,10 @@ module Data.Bitstream.Lazy
 
       -- * Substreams
     , take
+    , drop
+    , splitAt
+    , takeWhile
+    , dropWhile
     )
     where
 import qualified Data.Bitstream as Strict
@@ -395,6 +399,62 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
                             n' = n - length p'
                         return (p', (n', v'))
 
+    {-# INLINEABLE drop #-}
+    {-# SPECIALISE drop ∷ Int → Bitstream Left  → Bitstream Left  #-}
+    {-# SPECIALISE drop ∷ Int → Bitstream Right → Bitstream Right #-}
+    drop n0 (Bitstream v0)
+        | n0 ≤ 0    = Bitstream v0
+        | otherwise = Bitstream (g n0 v0)
+        where
+          {-# INLINE g #-}
+          g 0 v = v
+          g n v = case LV.viewL v of
+                    Just (p, v')
+                        | n ≥ length p → g (n - length p) v'
+                        | otherwise    → drop n p `LV.cons` v'
+                    Nothing            → v
+
+    {-# INLINEABLE splitAt #-}
+    {-# SPECIALISE splitAt ∷ Int → Bitstream Left  → (Bitstream Left , Bitstream Left ) #-}
+    {-# SPECIALISE splitAt ∷ Int → Bitstream Right → (Bitstream Right, Bitstream Right) #-}
+    splitAt n0 (Bitstream v0)
+        = case unfoldrN n0 split' ((∅), v0) of
+            (hd, Just (p, tl))
+                | null p    → (hd, Bitstream tl)
+                | otherwise → (hd, Bitstream (p `LV.cons` tl))
+            (hd, Nothing)   → (hd, (∅))
+        where
+          {-# INLINE split' #-}
+          split' (p, v)
+              | null p    = do (p', v') ← LV.viewL v
+                               (h , t ) ← uncons p'
+                               return (h, (t, v'))
+              | otherwise = do (h , t ) ← uncons p
+                               return (h, (t, v))
+
+    {-# INLINEABLE takeWhile #-}
+    takeWhile f (Bitstream v0)
+        = Bitstream (LV.unfoldr chunkSize g (Just v0))
+        where
+          {-# INLINE g #-}
+          g mv = do v       ← mv
+                    (p, v') ← LV.viewL v
+                    case takeWhile f p of
+                      p' | p ≡ p'    → Just (p', Just v')
+                         | otherwise → Just (p', Nothing)
+
+    {-# INLINEABLE dropWhile #-}
+    dropWhile f (Bitstream v0) = Bitstream (g v0)
+        where
+          {-# INLINE g #-}
+          g v = case LV.viewL v of
+                  Just (p, v')
+                      → case dropWhile f p of
+                           p' | null p'   → g v'
+                              | otherwise → p' `LV.cons` v'
+                  Nothing
+                      → LV.empty
+
 inconsistentState ∷ α
 inconsistentState
     = error "Data.Bitstream.Lazy: internal error: inconsistent state"
@@ -473,13 +533,31 @@ snoc' (Bitstream v) b = Bitstream (LV.fromChunks (go (LV.chunks v)))
                     Nothing   → [SV.singleton (singleton b)]
       go (x:xs) = x : go xs
 
+{- There are only 4 functions of the type Bool → Bool.
+
+   * iterate id b            == [b    , b    , b    , b    , ...]
+   * iterate (const True ) _ == [True , True , True , True , ...]
+   * iterate (const False) _ == [False, False, False, False, ...]
+   * iterate not True        == [True , False, True , False, ...]
+   * iterate not False       == [False, True , False, True , ...]
+
+   As seen above, all of them are cyclic so we just replicate the
+   first 8 bits i.e. a single Packet. Dunno when the given function
+   involves unsafeInlineIO!
+ -}
 {-# INLINE iterate #-}
 iterate ∷ G.Bitstream (Packet d) ⇒ (Bool → Bool) → Bool → Bitstream d
-iterate = (pack ∘) ∘ L.iterate
+iterate f b
+    = let p = pack (L.take 8 (L.iterate f b))
+      in
+        Bitstream (LV.repeat chunkSize p)
 
 {-# INLINE repeat #-}
 repeat ∷ G.Bitstream (Packet d) ⇒ Bool → Bitstream d
-repeat = pack ∘ L.repeat
+repeat b
+    = let p = pack (L.replicate 8 b)
+      in
+        Bitstream (LV.repeat chunkSize p)
 
 {-# INLINE cycle #-}
 cycle ∷ G.Bitstream (Packet d) ⇒ Bitstream d → Bitstream d

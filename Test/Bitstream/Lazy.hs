@@ -246,7 +246,7 @@ tests = [ -- ∅
                        ≡ second B.pack (mapAccumR doubleIf' n bl)
 
           -- replications
-        ,-} property $ \(n, b) → B.take (n `mod` 800) (B.iterate (¬) b ∷ BitL) ≡ B.pack (take (n `mod` 800) (iterate (¬) b))
+        , property $ \(n, b) → B.take (n `mod` 800) (B.iterate (¬) b ∷ BitL) ≡ B.pack (take (n `mod` 800) (iterate (¬) b))
         , property $ \(n, b) → B.take (n `mod` 800) (B.repeat b ∷ BitL) ≡ B.pack (take (n `mod` 800) (repeat b))
         , property $ \(n, b) → (B.replicate (n `mod` 800) b ∷ BitL) ≡ B.pack (replicate (n `mod` 800) b)
         , property $ \(n, bl) → (¬) (null bl) ⟹
@@ -278,5 +278,9 @@ tests = [ -- ∅
                                in p
 
           -- substreams
-        , property $ \(n, bl) → B.take n (B.pack bl ∷ BitL) ≡ B.pack (take n bl)
+        ,-} property $ \(n, bl) → B.take n (B.pack bl ∷ BitL) ≡ B.pack (take n bl)
+        , property $ \(n, bl) → B.drop n (B.pack bl ∷ BitL) ≡ B.pack (drop n bl)
+        , property $ \(n, bl) → B.splitAt n (B.pack bl ∷ BitL) ≡ fmapT2 B.pack (splitAt n bl)
+        , property $ \bl → B.takeWhile id (B.pack bl ∷ BitL) ≡ B.pack (takeWhile id bl)
+        , property $ \bl → B.dropWhile id (B.pack bl ∷ BitL) ≡ B.pack (dropWhile id bl)
         ]
