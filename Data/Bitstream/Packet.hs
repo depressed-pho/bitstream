@@ -30,7 +30,22 @@ import Foreign.Storable
 import Prelude hiding ((!!), drop, init, last, length, null, take, tail)
 import Prelude.Unicode
 
+-- | 'Left' bitstreams interpret an octet as a vector of bits whose
+-- LSB comes first and MSB comes last e.g.
+--
+--   * 11110000 => [False, False, False, False, True, True , True , True]
+--
+--   * 10010100 => [False, False, True , False, True, False, False, True]
+--
 data Left
+
+-- | 'Right' bitstreams interpret an octet as a vector of bits whose
+-- MSB comes first and LSB comes last e.g.
+--
+--   * 11110000 => [True, True , True , True, False, False, False, False]
+--
+--   * 10010100 => [True, False, False, True, False, True , False, False]
+--
 data Right
 
 data Packet d = Packet {-# UNPACK #-} !Int

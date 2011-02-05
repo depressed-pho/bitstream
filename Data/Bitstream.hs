@@ -11,7 +11,6 @@
 --
 -- > import qualified Data.BitStream as BS
 --
--- FIXME: explain about directions
 module Data.Bitstream
     ( -- * Types
       Bitstream
@@ -208,6 +207,11 @@ import Prelude.Unicode hiding ((⧺), (∈), (∉))
 import System.IO (FilePath, Handle, IO)
 import System.IO.Unsafe
 
+-- | A space-efficient representation of a 'Bool' vector, supporting
+-- many efficient operations. 'Bitstream's have an idea of
+-- /directions/ controlling how octets are interpreted as bits. There
+-- are two types of concrete 'Bitstream's: @'Bitstream' 'Left'@ and
+-- @'Bitstream' 'Right'@.
 newtype Bitstream d
     = Bitstream (SV.Vector (Packet d))
 
@@ -237,6 +241,7 @@ instance Ord (Bitstream d) ⇒ Eq (Bitstream d) where
 -- in
 --   [ 'compare' x y -- 'GT'
 --   , 'compare' z y -- 'LT'
+--   ]
 -- @
 instance G.Bitstream (Packet d) ⇒ Ord (Bitstream d) where
     {-# INLINEABLE compare #-}
@@ -273,6 +278,13 @@ instance G.Bitstream (Packet d) ⇒ Ord (Bitstream d) where
                         GT → GT
                         EQ → go (pxT, x) (pyT, y)
 
+-- | 'Bitstream' forms 'Monoid' in the same way as ordinary lists:
+--
+-- @
+-- 'mempty'  = 'empty'
+-- 'mappend' = 'append'
+-- 'mconcat' = 'concat'
+-- @
 instance G.Bitstream (Packet d) ⇒ Monoid (Bitstream d) where
     mempty  = (∅)
     mappend = (⧺)
@@ -416,18 +428,13 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
                       Nothing      → β
 
     {-# INLINE concat #-}
-    concat = Bitstream ∘ SV.concat ∘ L.map g
-        where
-          {-# INLINE g #-}
-          g (Bitstream v) = v
+    concat = Bitstream ∘ SV.concat ∘ L.map toPackets
 
     {-# INLINE concatMap #-}
     concatMap f (Bitstream v0) = Bitstream (SV.concatMap g v0)
         where
           {-# INLINE g #-}
-          g = SV.concat ∘ L.map (i ∘ f) ∘ unpack
-          {-# INLINE i #-}
-          i (Bitstream v) = v
+          g = SV.concat ∘ L.map (toPackets ∘ f) ∘ unpack
 
     {-# INLINE and #-}
     and (Bitstream v) = SV.all and v
@@ -676,10 +683,12 @@ fromByteString = Bitstream ∘ fromBS
 toByteString ∷ G.Bitstream (Packet d) ⇒ Bitstream d → BS.ByteString
 toByteString (Bitstream v) = toBS v
 
+-- | /O(1)/ Convert a 'SV.Vector' of 'Packet's into a 'Bitstream'.
 {-# INLINE fromPackets #-}
 fromPackets ∷ SV.Vector (Packet d) → Bitstream d
 fromPackets = Bitstream
 
+-- | /O(1)/ Convert a 'Bitstream' into a 'SV.Vector' of 'Packet's.
 {-# INLINE toPackets #-}
 toPackets ∷ Bitstream d → SV.Vector (Packet d)
 toPackets (Bitstream d) = d

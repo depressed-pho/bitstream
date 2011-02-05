@@ -18,6 +18,8 @@ module Data.Bitstream.Lazy
     , unpack
     , fromChunks
     , toChunks
+    , fromPackets
+    , toPackets
 
       -- ** Converting from\/to lazy 'BS.ByteString's
     , fromByteString
@@ -236,6 +238,7 @@ instance Ord (Bitstream d) ⇒ Eq (Bitstream d) where
 -- in
 --   [ 'compare' x y -- 'GT'
 --   , 'compare' z y -- 'LT'
+--   ]
 -- @
 instance G.Bitstream (Packet d) ⇒ Ord (Bitstream d) where
     {-# INLINEABLE compare #-}
@@ -410,7 +413,7 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
     concat = Bitstream ∘ LV.fromChunks ∘ L.concatMap g
         where
           {-# INLINE g #-}
-          g (Bitstream v) = LV.chunks v
+          g = LV.chunks ∘ toPackets
 
     {-# INLINE concatMap #-}
     concatMap f (Bitstream v0) = Bitstream (LV.concat (L.map g (LV.unpack v0)))
@@ -664,6 +667,16 @@ fromByteString = Bitstream ∘ fromLBS
 {-# INLINE toByteString #-}
 toByteString ∷ G.Bitstream (Packet d) ⇒ Bitstream d → LS.ByteString
 toByteString (Bitstream v) = toLBS v
+
+-- | /O(1)/ Convert a 'LV.Vector' of 'Packet's into a 'Bitstream'.
+{-# INLINE fromPackets #-}
+fromPackets ∷ LV.Vector (Packet d) → Bitstream d
+fromPackets = Bitstream
+
+-- | /O(1)/ Convert a 'Bitstream' into a 'LV.Vector' of 'Packet's.
+{-# INLINE toPackets #-}
+toPackets ∷ Bitstream d → LV.Vector (Packet d)
+toPackets (Bitstream d) = d
 
 {-# INLINE directionLToR #-}
 directionLToR ∷ Bitstream Left → Bitstream Right

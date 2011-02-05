@@ -40,10 +40,12 @@ snocL xs x = xs L.++ [x]
 {-# INLINE snocL #-}
 
 class Ord α ⇒ Bitstream α where
+    -- | /O(n)/ Convert a ['Bool'] into a 'Bitstream'.
     {-# INLINE pack #-}
     pack ∷ [Bool] → α
     pack = unstream ∘ S.stream
 
+    -- | /O(n)/ Convert a 'Bitstream' into a ['Bool'].
     {-# INLINE unpack #-}
     unpack ∷ α → [Bool]
     unpack = S.unstream ∘ stream
@@ -56,10 +58,12 @@ class Ord α ⇒ Bitstream α where
     unstream ∷ S.Stream Bool → α
     unstream = pack ∘ S.unstream
 
+    -- | /O(1)/ The empty 'Bitstream'.
     {-# INLINE empty #-}
     empty ∷ α
     empty = pack []
 
+    -- | /O(1)/ Convert a 'Bool' into a 'Bitstream'.
     {-# INLINE singleton #-}
     singleton ∷ Bool → α
     singleton = pack ∘ flip (:) []
@@ -602,9 +606,12 @@ emptyStream ∷ α
 emptyStream
     = error "Data.Bitstream.Generic: empty stream"
 
+-- | (&#x2205;) = 'empty'
+--
+-- U+2205, EMPTY SET
+{-# INLINE (∅) #-}
 (∅) ∷ Bitstream α ⇒ α
 (∅) = empty
-{-# INLINE (∅) #-}
 
 (⧺) ∷ Bitstream α ⇒ α → α → α
 (⧺) = append
