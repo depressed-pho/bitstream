@@ -172,7 +172,7 @@ module Data.Bitstream
     -- * I/O with 'Bitstream's
     -- ** Standard input and output
     , getContents
-    , put
+    , putBits
     , interact
 
     -- ** Files
@@ -696,9 +696,9 @@ directionRToL (Bitstream v) = Bitstream (SV.map packetRToL v)
 getContents ∷ G.Bitstream (Packet d) ⇒ IO (Bitstream d)
 getContents = fmap fromByteString BS.getContents
 
-{-# INLINE put #-}
-put ∷ G.Bitstream (Packet d) ⇒ Bitstream d → IO ()
-put = BS.putStr ∘ toByteString
+{-# INLINE putBits #-}
+putBits ∷ G.Bitstream (Packet d) ⇒ Bitstream d → IO ()
+putBits = BS.putStr ∘ toByteString
 
 {-# INLINE interact #-}
 interact ∷ G.Bitstream (Packet d) ⇒ (Bitstream d → Bitstream d) → IO ()

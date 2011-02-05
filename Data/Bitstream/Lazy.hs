@@ -164,6 +164,23 @@ module Data.Bitstream.Lazy
     , deleteFirstsBy
     , unionBy
     , intersectBy
+
+    -- * I/O with 'Bitstream's
+    -- ** Standard input and output
+    , getContents
+    , putBits
+    , interact
+
+    -- ** Files
+    , readFile
+    , writeFile
+    , appendFile
+
+    -- ** I/O with 'Handle's
+    , hGetContents
+    , hGet
+    , hGetNonBlocking
+    , hPut
     )
     where
 import qualified Data.Bitstream as Strict
@@ -179,10 +196,11 @@ import qualified Data.StorableVector.Lazy as LV
 import qualified Data.Stream as S
 import Foreign.Storable
 import Prelude ( Bool(..), Either(..), Eq(..), Int, Integral, Maybe(..)
-               , Monad(..), Num(..), Ord(..), Ordering(..), Show(..), ($), div
-               , error, fmap, fromIntegral, fst, otherwise
+               , Monad(..), Num(..), Ord(..), Ordering(..), Show(..)
+               , error, fmap, otherwise
                )
 import Prelude.Unicode hiding ((⧺), (∈), (∉))
+import System.IO (FilePath, Handle, IO)
 
 -- 32 KiB * sizeOf (Packet d) == 64 KiB
 chunkSize ∷ Num α ⇒ α
@@ -719,3 +737,55 @@ repeat b
 {-# INLINE cycle #-}
 cycle ∷ G.Bitstream (Packet d) ⇒ Bitstream d → Bitstream d
 cycle (Bitstream v) = Bitstream (LV.cycle v)
+
+{-# INLINE getContents #-}
+getContents ∷ G.Bitstream (Packet d) ⇒ IO (Bitstream d)
+getContents = fmap fromByteString LS.getContents
+
+{-# INLINE putBits #-}
+putBits ∷ G.Bitstream (Packet d) ⇒ Bitstream d → IO ()
+putBits = LS.putStr ∘ toByteString
+
+{-# INLINE interact #-}
+interact ∷ G.Bitstream (Packet d) ⇒ (Bitstream d → Bitstream d) → IO ()
+interact = LS.interact ∘ lift'
+    where
+      {-# INLINE lift' #-}
+      lift' f = toByteString ∘ f ∘ fromByteString
+
+{-# INLINE readFile #-}
+readFile ∷ G.Bitstream (Packet d) ⇒ FilePath → IO (Bitstream d)
+readFile = fmap fromByteString ∘ LS.readFile
+
+{-# INLINE writeFile #-}
+writeFile ∷ G.Bitstream (Packet d) ⇒ FilePath → Bitstream d → IO ()
+writeFile = (∘ toByteString) ∘ LS.writeFile
+
+{-# INLINE appendFile #-}
+appendFile ∷ G.Bitstream (Packet d) ⇒ FilePath → Bitstream d → IO ()
+appendFile = (∘ toByteString) ∘ LS.appendFile
+
+{-# INLINE hGetContents #-}
+hGetContents ∷ G.Bitstream (Packet d) ⇒ Handle → IO (Bitstream d)
+hGetContents = fmap fromByteString ∘ LS.hGetContents
+
+-- |@'hGet' h n@ reads a 'Bitstream' directly from the specified
+-- 'Handle' @h@. First argument @h@ is the 'Handle' to read from, and
+-- the second @n@ is the number of /octets/ to read, not /bits/. It
+-- returns the octets read, up to @n@, or null if EOF has been
+-- reached.
+--
+-- If the handle is a pipe or socket, and the writing end is closed,
+-- 'hGet' will behave as if EOF was reached.
+--
+{-# INLINE hGet #-}
+hGet ∷ G.Bitstream (Packet d) ⇒ Handle → Int → IO (Bitstream d)
+hGet = (fmap fromByteString ∘) ∘ LS.hGet
+
+{-# INLINE hGetNonBlocking #-}
+hGetNonBlocking ∷ G.Bitstream (Packet d) ⇒ Handle → Int → IO (Bitstream d)
+hGetNonBlocking = (fmap fromByteString ∘) ∘ LS.hGetNonBlocking
+
+{-# INLINE hPut #-}
+hPut ∷ G.Bitstream (Packet d) ⇒ Handle → Bitstream d → IO ()
+hPut = (∘ toByteString) ∘ LS.hPut
