@@ -119,32 +119,44 @@ class Ord α ⇒ Bitstream α where
     singleton ∷ Bool → α
     singleton = pack ∘ flip (:) []
 
+    -- | /strict: O(n), lazy: O(1)/ 'cons' is an analogous to (':')
+    -- for lists.
     {-# INLINE cons #-}
     cons ∷ Bool → α → α
     cons = (pack ∘) ∘ (∘ unpack) ∘ (:)
 
+    -- | /O(n)/ Append a bit to the end of a 'Bitstream'.
     {-# INLINE snoc #-}
     snoc ∷ α → Bool → α
     snoc α a = pack (unpack α `snocL` a)
 
+    -- | /O(n)/ Append two 'Bitstream's.
     {-# INLINE append #-}
     append ∷ α → α → α
     append = (pack ∘) ∘ (∘ unpack) ∘ (L.++) ∘ unpack
 
+    -- | /O(1)/ Extract the first bit of a non-empty 'Bitstream'. An
+    -- exception will be thrown if empty.
     {-# INLINE head #-}
     head ∷ α → Bool
     head = L.head ∘ unpack
 
+    -- | /O(1)/ Extract the 'head' and 'tail' of a 'Bitstream',
+    -- returning 'Nothing' if empty.
     {-# INLINE uncons #-}
     uncons ∷ α → Maybe (Bool, α)
     uncons α
         | null α    = Nothing
         | otherwise = Just (head α, tail α)
 
+    -- | /strict: O(1), lazy: O(n)/ Extract the last bit of a
+    -- non-empty 'Bitstream'. An exception will be thrown if empty.
     {-# INLINE last #-}
     last ∷ α → Bool
     last = L.last ∘ unpack
 
+    -- | /O(1)/ Extract the bits after the 'head' of a non-empty
+    -- 'Bitstream'. An exception will be thrown if empty.
     {-# INLINE tail #-}
     tail ∷ α → α
     tail = pack ∘ L.tail ∘ unpack
@@ -664,6 +676,9 @@ emptyStream
 (∅) ∷ Bitstream α ⇒ α
 (∅) = empty
 
+-- | (&#x29FA;) = 'append'
+--
+-- U+29FA, DOUBLE PLUS
 (⧺) ∷ Bitstream α ⇒ α → α → α
 (⧺) = append
 {-# INLINE (⧺) #-}

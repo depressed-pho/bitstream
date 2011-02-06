@@ -686,9 +686,9 @@ indexOutOfRange n = error ("Data.Bitstream: index out of range: " L.++ show n)
 fromByteString ∷ BS.ByteString → Bitstream d
 fromByteString = Bitstream ∘ fromBS
 
--- | /O(n)/ @'toByteString' bits@ converts a 'Bitstream' @bits@ into a
+-- | /O(n)/ @'toByteString' bs@ converts a 'Bitstream' @bits@ into a
 -- 'BS.ByteString'. The resulting octets will be padded with zeroes if
--- the 'length' of @bits@ is not multiple of 8.
+-- the 'length' of @bs@ is not multiple of 8.
 {-# INLINE toByteString #-}
 toByteString ∷ G.Bitstream (Packet d) ⇒ Bitstream d → BS.ByteString
 toByteString (Bitstream v) = toBS v
@@ -703,10 +703,16 @@ fromPackets = Bitstream
 toPackets ∷ Bitstream d → SV.Vector (Packet d)
 toPackets (Bitstream d) = d
 
+-- | /O(n)/ Convert a @'Bitstream' 'Left'@ into a @'Bitstream'
+-- 'Right'@. Bit directions only affect octet-based operations like
+-- 'toByteString'.
 {-# INLINE directionLToR #-}
 directionLToR ∷ Bitstream Left → Bitstream Right
 directionLToR (Bitstream v) = Bitstream (SV.map packetLToR v)
 
+-- | /O(n)/ Convert a @'Bitstream' 'Right'@ into a @'Bitstream'
+-- 'Left'@. Bit directions only affect octet-based operations like
+-- 'toByteString'.
 {-# INLINE directionRToL #-}
 directionRToL ∷ Bitstream Right → Bitstream Left
 directionRToL (Bitstream v) = Bitstream (SV.map packetRToL v)

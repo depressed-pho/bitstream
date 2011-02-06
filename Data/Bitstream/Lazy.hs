@@ -678,6 +678,9 @@ fromPackets = Bitstream
 toPackets ∷ Bitstream d → LV.Vector (Packet d)
 toPackets (Bitstream d) = d
 
+-- | /O(n)/ Convert a @'Bitstream' 'Left'@ into a @'Bitstream'
+-- 'Right'@. Bit directions only affect octet-based operations like
+-- 'toByteString'.
 {-# INLINE directionLToR #-}
 directionLToR ∷ Bitstream Left → Bitstream Right
 directionLToR (Bitstream v) = Bitstream (LV.map packetLToR v)
