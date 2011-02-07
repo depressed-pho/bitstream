@@ -149,8 +149,8 @@ class Ord α ⇒ Bitstream α where
         | null α    = Nothing
         | otherwise = Just (head α, tail α)
 
-    -- | /strict: O(1), lazy: O(n)/ Extract the last bit of a
-    -- non-empty 'Bitstream'. An exception will be thrown if empty.
+    -- | /strict: O(1), lazy: O(n)/ Extract the last bit of a finite
+    -- 'Bitstream'. An exception will be thrown if empty.
     {-# INLINE last #-}
     last ∷ α → Bool
     last = L.last ∘ unpack
@@ -161,14 +161,18 @@ class Ord α ⇒ Bitstream α where
     tail ∷ α → α
     tail = pack ∘ L.tail ∘ unpack
 
+    -- | /O(n)/ Return all the bits of a 'Bitstream' except the last
+    -- one. An exception will be thrown if empty.
     {-# INLINE init #-}
     init ∷ α → α
     init = pack ∘ L.init ∘ unpack
 
+    -- | /O(1)/ Test whether a 'Bitstream' is empty.
     {-# INLINE null #-}
     null ∷ α → Bool
     null = L.null ∘ unpack
 
+    -- | /O(n)/ Retyrn the length of a finite 'Bitstream'.
     {-# INLINE length #-}
     length ∷ Num n ⇒ α → n
     length = L.genericLength ∘ unpack

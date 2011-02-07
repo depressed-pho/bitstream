@@ -199,7 +199,7 @@ import qualified Data.Stream as S
 import Foreign.Storable
 import Prelude ( Bool(..), Either(..), Eq(..), Int, Integral, Maybe(..)
                , Monad(..), Num(..), Ord(..), Ordering(..), Show(..)
-               , error, fmap, otherwise
+               , error, flip, fmap, otherwise
                )
 import Prelude.Unicode hiding ((⧺), (∈), (∉))
 import System.IO (FilePath, Handle, IO)
@@ -342,10 +342,12 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
                Nothing         → inconsistentState
 
     {-# INLINE last #-}
-    last (Bitstream v)
-        = case LV.viewR v of
-            Just (_, p) → last p
-            Nothing     → emptyStream
+    last = go ∘ toChunks
+        where
+          {-# INLINE go #-}
+          go []     = emptyStream
+          go [x]    = last x
+          go (_:xs) = go xs
 
     {-# INLINEABLE tail #-}
     tail (Bitstream v)
@@ -358,14 +360,12 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
                 → emptyStream
 
     {-# INLINEABLE init #-}
-    init (Bitstream v)
-        = case LV.viewR v of
-            Just (v', p)
-                → case init p of
-                     p' | null p'   → Bitstream v'
-                        | otherwise → Bitstream (v' `snocLV'` p')
-            Nothing
-                → emptyStream
+    init = fromChunks ∘ go ∘ toChunks
+        where
+          {-# INLINE go #-}
+          go []     = emptyStream
+          go [x]    = [init x]
+          go (x:xs) = x : go xs
 
     {-# INLINE null #-}
     null (Bitstream v)
@@ -385,29 +385,14 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
     reverse (Bitstream v)
         = Bitstream (LV.reverse (LV.map reverse v))
 
-    {-# INLINEABLE foldl #-}
-    foldl f β0 (Bitstream v0) = go β0 v0
-        where
-          {-# INLINE go #-}
-          go β v = case LV.viewL v of
-                      Just (p, v') → go (foldl f β p) v'
-                      Nothing      → β
+    {-# INLINE foldl #-}
+    foldl f β0 = L.foldl (foldl f) β0 ∘ toChunks
 
     {-# INLINEABLE foldl' #-}
-    foldl' f β0 (Bitstream v0) = go β0 v0
-        where
-          {-# INLINE go #-}
-          go β v = case LV.viewL v of
-                      Just (p, v') → go (foldl' f β p) v'
-                      Nothing      → β
+    foldl' f β0 = L.foldl' (foldl' f) β0 ∘ toChunks
 
-    {-# INLINEABLE foldr #-}
-    foldr f β0 (Bitstream v0) = go β0 v0
-        where
-          {-# INLINE go #-}
-          go β v = case LV.viewR v of
-                      Just (v', p) → go (foldr f β p) v'
-                      Nothing      → β
+    {-# INLINE foldr #-}
+    foldr f β0 = L.foldr (flip (foldr f)) β0 ∘ toChunks
 
     {-# INLINE concat #-}
     concat = Bitstream ∘ LV.fromChunks ∘ L.concatMap g
@@ -642,15 +627,6 @@ emptyStream
 {-# INLINE indexOutOfRange #-}
 indexOutOfRange ∷ Integral n ⇒ n → α
 indexOutOfRange n = error ("Data.Bitstream.Lazy: index out of range: " L.++ show n)
-
-{-# INLINE snocLV' #-}
-snocLV' ∷ Storable α ⇒ LV.Vector α → α → LV.Vector α
-snocLV' v α = LV.fromChunks (go (LV.chunks v))
-    where
-      {-# INLINE go #-}
-      go []     = [SV.singleton α]
-      go [x]    = [x `SV.snoc` α]
-      go (x:xs) = x : go xs
 
 {-# INLINE fromChunks #-}
 fromChunks ∷ [Strict.Bitstream d] → Bitstream d
