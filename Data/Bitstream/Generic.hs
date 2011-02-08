@@ -11,6 +11,9 @@ module Data.Bitstream.Generic
 
     , empty
     , singleton
+
+    , scanr
+    , scanr1
 {-
     , (∅)
     , (⧺)
@@ -25,12 +28,11 @@ module Data.Bitstream.Generic
 -}
     )
     where
-import Control.Monad
+--import Control.Monad
 import qualified Data.List as L
-import Data.Maybe
-import Data.Vector.Fusion.Stream.Monadic (Stream(..), Step(..))
-import qualified Data.Vector.Fusion.Stream.Monadic as S
-import Data.Vector.Fusion.Util
+--import Data.Maybe
+import Data.Vector.Fusion.Stream (Stream)
+import qualified Data.Vector.Fusion.Stream as S
 import Prelude ( Bool(..), Integer, Integral(..), Num(..), Ord(..), ($), error
                , flip, otherwise
                )
@@ -98,14 +100,18 @@ class Ord α ⇒ Bitstream α where
     -- strict on the first chunk, you end up fully evaluating @chunk2@
     -- as well as @chunk1@ and this can be a serious misbehaviour for
     -- lazy 'Bitstream's.
-    stream ∷ Monad m ⇒ α → Stream m Bool
+    stream ∷ α → Stream Bool
 
     -- | /O(n)/ Convert a 'S.Stream' of 'Bool' into a 'Bitstream'.
-    unstream ∷ Monad m ⇒ Stream m Bool → m α
+    unstream ∷ Stream Bool → α
 
     -- | /strict: O(n), lazy: O(1)/ 'cons' is an analogous to (':')
     -- for lists.
     cons ∷ Bool → α → α
+
+    {-# INLINE cons' #-}
+    cons' ∷ Bool → α → α
+    cons' = cons
 
     -- | /O(n)/ Append a bit to the end of a 'Bitstream'.
     snoc ∷ α → Bool → α
@@ -117,21 +123,13 @@ class Ord α ⇒ Bitstream α where
     -- exception will be thrown if empty.
     {-# INLINE head #-}
     head ∷ α → Bool
-    head = unId ∘ S.head ∘ stream
-
-    -- | /O(1)/ Extract the 'head' and 'tail' of a 'Bitstream',
-    -- returning 'Nothing' if empty.
-    {-# INLINE [1] uncons #-}
-    uncons ∷ α → Maybe (Bool, α)
-    uncons α
-        | null α    = Nothing
-        | otherwise = Just (head α, tail α)
+    head = S.head ∘ stream
 
     -- | /strict: O(1), lazy: O(n)/ Extract the last bit of a finite
     -- 'Bitstream'. An exception will be thrown if empty.
     {-# INLINE last #-}
     last ∷ α → Bool
-    last = unId ∘ S.last ∘ stream
+    last = S.last ∘ stream
 
     -- | /O(1)/ Extract the bits after the 'head' of a non-empty
     -- 'Bitstream'. An exception will be thrown if empty.
@@ -144,107 +142,68 @@ class Ord α ⇒ Bitstream α where
     -- | /O(1)/ Test whether a 'Bitstream' is empty.
     {-# INLINE null #-}
     null ∷ α → Bool
-    null = unId ∘ S.null ∘ stream
+    null = S.null ∘ stream
 
     -- | /O(n)/ Retern the length of a finite 'Bitstream'.
     {-# INLINE length #-}
     length ∷ Num n ⇒ α → n
-    length = unId ∘ streamLength ∘ stream
+    length = streamLength ∘ stream
 
     map ∷ (Bool → Bool) → α → α
 
     reverse ∷ α → α
 
-    intersperse ∷ Bool → α → α
-
-    {-# INLINE intercalate #-}
-    intercalate ∷ α → [α] → α
-    intercalate α αs = concat (L.intersperse α αs)
-
-    {-# INLINEABLE transpose #-}
-    transpose ∷ [α] → [α]
-    transpose []     = []
-    transpose (α:αs)
-        = case uncons α of
-            Nothing      → transpose αs
-            Just (a, as) → (a `cons` pack (L.map head αs))
-                           : transpose (as : L.map tail αs)
-
     {-# INLINE foldl #-}
     foldl ∷ (β → Bool → β) → β → α → β
-    foldl f β = unId ∘ S.foldl f β ∘ stream
+    foldl f β = S.foldl f β ∘ stream
 
     {-# INLINE foldl' #-}
     foldl' ∷ (β → Bool → β) → β → α → β
-    foldl' f β = unId ∘ S.foldl' f β ∘ stream
+    foldl' f β = S.foldl' f β ∘ stream
 
     {-# INLINE foldl1 #-}
     foldl1 ∷ (Bool → Bool → Bool) → α → Bool
-    foldl1 f = unId ∘ S.foldl1 f ∘ stream
+    foldl1 f = S.foldl1 f ∘ stream
 
     {-# INLINE foldl1' #-}
     foldl1' ∷ (Bool → Bool → Bool) → α → Bool
-    foldl1' f = unId ∘ S.foldl1' f ∘ stream
+    foldl1' f = S.foldl1' f ∘ stream
 
     {-# INLINE foldr #-}
     foldr ∷ (Bool → β → β) → β → α → β
-    foldr f β = unId ∘ S.foldr f β ∘ stream
+    foldr f β = S.foldr f β ∘ stream
 
     {-# INLINE foldr1 #-}
     foldr1 ∷ (Bool → Bool → Bool) → α → Bool
-    foldr1 f = unId ∘ S.foldr1 f ∘ stream
+    foldr1 f = S.foldr1 f ∘ stream
 
     concat ∷ [α] → α
 
-{-
     {-# INLINE concatMap #-}
     concatMap ∷ (Bool → α) → α → α
-    concatMap f = pack ∘ L.concatMap (unpack ∘ f) ∘ unpack
+    concatMap f = concat ∘ L.map f ∘ unpack
 
     {-# INLINE and #-}
     and ∷ α → Bool
-    and = L.and ∘ unpack
+    and = S.and ∘ stream
 
     {-# INLINE or #-}
     or ∷ α → Bool
-    or = L.or ∘ unpack
+    or = S.or ∘ stream
 
     {-# INLINE any #-}
     any ∷ (Bool → Bool) → α → Bool
-    any = (∘ unpack) ∘ L.any
+    any f = S.or ∘ S.map f ∘ stream
 
     {-# INLINE all #-}
     all ∷ (Bool → Bool) → α → Bool
-    all = (∘ unpack) ∘ L.all
+    all f = S.and ∘ S.map f ∘ stream
 
-    {-# INLINE scanl #-}
     scanl ∷ (Bool → Bool → Bool) → Bool → α → α
-    scanl f β α = pack (L.scanl f β (unpack α))
 
-    {-# INLINE scanl1 #-}
     scanl1 ∷ (Bool → Bool → Bool) → α → α
-    scanl1 f α = pack (L.scanl1 f (unpack α))
 
-    {-# INLINEABLE scanr #-}
-    scanr ∷ (Bool → Bool → Bool) → Bool → α → α
-    scanr f β α
-        = case uncons α of
-            Nothing      → singleton β
-            Just (a, as) → let α' = scanr f β as
-                           in
-                             f a (head α') `cons` α'
-
-    {-# INLINEABLE scanr1 #-}
-    scanr1 ∷ (Bool → Bool → Bool) → α → α
-    scanr1 f α
-        = case uncons α of
-            Nothing         → α
-            Just (a, as)
-                | null as   → α
-                | otherwise → let α' = scanr1 f as
-                              in
-                                f a (head α') `cons` α'
-
+{-
     {-# INLINEABLE mapAccumL #-}
     mapAccumL ∷ (β → Bool → (β, Bool)) → β → α → (β, α)
     mapAccumL f s α
@@ -667,51 +626,34 @@ x ∆ y = (x ∖ y) ∪ (y ∖ x)
 -- | /O(n)/ Convert a ['Bool'] into a 'Bitstream'.
 {-# INLINE pack #-}
 pack ∷ Bitstream α ⇒ [Bool] → α
-pack = unId ∘ unstream ∘ S.fromList
+pack = unstream ∘ S.fromList
 
 -- | /O(n)/ Convert a 'Bitstream' into a ['Bool'].
 {-# INLINE unpack #-}
 unpack ∷ Bitstream α ⇒ α → [Bool]
-unpack = unId ∘ S.toList ∘ stream
+unpack = S.toList ∘ stream
 
 -- | /O(1)/ The empty 'Bitstream'.
 {-# INLINE empty #-}
 empty ∷ Bitstream α ⇒ α
-empty = unId (unstream S.empty)
+empty = unstream S.empty
 
 -- | /O(1)/ Convert a 'Bool' into a 'Bitstream'.
 {-# INLINE singleton #-}
 singleton ∷ Bitstream α ⇒ Bool → α
-singleton = unId ∘ unstream ∘ S.singleton
+singleton = unstream ∘ S.singleton
 
 {-# INLINE streamLength #-}
-streamLength ∷ (Monad m, Num n) ⇒ Stream m α → m n
+streamLength ∷ Num n ⇒ Stream α → n
 streamLength s = S.foldl' (\n _ → n+1) 0 s
 
-{-# INLINE streamIntersperse #-}
-streamIntersperse ∷ Monad m ⇒ α → Stream m α → Stream m α
-streamIntersperse sep (Stream next0 s0 n0)
-    = Stream next (s0, Nothing, True) (n0 ⋅ 2 - 1)
-    where
-      {-# INLINE next #-}
-      next (s, Nothing, True)
-          = do r ← next0 s
-               case r of
-                 Done       → return Done
-                 Skip    s' → return $ Skip (s', Nothing, True)
-                 Yield x s' → return $ Skip (s', Just x , True)
+{-# INLINE scanr #-}
+scanr ∷ Bitstream α ⇒ (Bool → Bool → Bool) → Bool → α → α
+scanr f b = reverse ∘ scanl (flip f) b ∘ reverse
 
-      next (s, Just x, True)
-          = return $ Yield x (s, Nothing, False)
-
-      next (s, Nothing, False)
-          = do r ← next0 s
-               case r of
-                 Done       → return Done
-                 Skip    s' → return $ Skip      (s', Nothing, False)
-                 Yield x s' → return $ Yield sep (s', Just x , True )
-
-      next _ = error "never reach here"
+{-# INLINE scanr1 #-}
+scanr1 ∷ Bitstream α ⇒ (Bool → Bool → Bool) → α → α
+scanr1 f = reverse ∘ scanl1 (flip f) ∘ reverse
 
 {-# RULES
 "Bitstream stream/unstream fusion"
@@ -732,17 +674,10 @@ streamIntersperse sep (Stream next0 s0 n0)
     ∀s1 s2. append (unstream s1) (unstream s2) = unstream (s1 S.++ s2)
 
 "Bitstream head/unstream fusion"
-    ∀s. head (unstream s) = unId (S.head s)
-
-"Bitstream uncons/unstream fusion"
-    ∀s. uncons (unstream s)
-            = if unId (S.null s) then
-                  Nothing
-              else
-                  Just (unId (S.head s), unstream (S.tail s))
+    ∀s. head (unstream s) = S.head s
 
 "Bitstream last/unstream fusion"
-    ∀s. last (unstream s) = unId (S.last s)
+    ∀s. last (unstream s) = S.last s
 
 "Bitstream tail/unstream fusion"
     ∀s. tail (unstream s) = unstream (S.tail s)
@@ -751,7 +686,7 @@ streamIntersperse sep (Stream next0 s0 n0)
     ∀s. init (unstream s) = unstream (S.init s)
 
 "Bitstream null/unstream fusion"
-    ∀s. null (unstream s) = unId (S.null s)
+    ∀s. null (unstream s) = S.null s
 
 "Bitstream length/unstream fusion"
     ∀s. length (unstream s) = streamLength s
@@ -760,27 +695,49 @@ streamIntersperse sep (Stream next0 s0 n0)
 {-# RULES
 "Bitstream map/unstream fusion"
     ∀f s. map f (unstream s) = unstream (S.map f s)
-
-"Bitstream intersperse/unstream fusion"
-    ∀b s. intersperse b (unstream s) = unstream (streamIntersperse b s)
   #-}
 
 {-# RULES
 "Bitstream foldl/unstream fusion"
-    ∀f β s. foldl f β (unstream s) = unId (S.foldl f β s)
+    ∀f β s. foldl f β (unstream s) = S.foldl f β s
 
 "Bitstream foldl'/unstream fusion"
-    ∀f β s. foldl' f β (unstream s) = unId (S.foldl' f β s)
+    ∀f β s. foldl' f β (unstream s) = S.foldl' f β s
 
 "Bitstream fold11/unstream fusion"
-    ∀f s. foldl1 f (unstream s) = unId (S.foldl1 f s)
+    ∀f s. foldl1 f (unstream s) = S.foldl1 f s
 
 "Bitstream foldl1'/unstream fusion"
-    ∀f s. foldl1' f (unstream s) = unId (S.foldl1' f s)
+    ∀f s. foldl1' f (unstream s) = S.foldl1' f s
 
 "Bitstream foldr/unstream fusion"
-    ∀f β s. foldr f β (unstream s) = unId (S.foldr f β s)
+    ∀f β s. foldr f β (unstream s) = S.foldr f β s
 
 "Bitstream foldr1/unstream fusion"
-    ∀f s. foldr1 f (unstream s) = unId (S.foldr1 f s)
+    ∀f s. foldr1 f (unstream s) = S.foldr1 f s
+  #-}
+
+{-# RULES
+"Bitstream concatMap/unstream fusion"
+    ∀f s. concatMap f (unstream s) = unstream (S.concatMap f s)
+
+"Bitstream and/unstream fusion"
+    ∀s. and (unstream s) = S.and s
+
+"Bitstream or/unstream fusion"
+    ∀s. or (unstream s) = S.or s
+
+"Bitstream any/unstream fusion"
+    ∀s f. any f (unstream s) = S.or (S.map f s)
+
+"Bitstream all/unstream fusion"
+    ∀s f. all f (unstream s) = S.and (S.map f s)
+  #-}
+
+{-# RULES
+"Bitstream scanl/unstream fusion"
+    ∀f b s. scanl f b (unstream s) = S.scanl f b s
+
+"Bitstream scanl1/unstream fusion"
+    ∀f s. scanl1 f (unstream s) = S.scanl1 f s
   #-}

@@ -101,6 +101,7 @@ module Data.Bitstream
       -- * Substreams
     , take
     , drop
+    , slice
     , splitAt
     , takeWhile
     , dropWhile
