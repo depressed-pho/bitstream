@@ -27,6 +27,8 @@ module Data.Bitstream.Generic
 
     , elem
     , notElem
+
+    , find
 {-
     , (∅)
     , (⧺)
@@ -212,23 +214,19 @@ class Ord α ⇒ Bitstream α where
 
     dropWhile ∷ (Bool → Bool) → α → α
 
-{-
-    find ∷ (Bool → Bool) → α → Maybe Bool
-    find = (∘ unpack) ∘ L.find
-    {-# INLINE find #-}
-
     filter ∷ (Bool → Bool) → α → α
-    filter = (pack ∘) ∘ (∘ unpack) ∘ L.filter
     {-# INLINE filter #-}
+    filter f = unstream ∘ S.filter f ∘ stream
 
     partition ∷ (Bool → Bool) → α → (α, α)
-    partition f α = (filter f α, filter ((¬) ∘ f) α)
     {-# INLINEABLE partition #-}
+    partition f α = (filter f α, filter ((¬) ∘ f) α)
 
     (!!) ∷ Integral n ⇒ α → n → Bool
-    (!!) = L.genericIndex ∘ unpack
     {-# INLINE (!!) #-}
+    α !! n = genericIndex (stream α) n
 
+{-
     elemIndex ∷ Integral n ⇒ Bool → α → Maybe n
     elemIndex = findIndex ∘ (≡)
     {-# INLINE elemIndex #-}
@@ -582,6 +580,10 @@ notElem ∷ Bitstream α ⇒ Bool → α → Bool
 {-# INLINE notElem #-}
 notElem = ((¬) ∘) ∘ (∈)
 
+find ∷ Bitstream α ⇒ (Bool → Bool) → α → Maybe Bool
+{-# INLINE find #-}
+find f = S.find f ∘ stream
+
 {-# RULES
 "Bitstream stream/unstream fusion"
     ∀s. stream (unstream s) = s
@@ -661,4 +663,14 @@ notElem = ((¬) ∘) ∘ (∈)
 
 "Bitstream dropWhile/unstream fusion"
     ∀f s. dropWhile f (unstream s) = unstream (S.dropWhile f s)
+  #-}
+
+{-# RULES
+"Bitstream filter/unstream fusion"
+    ∀f s. filter f (unstream s) = unstream (S.filter f s)
+  #-}
+
+{-# RULES
+"Bitstream (!!)/unstream fusion"
+    ∀s n. unstream s !! n = genericIndex s n
   #-}

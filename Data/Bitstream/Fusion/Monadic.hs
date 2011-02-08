@@ -5,6 +5,7 @@ module Data.Bitstream.Fusion.Monadic
     ( genericLength
     , genericTake
     , genericDrop
+    , genericIndex
     , genericReplicate
     , genericReplicateM
     , genericUnfoldrN
@@ -13,7 +14,7 @@ module Data.Bitstream.Fusion.Monadic
     where
 import Data.Vector.Fusion.Stream.Monadic
 import Data.Vector.Fusion.Stream.Size
-import Prelude hiding (drop, replicate, take)
+import Prelude hiding ((!!), drop, replicate, take)
 import Prelude.Unicode
 
 genericLength ∷ (Monad m, Num n) ⇒ Stream m α → m n
@@ -22,7 +23,7 @@ genericLength s = foldl' (\n _ → n+1) 0 s
 
 genericTake ∷ (Monad m, Integral n) ⇒ n → Stream m α → Stream m α
 {-# INLINE [0] genericTake #-}
-{-# RULES "genericTake @ Int" genericTake = take #-}
+{-# RULES "genericTake → take" genericTake = take #-}
 genericTake n (Stream step s0 sz) = Stream step' (s0, 0) (toMax sz)
     where
       {-# INLINE step' #-}
@@ -38,7 +39,7 @@ genericTake n (Stream step s0 sz) = Stream step' (s0, 0) (toMax sz)
 
 genericDrop ∷ (Monad m, Integral n) ⇒ n → Stream m α → Stream m α
 {-# INLINE [0] genericDrop #-}
-{-# RULES "genericDrop @ Int" genericDrop = drop #-}
+{-# RULES "genericDrop → drop" genericDrop = drop #-}
 genericDrop n0 (Stream step s0 sz) = Stream step' (s0, Just n0) (toMax sz)
     where
       {-# INLINE step' #-}
@@ -59,13 +60,30 @@ genericDrop n0 (Stream step s0 sz) = Stream step' (s0, Just n0) (toMax sz)
                  Skip    s' → return $ Skip    (s', Nothing)
                  Done       → return Done
 
+genericIndex ∷ (Monad m, Integral n) ⇒ Stream m α → n → m α
+{-# INLINE [0] genericIndex #-}
+{-# RULES "genericIndex → (!!)" genericIndex = (!!) #-}
+genericIndex (Stream step s0 _) i0
+    | i0 < 0    = fail ("genericIndex: out of range: " ⧺ show i0)
+    | otherwise = index_loop s0 0
+    where
+      {-# INLINE index_loop #-}
+      index_loop s i
+          = do r ← step s
+               case r of
+                 Yield α s'
+                     | i ≡ i0    → return α
+                     | otherwise → index_loop s' (i+1)
+                 Skip    s'      → index_loop s' i
+                 Done            → fail ("genericIndex: out of range: " ⧺ show i)
+
 genericReplicate ∷ (Monad m, Integral n) ⇒ n → α → Stream m α
 {-# INLINE genericReplicate #-}
 genericReplicate n = genericReplicateM n ∘ return
 
 genericReplicateM ∷ (Monad m, Integral n) ⇒ n → m α → Stream m α
 {-# INLINE [0] genericReplicateM #-}
-{-# RULES "genericReplicateM @ Int" genericReplicateM = replicateM #-}
+{-# RULES "genericReplicateM → replicateM" genericReplicateM = replicateM #-}
 genericReplicateM n0 mα = unfoldrM go n0
     where
       {-# INLINE go #-}
@@ -79,7 +97,7 @@ genericUnfoldrN n f = genericUnfoldrNM n (return ∘ f)
 
 genericUnfoldrNM ∷ (Monad m, Integral n) ⇒ n → (β → m (Maybe (α, β))) → β → Stream m α
 {-# INLINE [0] genericUnfoldrNM #-}
-{-# RULES "genericUnfoldrNM @ Int" genericUnfoldrNM = unfoldrNM #-}
+{-# RULES "genericUnfoldrNM → unfoldrNM" genericUnfoldrNM = unfoldrNM #-}
 genericUnfoldrNM n0 f β0 = unfoldrM go (n0, β0)
     where
       {-# INLINE go #-}
