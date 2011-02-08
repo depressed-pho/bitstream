@@ -14,6 +14,9 @@ module Data.Bitstream.Generic
 
     , scanr
     , scanr1
+
+    , unfoldr
+    , unfoldrN
 {-
     , (∅)
     , (⧺)
@@ -28,10 +31,9 @@ module Data.Bitstream.Generic
 -}
     )
     where
---import Control.Monad
 import qualified Data.List as L
 import Data.Bitstream.Fusion
---import Data.Maybe
+import Data.Maybe
 import Data.Vector.Fusion.Stream (Stream)
 import qualified Data.Vector.Fusion.Stream as S
 import Prelude ( Bool(..), Integer, Integral(..), Num(..), Ord(..), ($), error
@@ -209,28 +211,6 @@ class Ord α ⇒ Bitstream α where
     replicate n = unstream ∘ genericReplicate n
 
 {-
-    {-# INLINEABLE unfoldr #-}
-    unfoldr ∷ (β → Maybe (Bool, β)) → β → α
-    unfoldr f β0 = loop_unfoldr β0 (∅)
-        where
-          {-# INLINE loop_unfoldr #-}
-          loop_unfoldr β α
-              = case f β of
-                  Nothing      → α
-                  Just (a, β') → loop_unfoldr β' (α `snoc` a)
-
-    {-# INLINEABLE unfoldrN #-}
-    unfoldrN ∷ Integral n ⇒ n → (β → Maybe (Bool, β)) → β → (α, Maybe β)
-    unfoldrN n0 f β0
-        | n0 < 0    = ((∅), Just β0)
-        | otherwise = loop_unfoldrN n0 β0 (∅)
-        where
-          loop_unfoldrN 0 β α = (α, Just β)
-          loop_unfoldrN n β α
-              = case f β of
-                  Nothing      → (α, Nothing)
-                  Just (a, β') → loop_unfoldrN (n-1) β' (α `snoc` a)
-
     take ∷ Integral n ⇒ n → α → α
     take = (pack ∘) ∘ (∘ unpack) ∘ L.genericTake
     {-# INLINE take #-}
@@ -630,6 +610,13 @@ scanr f b = reverse ∘ scanl (flip f) b ∘ reverse
 scanr1 ∷ Bitstream α ⇒ (Bool → Bool → Bool) → α → α
 scanr1 f = reverse ∘ scanl1 (flip f) ∘ reverse
 
+{-# INLINE unfoldr #-}
+unfoldr ∷ Bitstream α ⇒ (β → Maybe (Bool, β)) → β → α
+unfoldr f = unstream ∘ S.unfoldr f
+
+{-# INLINE unfoldrN #-}
+unfoldrN ∷ (Bitstream α, Integral n) ⇒ n → (β → Maybe (Bool, β)) → β → α
+unfoldrN n f = unstream ∘ genericUnfoldrN n f
 
 {-# RULES
 "Bitstream stream/unstream fusion"
