@@ -30,6 +30,7 @@ module Data.Bitstream.Generic
     where
 --import Control.Monad
 import qualified Data.List as L
+import Data.Bitstream.Fusion
 --import Data.Maybe
 import Data.Vector.Fusion.Stream (Stream)
 import qualified Data.Vector.Fusion.Stream as S
@@ -147,7 +148,7 @@ class Ord α ⇒ Bitstream α where
     -- | /O(n)/ Retern the length of a finite 'Bitstream'.
     {-# INLINE length #-}
     length ∷ Num n ⇒ α → n
-    length = streamLength ∘ stream
+    length = genericLength ∘ stream
 
     map ∷ (Bool → Bool) → α → α
 
@@ -203,33 +204,11 @@ class Ord α ⇒ Bitstream α where
 
     scanl1 ∷ (Bool → Bool → Bool) → α → α
 
-{-
-    {-# INLINEABLE mapAccumL #-}
-    mapAccumL ∷ (β → Bool → (β, Bool)) → β → α → (β, α)
-    mapAccumL f s α
-        = case uncons α of
-            Nothing      → (s, α)
-            Just (a, as) → let (s' , b ) = f s a
-                               (s'', α') = mapAccumL f s' as
-                           in
-                             (s'', b `cons` α')
-
-    {-# INLINEABLE mapAccumR #-}
-    mapAccumR ∷ (β → Bool → (β, Bool)) → β → α → (β, α)
-    mapAccumR f s α
-        = case uncons α of
-            Nothing      → (s, α)
-            Just (a, as) → let (s'', b ) = f s' a
-                               (s' , α') = mapAccumR f s as
-                           in
-                             (s'', b `cons` α')
-
-    {-# INLINEABLE replicate #-}
+    {-# INLINE replicate #-}
     replicate ∷ Integral n ⇒ n → Bool → α
-    replicate n b
-        | n ≤ 0     = (∅)
-        | otherwise = b `cons` replicate (n-1) b
+    replicate n = unstream ∘ genericReplicate n
 
+{-
     {-# INLINEABLE unfoldr #-}
     unfoldr ∷ (β → Maybe (Bool, β)) → β → α
     unfoldr f β0 = loop_unfoldr β0 (∅)
@@ -643,10 +622,6 @@ empty = unstream S.empty
 singleton ∷ Bitstream α ⇒ Bool → α
 singleton = unstream ∘ S.singleton
 
-{-# INLINE streamLength #-}
-streamLength ∷ Num n ⇒ Stream α → n
-streamLength s = S.foldl' (\n _ → n+1) 0 s
-
 {-# INLINE scanr #-}
 scanr ∷ Bitstream α ⇒ (Bool → Bool → Bool) → Bool → α → α
 scanr f b = reverse ∘ scanl (flip f) b ∘ reverse
@@ -654,6 +629,7 @@ scanr f b = reverse ∘ scanl (flip f) b ∘ reverse
 {-# INLINE scanr1 #-}
 scanr1 ∷ Bitstream α ⇒ (Bool → Bool → Bool) → α → α
 scanr1 f = reverse ∘ scanl1 (flip f) ∘ reverse
+
 
 {-# RULES
 "Bitstream stream/unstream fusion"
@@ -689,7 +665,7 @@ scanr1 f = reverse ∘ scanl1 (flip f) ∘ reverse
     ∀s. null (unstream s) = S.null s
 
 "Bitstream length/unstream fusion"
-    ∀s. length (unstream s) = streamLength s
+    ∀s. length (unstream s) = genericLength s
   #-}
 
 {-# RULES
@@ -715,9 +691,7 @@ scanr1 f = reverse ∘ scanl1 (flip f) ∘ reverse
 
 "Bitstream foldr1/unstream fusion"
     ∀f s. foldr1 f (unstream s) = S.foldr1 f s
-  #-}
 
-{-# RULES
 "Bitstream concatMap/unstream fusion"
     ∀f s. concatMap f (unstream s) = unstream (S.concatMap f s)
 

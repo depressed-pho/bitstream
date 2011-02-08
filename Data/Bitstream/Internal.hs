@@ -31,6 +31,13 @@ import qualified Data.StorableVector.Lazy as LV
 import Foreign.Storable
 import Prelude.Unicode
 
+{-# INLINE streamLength #-}
+streamLength ∷ Num n ⇒ Stream α → n
+streamLength s = S.foldl' (\n _ → n+1) 0 s
+
+{-# INLINE replicateStream #-}
+replicateStream ∷ Integral n ⇒ n → α → Stream α
+
 {-# INLINE packStream #-}
 packStream ∷ ∀d. G.Bitstream (Packet d) ⇒ S.Stream Bool → S.Stream (Packet d)
 packStream (S.Stream f s0) = S.unfoldr pack8 (Just s0)

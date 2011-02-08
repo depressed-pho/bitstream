@@ -33,6 +33,7 @@ Library
 
     Exposed-Modules:
 --        Data.Bitstream
+        Data.Bitstream.Fusion
         Data.Bitstream.Generic
 --        Data.Bitstream.Lazy
 --        Data.Bitstream.Packet
