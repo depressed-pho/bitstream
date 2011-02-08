@@ -10,6 +10,9 @@ module Data.Bitstream.Fusion.Monadic
     , genericReplicateM
     , genericUnfoldrN
     , genericUnfoldrNM
+    , genericFindIndex
+    , genericFindIndexM
+    , genericIndexed
     )
     where
 import Data.Vector.Fusion.Stream.Monadic
@@ -106,3 +109,35 @@ genericUnfoldrNM n0 f β0 = unfoldrM go (n0, β0)
           | otherwise = do r ← f β
                            return $ do (α, β') ← r
                                        return (α, (n-1, β'))
+
+genericFindIndex ∷ (Monad m, Integral n) ⇒ (α → Bool) → Stream m α → m (Maybe n)
+{-# INLINE genericFindIndex #-}
+genericFindIndex f = genericFindIndexM (return ∘ f)
+
+genericFindIndexM ∷ (Monad m, Integral n) ⇒ (α → m Bool) → Stream m α → m (Maybe n)
+{-# INLINE [0] genericFindIndexM #-}
+{-# RULES "genericFindIndexM → findIndexM" genericFindIndexM = findIndexM #-}
+genericFindIndexM f (Stream step s0 _) = findIndex_loop s0 0
+    where
+      {-# INLINE findIndex_loop #-}
+      findIndex_loop s i
+          = do r ← step s
+               case r of
+                 Yield α s' → do b ← f α
+                                 if b then return $ Just i
+                                      else findIndex_loop s' (i+1)
+                 Skip    s' → findIndex_loop s' i
+                 Done       → return Nothing
+
+genericIndexed ∷ (Monad m, Integral n) ⇒ Stream m α → Stream m (n, α)
+{-# INLINE [0] genericIndexed #-}
+{-# RULES "genericIndexed → indexed" genericIndexed = indexed #-}
+genericIndexed (Stream step s0 sz) = Stream step' (s0, 0) sz
+    where
+      {-# INLINE step' #-}
+      step' (s, i)
+          = do r ← step s
+               case r of
+                 Yield α s' → return $ Yield (i, α) (s', i+1)
+                 Skip    s' → return $ Skip         (s', i  )
+                 Done       → return $ Done

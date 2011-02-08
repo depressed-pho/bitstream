@@ -8,6 +8,8 @@ module Data.Bitstream.Fusion
     , genericIndex
     , genericReplicate
     , genericUnfoldrN
+    , genericFindIndex
+    , genericIndexed
     )
     where
 import qualified Data.Bitstream.Fusion.Monadic as M
@@ -39,3 +41,11 @@ genericReplicate = M.genericReplicate
 genericUnfoldrN ∷ Integral n ⇒ n → (β → Maybe (α, β)) → β → Stream α
 {-# INLINE genericUnfoldrN #-}
 genericUnfoldrN = M.genericUnfoldrN
+
+genericFindIndex ∷ Integral n ⇒ (α → Bool) → Stream α → Maybe n
+{-# INLINE genericFindIndex #-}
+genericFindIndex f = unId ∘ M.genericFindIndex f
+
+genericIndexed ∷ Integral n ⇒ Stream α → Stream (n, α)
+{-# INLINE genericIndexed #-}
+genericIndexed = M.genericIndexed

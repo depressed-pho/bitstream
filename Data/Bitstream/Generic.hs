@@ -12,6 +12,13 @@ module Data.Bitstream.Generic
     , empty
     , singleton
 
+    , head
+    , last
+    , null
+    , length
+
+    , concatMap
+
     , foldl
     , foldl'
     , foldl1
@@ -19,8 +26,18 @@ module Data.Bitstream.Generic
     , foldr
     , foldr1
 
+    , and
+    , or
+    , any
+    , all
+
     , unfoldr
     , unfoldrN
+
+    , scanr
+    , scanr1
+
+    , replicate
 
     , span
     , break
@@ -29,6 +46,12 @@ module Data.Bitstream.Generic
     , notElem
 
     , find
+
+    , (!!)
+    , elemIndex
+    , elemIndices
+    , findIndex
+    , findIndices
 {-
     , (∅)
     , (⧺)
@@ -49,7 +72,7 @@ import Data.Maybe
 import Data.Vector.Fusion.Stream (Stream)
 import qualified Data.Vector.Fusion.Stream as S
 import Prelude ( Bool(..), Integer, Integral(..), Num(..), Ord(..), ($), error
-               , flip, otherwise
+               , fst, flip, snd, otherwise
                )
 import Prelude.Unicode hiding ((∈), (∉), (⧺))
 
@@ -64,6 +87,8 @@ infixl 9 !!, ∖, \\, ∆
 -- instead of Integral n.
 -}
 
+-- FIXME: Explain what kind of functions are defined as methods: funcs
+-- that need to preserve the packet/chunk structure
 class Ord α ⇒ Bitstream α where
     -- | /O(n)/ Explicitly convert a 'Bitstream' into a 'Stream' of
     -- 'Bool'.
@@ -134,18 +159,6 @@ class Ord α ⇒ Bitstream α where
     -- | /O(n)/ Append two 'Bitstream's.
     append ∷ α → α → α
 
-    -- | /O(1)/ Extract the first bit of a non-empty 'Bitstream'. An
-    -- exception will be thrown if empty.
-    head ∷ α → Bool
-    {-# INLINE head #-}
-    head = S.head ∘ stream
-
-    -- | /strict: O(1), lazy: O(n)/ Extract the last bit of a finite
-    -- 'Bitstream'. An exception will be thrown if empty.
-    last ∷ α → Bool
-    {-# INLINE last #-}
-    last = S.last ∘ stream
-
     -- | /O(1)/ Extract the bits after the 'head' of a non-empty
     -- 'Bitstream'. An exception will be thrown if empty.
     tail ∷ α → α
@@ -154,57 +167,15 @@ class Ord α ⇒ Bitstream α where
     -- one. An exception will be thrown if empty.
     init ∷ α → α
 
-    -- | /O(1)/ Test whether a 'Bitstream' is empty.
-    null ∷ α → Bool
-    {-# INLINE null #-}
-    null = S.null ∘ stream
-
-    -- | /O(n)/ Retern the length of a finite 'Bitstream'.
-    length ∷ Num n ⇒ α → n
-    {-# INLINE length #-}
-    length = genericLength ∘ stream
-
     map ∷ (Bool → Bool) → α → α
 
     reverse ∷ α → α
 
     concat ∷ [α] → α
 
-    {-# INLINE concatMap #-}
-    concatMap ∷ (Bool → α) → α → α
-    concatMap f = concat ∘ L.map f ∘ unpack
-
-    {-# INLINE and #-}
-    and ∷ α → Bool
-    and = S.and ∘ stream
-
-    {-# INLINE or #-}
-    or ∷ α → Bool
-    or = S.or ∘ stream
-
-    {-# INLINE any #-}
-    any ∷ (Bool → Bool) → α → Bool
-    any f = S.or ∘ S.map f ∘ stream
-
-    {-# INLINE all #-}
-    all ∷ (Bool → Bool) → α → Bool
-    all f = S.and ∘ S.map f ∘ stream
-
     scanl ∷ (Bool → Bool → Bool) → Bool → α → α
 
     scanl1 ∷ (Bool → Bool → Bool) → α → α
-
-    scanr ∷ (Bool → Bool → Bool) → Bool → α → α
-    {-# INLINE scanr #-}
-    scanr f b = reverse ∘ scanl (flip f) b ∘ reverse
-
-    scanr1 ∷ (Bool → Bool → Bool) → α → α
-    {-# INLINE scanr1 #-}
-    scanr1 f = reverse ∘ scanl1 (flip f) ∘ reverse
-
-    {-# INLINE replicate #-}
-    replicate ∷ Integral n ⇒ n → Bool → α
-    replicate n = unstream ∘ genericReplicate n
 
     take ∷ Integral n ⇒ n → α → α
 
@@ -222,34 +193,7 @@ class Ord α ⇒ Bitstream α where
     {-# INLINEABLE partition #-}
     partition f α = (filter f α, filter ((¬) ∘ f) α)
 
-    (!!) ∷ Integral n ⇒ α → n → Bool
-    {-# INLINE (!!) #-}
-    α !! n = genericIndex (stream α) n
-
 {-
-    elemIndex ∷ Integral n ⇒ Bool → α → Maybe n
-    elemIndex = findIndex ∘ (≡)
-    {-# INLINE elemIndex #-}
-
-    elemIndices ∷ Integral n ⇒ Bool → α → [n]
-    elemIndices = findIndices ∘ (≡)
-    {-# INLINE elemIndices #-}
-
-    findIndex ∷ Integral n ⇒ (Bool → Bool) → α → Maybe n
-    findIndex = (listToMaybe ∘) ∘ findIndices
-    {-# INLINE findIndex #-}
-
-    {-# INLINEABLE findIndices #-}
-    findIndices ∷ Integral n ⇒ (Bool → Bool) → α → [n]
-    findIndices f = find' 0
-        where
-          find' n α
-              = case uncons α of
-                  Nothing         → []
-                  Just (a, as)
-                      | f a       → n : find' (n+1) as
-                      | otherwise →     find' (n+1) as
-
     zip ∷ α → α → [(Bool, Bool)]
     zip = zipWith (,)
     {-# INLINE zip #-}
@@ -527,6 +471,60 @@ empty = unstream S.empty
 singleton ∷ Bitstream α ⇒ Bool → α
 singleton = unstream ∘ S.singleton
 
+-- | /O(1)/ Extract the first bit of a non-empty 'Bitstream'. An
+-- exception will be thrown if empty.
+head ∷ Bitstream α ⇒ α → Bool
+{-# INLINE head #-}
+head = S.head ∘ stream
+
+-- | /strict: O(1), lazy: O(n)/ Extract the last bit of a finite
+-- 'Bitstream'. An exception will be thrown if empty.
+last ∷ Bitstream α ⇒ α → Bool
+{-# INLINE last #-}
+last = S.last ∘ stream
+
+-- | /O(1)/ Test whether a 'Bitstream' is empty.
+null ∷ Bitstream α ⇒ α → Bool
+{-# INLINE null #-}
+null = S.null ∘ stream
+
+-- | /O(n)/ Retern the length of a finite 'Bitstream'.
+length ∷ Bitstream α ⇒ Num n ⇒ α → n
+{-# INLINE length #-}
+length = genericLength ∘ stream
+
+concatMap ∷ Bitstream α ⇒ (Bool → α) → α → α
+{-# INLINE concatMap #-}
+concatMap f = concat ∘ L.map f ∘ unpack
+
+and ∷ Bitstream α ⇒ α → Bool
+{-# INLINE and #-}
+and = S.and ∘ stream
+
+or ∷ Bitstream α ⇒ α → Bool
+{-# INLINE or #-}
+or = S.or ∘ stream
+
+any ∷ Bitstream α ⇒ (Bool → Bool) → α → Bool
+{-# INLINE any #-}
+any f = S.or ∘ S.map f ∘ stream
+
+all ∷ Bitstream α ⇒ (Bool → Bool) → α → Bool
+{-# INLINE all #-}
+all f = S.and ∘ S.map f ∘ stream
+
+scanr ∷ Bitstream α ⇒ (Bool → Bool → Bool) → Bool → α → α
+{-# INLINE scanr #-}
+scanr f b = reverse ∘ scanl (flip f) b ∘ reverse
+
+scanr1 ∷ Bitstream α ⇒ (Bool → Bool → Bool) → α → α
+{-# INLINE scanr1 #-}
+scanr1 f = reverse ∘ scanl1 (flip f) ∘ reverse
+
+replicate ∷ (Bitstream α, Integral n) ⇒ n → Bool → α
+{-# INLINE replicate #-}
+replicate n = unstream ∘ genericReplicate n
+
 foldl ∷ Bitstream α ⇒ (β → Bool → β) → β → α → β
 {-# INLINE foldl #-}
 foldl f β = S.foldl f β ∘ stream
@@ -559,6 +557,10 @@ unfoldrN ∷ (Bitstream α, Integral n) ⇒ n → (β → Maybe (Bool, β)) → 
 {-# INLINE unfoldrN #-}
 unfoldrN n f = unstream ∘ genericUnfoldrN n f
 
+(!!) ∷ (Bitstream α, Integral n) ⇒ α → n → Bool
+{-# INLINE (!!) #-}
+α !! n = genericIndex (stream α) n
+
 span ∷ Bitstream α ⇒ (Bool → Bool) → α → (α, α)
 {-# INLINEABLE span #-}
 span f α
@@ -584,6 +586,27 @@ find ∷ Bitstream α ⇒ (Bool → Bool) → α → Maybe Bool
 {-# INLINE find #-}
 find f = S.find f ∘ stream
 
+elemIndex ∷ (Bitstream α, Integral n) ⇒ Bool → α → Maybe n
+{-# INLINE elemIndex #-}
+elemIndex = findIndex ∘ (≡)
+
+elemIndices ∷ (Bitstream α, Integral n) ⇒ Bool → α → [n]
+{-# INLINE elemIndices #-}
+elemIndices = findIndices ∘ (≡)
+
+findIndex ∷ (Bitstream α, Integral n) ⇒ (Bool → Bool) → α → Maybe n
+{-# INLINE findIndex #-}
+findIndex f = genericFindIndex f ∘ stream
+
+findIndices ∷ (Bitstream α, Integral n) ⇒ (Bool → Bool) → α → [n]
+{-# INLINE findIndices #-}
+findIndices f
+    = S.toList
+    ∘ S.map fst
+    ∘ S.filter (f ∘ snd)
+    ∘ genericIndexed
+    ∘ stream
+
 {-# RULES
 "Bitstream stream/unstream fusion"
     ∀s. stream (unstream s) = s
@@ -602,56 +625,21 @@ find f = S.find f ∘ stream
 "Bitstream append/unstream fusion"
     ∀s1 s2. append (unstream s1) (unstream s2) = unstream (s1 S.++ s2)
 
-"Bitstream head/unstream fusion"
-    ∀s. head (unstream s) = S.head s
-
-"Bitstream last/unstream fusion"
-    ∀s. last (unstream s) = S.last s
-
-"Bitstream tail/unstream fusion"
-    ∀s. tail (unstream s) = unstream (S.tail s)
-
 "Bitstream init/unstream fusion"
     ∀s. init (unstream s) = unstream (S.init s)
 
 "Bitstream null/unstream fusion"
     ∀s. null (unstream s) = S.null s
 
-"Bitstream length/unstream fusion"
-    ∀s. length (unstream s) = genericLength s
-  #-}
-
-{-# RULES
 "Bitstream map/unstream fusion"
     ∀f s. map f (unstream s) = unstream (S.map f s)
-  #-}
 
-{-# RULES
-"Bitstream concatMap/unstream fusion"
-    ∀f s. concatMap f (unstream s) = unstream (S.concatMap f s)
-
-"Bitstream and/unstream fusion"
-    ∀s. and (unstream s) = S.and s
-
-"Bitstream or/unstream fusion"
-    ∀s. or (unstream s) = S.or s
-
-"Bitstream any/unstream fusion"
-    ∀s f. any f (unstream s) = S.or (S.map f s)
-
-"Bitstream all/unstream fusion"
-    ∀s f. all f (unstream s) = S.and (S.map f s)
-  #-}
-
-{-# RULES
 "Bitstream scanl/unstream fusion"
     ∀f b s. scanl f b (unstream s) = unstream (S.scanl f b s)
 
 "Bitstream scanl1/unstream fusion"
     ∀f s. scanl1 f (unstream s) = unstream (S.scanl1 f s)
-  #-}
 
-{-# RULES
 "Bitstream take/unstream fusion"
     ∀n s. take n (unstream s) = unstream (genericTake n s)
 
@@ -663,14 +651,7 @@ find f = S.find f ∘ stream
 
 "Bitstream dropWhile/unstream fusion"
     ∀f s. dropWhile f (unstream s) = unstream (S.dropWhile f s)
-  #-}
 
-{-# RULES
 "Bitstream filter/unstream fusion"
     ∀f s. filter f (unstream s) = unstream (S.filter f s)
-  #-}
-
-{-# RULES
-"Bitstream (!!)/unstream fusion"
-    ∀s n. unstream s !! n = genericIndex s n
   #-}
