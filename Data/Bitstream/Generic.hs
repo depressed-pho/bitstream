@@ -12,6 +12,13 @@ module Data.Bitstream.Generic
     , empty
     , singleton
 
+    , foldl
+    , foldl'
+    , foldl1
+    , foldl1'
+    , foldr
+    , foldr1
+
     , scanr
     , scanr1
 
@@ -112,8 +119,8 @@ class Ord α ⇒ Bitstream α where
     -- for lists.
     cons ∷ Bool → α → α
 
-    {-# INLINE cons' #-}
     cons' ∷ Bool → α → α
+    {-# INLINE cons' #-}
     cons' = cons
 
     -- | /O(n)/ Append a bit to the end of a 'Bitstream'.
@@ -124,14 +131,14 @@ class Ord α ⇒ Bitstream α where
 
     -- | /O(1)/ Extract the first bit of a non-empty 'Bitstream'. An
     -- exception will be thrown if empty.
-    {-# INLINE head #-}
     head ∷ α → Bool
+    {-# INLINE head #-}
     head = S.head ∘ stream
 
     -- | /strict: O(1), lazy: O(n)/ Extract the last bit of a finite
     -- 'Bitstream'. An exception will be thrown if empty.
-    {-# INLINE last #-}
     last ∷ α → Bool
+    {-# INLINE last #-}
     last = S.last ∘ stream
 
     -- | /O(1)/ Extract the bits after the 'head' of a non-empty
@@ -143,42 +150,18 @@ class Ord α ⇒ Bitstream α where
     init ∷ α → α
 
     -- | /O(1)/ Test whether a 'Bitstream' is empty.
-    {-# INLINE null #-}
     null ∷ α → Bool
+    {-# INLINE null #-}
     null = S.null ∘ stream
 
     -- | /O(n)/ Retern the length of a finite 'Bitstream'.
-    {-# INLINE length #-}
     length ∷ Num n ⇒ α → n
+    {-# INLINE length #-}
     length = genericLength ∘ stream
 
     map ∷ (Bool → Bool) → α → α
 
     reverse ∷ α → α
-
-    {-# INLINE foldl #-}
-    foldl ∷ (β → Bool → β) → β → α → β
-    foldl f β = S.foldl f β ∘ stream
-
-    {-# INLINE foldl' #-}
-    foldl' ∷ (β → Bool → β) → β → α → β
-    foldl' f β = S.foldl' f β ∘ stream
-
-    {-# INLINE foldl1 #-}
-    foldl1 ∷ (Bool → Bool → Bool) → α → Bool
-    foldl1 f = S.foldl1 f ∘ stream
-
-    {-# INLINE foldl1' #-}
-    foldl1' ∷ (Bool → Bool → Bool) → α → Bool
-    foldl1' f = S.foldl1' f ∘ stream
-
-    {-# INLINE foldr #-}
-    foldr ∷ (Bool → β → β) → β → α → β
-    foldr f β = S.foldr f β ∘ stream
-
-    {-# INLINE foldr1 #-}
-    foldr1 ∷ (Bool → Bool → Bool) → α → Bool
-    foldr1 f = S.foldr1 f ∘ stream
 
     concat ∷ [α] → α
 
@@ -210,11 +193,9 @@ class Ord α ⇒ Bitstream α where
     replicate ∷ Integral n ⇒ n → Bool → α
     replicate n = unstream ∘ genericReplicate n
 
-{-
     take ∷ Integral n ⇒ n → α → α
-    take = (pack ∘) ∘ (∘ unpack) ∘ L.genericTake
-    {-# INLINE take #-}
 
+{-
     drop ∷ Integral n ⇒ n → α → α
     drop = (pack ∘) ∘ (∘ unpack) ∘ L.genericDrop
     {-# INLINE drop #-}
@@ -602,20 +583,44 @@ empty = unstream S.empty
 singleton ∷ Bitstream α ⇒ Bool → α
 singleton = unstream ∘ S.singleton
 
-{-# INLINE scanr #-}
+foldl ∷ Bitstream α ⇒ (β → Bool → β) → β → α → β
+{-# INLINE foldl #-}
+foldl f β = S.foldl f β ∘ stream
+
+foldl' ∷ Bitstream α ⇒ (β → Bool → β) → β → α → β
+{-# INLINE foldl' #-}
+foldl' f β = S.foldl' f β ∘ stream
+
+foldl1 ∷ Bitstream α ⇒ (Bool → Bool → Bool) → α → Bool
+{-# INLINE foldl1 #-}
+foldl1 f = S.foldl1 f ∘ stream
+
+foldl1' ∷ Bitstream α ⇒ (Bool → Bool → Bool) → α → Bool
+{-# INLINE foldl1' #-}
+foldl1' f = S.foldl1' f ∘ stream
+
+foldr ∷ Bitstream α ⇒ (Bool → β → β) → β → α → β
+{-# INLINE foldr #-}
+foldr f β = S.foldr f β ∘ stream
+
+foldr1 ∷ Bitstream α ⇒ (Bool → Bool → Bool) → α → Bool
+{-# INLINE foldr1 #-}
+foldr1 f = S.foldr1 f ∘ stream
+
 scanr ∷ Bitstream α ⇒ (Bool → Bool → Bool) → Bool → α → α
+{-# INLINE scanr #-}
 scanr f b = reverse ∘ scanl (flip f) b ∘ reverse
 
-{-# INLINE scanr1 #-}
 scanr1 ∷ Bitstream α ⇒ (Bool → Bool → Bool) → α → α
+{-# INLINE scanr1 #-}
 scanr1 f = reverse ∘ scanl1 (flip f) ∘ reverse
 
-{-# INLINE unfoldr #-}
 unfoldr ∷ Bitstream α ⇒ (β → Maybe (Bool, β)) → β → α
+{-# INLINE unfoldr #-}
 unfoldr f = unstream ∘ S.unfoldr f
 
-{-# INLINE unfoldrN #-}
 unfoldrN ∷ (Bitstream α, Integral n) ⇒ n → (β → Maybe (Bool, β)) → β → α
+{-# INLINE unfoldrN #-}
 unfoldrN n f = unstream ∘ genericUnfoldrN n f
 
 {-# RULES
@@ -661,24 +666,6 @@ unfoldrN n f = unstream ∘ genericUnfoldrN n f
   #-}
 
 {-# RULES
-"Bitstream foldl/unstream fusion"
-    ∀f β s. foldl f β (unstream s) = S.foldl f β s
-
-"Bitstream foldl'/unstream fusion"
-    ∀f β s. foldl' f β (unstream s) = S.foldl' f β s
-
-"Bitstream fold11/unstream fusion"
-    ∀f s. foldl1 f (unstream s) = S.foldl1 f s
-
-"Bitstream foldl1'/unstream fusion"
-    ∀f s. foldl1' f (unstream s) = S.foldl1' f s
-
-"Bitstream foldr/unstream fusion"
-    ∀f β s. foldr f β (unstream s) = S.foldr f β s
-
-"Bitstream foldr1/unstream fusion"
-    ∀f s. foldr1 f (unstream s) = S.foldr1 f s
-
 "Bitstream concatMap/unstream fusion"
     ∀f s. concatMap f (unstream s) = unstream (S.concatMap f s)
 
@@ -701,4 +688,9 @@ unfoldrN n f = unstream ∘ genericUnfoldrN n f
 
 "Bitstream scanl1/unstream fusion"
     ∀f s. scanl1 f (unstream s) = S.scanl1 f s
+  #-}
+
+{-# RULES
+"Bitstream take/unstream fusion"
+    ∀n s. take n (unstream s) = genericTake n s
   #-}
