@@ -19,11 +19,14 @@ module Data.Bitstream.Generic
     , foldr
     , foldr1
 
-    , scanr
-    , scanr1
-
     , unfoldr
     , unfoldrN
+
+    , span
+    , break
+
+    , elem
+    , notElem
 {-
     , (∅)
     , (⧺)
@@ -189,86 +192,27 @@ class Ord α ⇒ Bitstream α where
 
     scanl1 ∷ (Bool → Bool → Bool) → α → α
 
+    scanr ∷ (Bool → Bool → Bool) → Bool → α → α
+    {-# INLINE scanr #-}
+    scanr f b = reverse ∘ scanl (flip f) b ∘ reverse
+
+    scanr1 ∷ (Bool → Bool → Bool) → α → α
+    {-# INLINE scanr1 #-}
+    scanr1 f = reverse ∘ scanl1 (flip f) ∘ reverse
+
     {-# INLINE replicate #-}
     replicate ∷ Integral n ⇒ n → Bool → α
     replicate n = unstream ∘ genericReplicate n
 
     take ∷ Integral n ⇒ n → α → α
 
-{-
     drop ∷ Integral n ⇒ n → α → α
-    drop = (pack ∘) ∘ (∘ unpack) ∘ L.genericDrop
-    {-# INLINE drop #-}
-
-    splitAt ∷ Integral n ⇒ n → α → (α, α)
-    splitAt n α
-        = (take n α, drop n α)
-    {-# INLINE splitAt #-}
 
     takeWhile ∷ (Bool → Bool) → α → α
-    takeWhile = (pack ∘) ∘ (∘ unpack) ∘ L.takeWhile
-    {-# INLINE takeWhile #-}
 
     dropWhile ∷ (Bool → Bool) → α → α
-    dropWhile = (pack ∘) ∘ (∘ unpack) ∘ L.dropWhile
-    {-# INLINE dropWhile #-}
 
-    span ∷ (Bool → Bool) → α → (α, α)
-    span f α
-        = let hd = takeWhile f α
-              tl = drop (length hd ∷ Integer) α
-          in
-            (hd, tl)
-    {-# INLINEABLE span #-}
-
-    break ∷ (Bool → Bool) → α → (α, α)
-    break f = span ((¬) ∘ f)
-    {-# INLINE break #-}
-
-    group ∷ α → [α]
-    group α
-        = case uncons α of
-            Nothing      → []
-            Just (a, as) → let (β, γ) = span (a ≡) as
-                           in
-                             (a `cons` β) : group γ
-    {-# INLINEABLE group #-}
-
-    inits ∷ α → [α]
-    inits α
-        = case uncons α of
-            Nothing      → α : []
-            Just (a, as) → (∅) : L.map (cons a) (inits as)
-    {-# INLINEABLE inits #-}
-
-    tails ∷ α → [α]
-    tails α
-        = case uncons α of
-            Nothing      → α : []
-            Just (_, as) → α : tails as
-    {-# INLINEABLE tails #-}
-
-    isPrefixOf ∷ α → α → Bool
-    isPrefixOf x y = L.isPrefixOf (unpack x) (unpack y)
-    {-# INLINE isPrefixOf #-}
-
-    isSuffixOf ∷ α → α → Bool
-    isSuffixOf x y = reverse x `isPrefixOf` reverse y
-    {-# INLINE isSuffixOf #-}
-
-    isInfixOf ∷ α → α → Bool
-    isInfixOf x y = L.any (x `isPrefixOf`) (tails y)
-    {-# INLINE isInfixOf #-}
-
-    elem ∷ Bool → α → Bool
-    elem True  = or
-    elem False = (¬) ∘ and
-    {-# INLINE elem #-}
-
-    notElem ∷ Bool → α → Bool
-    notElem = ((¬) ∘) ∘ (∈)
-    {-# INLINE notElem #-}
-
+{-
     find ∷ (Bool → Bool) → α → Maybe Bool
     find = (∘ unpack) ∘ L.find
     {-# INLINE find #-}
@@ -529,11 +473,13 @@ emptyStream
 (⧺) ∷ Bitstream α ⇒ α → α → α
 (⧺) = append
 {-# INLINE (⧺) #-}
+-}
 
 (∈) ∷ Bitstream α ⇒ Bool → α → Bool
-(∈) = elem
 {-# INLINE (∈) #-}
+(∈) = elem
 
+{-
 (∋) ∷ Bitstream α ⇒ α → Bool → Bool
 (∋) = flip elem
 {-# INLINE (∋) #-}
@@ -607,14 +553,6 @@ foldr1 ∷ Bitstream α ⇒ (Bool → Bool → Bool) → α → Bool
 {-# INLINE foldr1 #-}
 foldr1 f = S.foldr1 f ∘ stream
 
-scanr ∷ Bitstream α ⇒ (Bool → Bool → Bool) → Bool → α → α
-{-# INLINE scanr #-}
-scanr f b = reverse ∘ scanl (flip f) b ∘ reverse
-
-scanr1 ∷ Bitstream α ⇒ (Bool → Bool → Bool) → α → α
-{-# INLINE scanr1 #-}
-scanr1 f = reverse ∘ scanl1 (flip f) ∘ reverse
-
 unfoldr ∷ Bitstream α ⇒ (β → Maybe (Bool, β)) → β → α
 {-# INLINE unfoldr #-}
 unfoldr f = unstream ∘ S.unfoldr f
@@ -622,6 +560,27 @@ unfoldr f = unstream ∘ S.unfoldr f
 unfoldrN ∷ (Bitstream α, Integral n) ⇒ n → (β → Maybe (Bool, β)) → β → α
 {-# INLINE unfoldrN #-}
 unfoldrN n f = unstream ∘ genericUnfoldrN n f
+
+span ∷ Bitstream α ⇒ (Bool → Bool) → α → (α, α)
+{-# INLINEABLE span #-}
+span f α
+    = let hd = takeWhile f α
+          tl = drop (length hd ∷ Integer) α
+      in
+        (hd, tl)
+
+break ∷ Bitstream α ⇒ (Bool → Bool) → α → (α, α)
+{-# INLINE break #-}
+break f = span ((¬) ∘ f)
+
+elem ∷ Bitstream α ⇒ Bool → α → Bool
+{-# INLINE elem #-}
+elem True  = or
+elem False = (¬) ∘ and
+
+notElem ∷ Bitstream α ⇒ Bool → α → Bool
+{-# INLINE notElem #-}
+notElem = ((¬) ∘) ∘ (∈)
 
 {-# RULES
 "Bitstream stream/unstream fusion"
@@ -684,13 +643,22 @@ unfoldrN n f = unstream ∘ genericUnfoldrN n f
 
 {-# RULES
 "Bitstream scanl/unstream fusion"
-    ∀f b s. scanl f b (unstream s) = S.scanl f b s
+    ∀f b s. scanl f b (unstream s) = unstream (S.scanl f b s)
 
 "Bitstream scanl1/unstream fusion"
-    ∀f s. scanl1 f (unstream s) = S.scanl1 f s
+    ∀f s. scanl1 f (unstream s) = unstream (S.scanl1 f s)
   #-}
 
 {-# RULES
 "Bitstream take/unstream fusion"
-    ∀n s. take n (unstream s) = genericTake n s
+    ∀n s. take n (unstream s) = unstream (genericTake n s)
+
+"Bitstream drop/unstream fusion"
+    ∀n s. drop n (unstream s) = unstream (genericDrop n s)
+
+"Bitstream takeWhile/unstream fusion"
+    ∀f s. takeWhile f (unstream s) = unstream (S.takeWhile f s)
+
+"Bitstream dropWhile/unstream fusion"
+    ∀f s. dropWhile f (unstream s) = unstream (S.dropWhile f s)
   #-}

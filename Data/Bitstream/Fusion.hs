@@ -4,6 +4,7 @@
 module Data.Bitstream.Fusion
     ( genericLength
     , genericTake
+    , genericDrop
     , genericReplicate
     , genericUnfoldrN
     )
@@ -21,6 +22,10 @@ genericLength = unId ∘ M.genericLength
 genericTake ∷ Integral n ⇒ n → Stream α → Stream α
 {-# INLINE genericTake #-}
 genericTake = M.genericTake
+
+genericDrop ∷ Integral n ⇒ n → Stream α → Stream α
+{-# INLINE genericDrop #-}
+genericDrop = M.genericDrop
 
 genericReplicate ∷ Integral n ⇒ n → α → Stream α
 {-# INLINE genericReplicate #-}
