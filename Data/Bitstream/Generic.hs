@@ -172,7 +172,7 @@ class Ord α ⇒ Bitstream α where
     null ∷ α → Bool
     null = L.null ∘ unpack
 
-    -- | /O(n)/ Retyrn the length of a finite 'Bitstream'.
+    -- | /O(n)/ Retern the length of a finite 'Bitstream'.
     {-# INLINE length #-}
     length ∷ Num n ⇒ α → n
     length = L.genericLength ∘ unpack

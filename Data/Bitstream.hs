@@ -213,6 +213,8 @@ import Prelude.Unicode hiding ((⧺), (∈), (∉))
 import System.IO (FilePath, Handle, IO)
 import System.IO.Unsafe
 
+-- THINKME: Use vector instead of storablevector.
+
 -- | A space-efficient representation of a 'Bool' vector, supporting
 -- many efficient operations. 'Bitstream's have an idea of
 -- /directions/ controlling how octets are interpreted as bits. There
