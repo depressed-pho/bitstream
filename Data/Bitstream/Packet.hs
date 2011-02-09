@@ -31,7 +31,9 @@ import Data.Vector.Fusion.Stream.Size
 import Data.Vector.Fusion.Util
 import Data.Word
 import Foreign.Storable
-import Prelude hiding ((!!), drop, head, init, last, length, null, take, tail)
+import Prelude ( Bool(..), Eq(..), Int, Ord(..), Maybe(..), Monad(..), Num(..)
+               , Show(..), ($!), error, fromIntegral, otherwise
+               )
 import Prelude.Unicode
 
 -- | 'Left' bitstreams interpret an octet as a vector of bits whose
@@ -173,22 +175,11 @@ instance Bitstream (Packet Left) where
     {-# INLINE init #-}
     init (Packet 0 _) = packetEmpty
     init (Packet n o) = Packet (n-1) o
-{-
-    {-# INLINE null #-}
-    null (Packet 0 _) = True
-    null _            = False
 
-    {-# INLINE length #-}
-    {-# SPECIALISE length ∷ Packet Left → Int #-}
-    length (Packet n _) = fromIntegral n
--}
     {-# INLINE reverse #-}
     reverse (Packet n o)
         = Packet n (reverseBits o `shiftR` (8-n))
 {-
-    {-# INLINE and #-}
-    and (Packet n o) = (0xff `shiftR` (8-n)) ≡ o
-
     {-# INLINE or #-}
     or (Packet _ o) = o ≢ 0
 
@@ -261,17 +252,22 @@ instance Bitstream (Packet Left) where
         | otherwise                  = o `testBit` fromIntegral i
 -}
 
-packetHeadL ∷ Packet d → Bool
+packetHeadL ∷ Packet Left → Bool
 {-# RULES "head → packetHeadL" [0] head = packetHeadL #-}
 {-# INLINE packetHeadL #-}
 packetHeadL (Packet 0 _) = packetEmpty
 packetHeadL (Packet _ o) = o `testBit` 0
 
-packetLastL ∷ Packet d → Bool
+packetLastL ∷ Packet Left → Bool
 {-# RULES "last → packetLastL" [0] last = packetLastL #-}
 {-# INLINE packetLastL #-}
 packetLastL (Packet 0 _) = packetEmpty
 packetLastL (Packet n o) = o `testBit` (n-1)
+
+packetAndL ∷ Packet Left → Bool
+{-# RULES "and → packetAndL" [0] and = packetAndL #-}
+{-# INLINE packetAndL #-}
+packetAndL (Packet n o) = (0xff `shiftR` (8-n)) ≡ o
 
 {-
 instance Bitstream (Packet Right) where
@@ -414,6 +410,18 @@ instance Bitstream (Packet Right) where
         | i < 0 ∨ i ≥ fromIntegral n = indexOutOfRange i
         | otherwise                  = o `testBit` (7 - fromIntegral i)
 -}
+
+packetNull ∷ Packet d → Bool
+{-# RULES "null → packetNull" [0] null = packetNull #-}
+{-# INLINE packetNull #-}
+packetNull (Packet 0 _) = True
+packetNull _            = False
+
+packetLength ∷ Num n ⇒ Packet d → n
+{-# RULES "length → packetLength" [0] length = packetLength #-}
+{-# INLINE packetLength #-}
+packetLength (Packet n _) = fromIntegral n
+
 {-# INLINE packetEmpty #-}
 packetEmpty ∷ α
 packetEmpty = error "Data.Bitstream.Packet: packet is empty"
