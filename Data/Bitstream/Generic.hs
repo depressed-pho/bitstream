@@ -82,7 +82,7 @@ import Data.Bitstream.Fusion
 import Data.Maybe
 import Data.Vector.Fusion.Stream (Stream)
 import qualified Data.Vector.Fusion.Stream as S
-import Prelude ( Bool(..), Integer, Integral(..), Num(..), Ord(..), ($)
+import Prelude ( Bool(..), Integer, Integral(..), Num(..), ($)
                , fst, flip, snd
                )
 import Prelude.Unicode hiding ((∈), (∉), (⧺))
@@ -96,9 +96,15 @@ infixl 9 !!
 
 -- FIXME: Explain what kind of functions are defined as methods: funcs
 -- that need to preserve the packet/chunk structure
-class Ord α ⇒ Bitstream α where
+class Bitstream α where
     -- | /O(n)/ Explicitly convert a 'Bitstream' into a 'Stream' of
     -- 'Bool'.
+    --
+    -- 'Bitstream' operations are automatically fused whenever it's
+    -- possible, safe, and effective to do so, but sometimes you may
+    -- find the rules are too conservative. These two functions
+    -- 'stream' and 'unstream' provide a means for coercive stream
+    -- fusion.
     --
     -- You should be careful when you use 'stream'. Most functions in
     -- this package are optimised to minimise frequency of memory
@@ -147,6 +153,10 @@ class Ord α ⇒ Bitstream α where
     -- strict on the first chunk, you end up fully evaluating @chunk2@
     -- as well as @chunk1@ and this can be a serious misbehaviour for
     -- lazy 'Bitstream's.
+    --
+    -- The automatic fusion rules are carefully designed to fire only
+    -- when there aren't any reason to preserve the original packet /
+    -- chunk structure.
     stream ∷ α → Stream Bool
 
     -- | /O(n)/ Convert a 'S.Stream' of 'Bool' into a 'Bitstream'.
