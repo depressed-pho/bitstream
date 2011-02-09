@@ -52,6 +52,22 @@ module Data.Bitstream.Generic
     , elemIndices
     , findIndex
     , findIndices
+
+    , zip
+    , zip3
+    , zip4
+    , zip5
+    , zip6
+    , zipWith
+    , zipWith3
+    , zipWith4
+    , zipWith5
+    , zipWith6
+    , unzip
+    , unzip3
+    , unzip4
+    , unzip5
+    , unzip6
 {-
     , (∅)
     , (⧺)
@@ -194,132 +210,6 @@ class Ord α ⇒ Bitstream α where
     partition f α = (filter f α, filter ((¬) ∘ f) α)
 
 {-
-    zip ∷ α → α → [(Bool, Bool)]
-    zip = zipWith (,)
-    {-# INLINE zip #-}
-
-    zip3 ∷ α → α → α → [(Bool, Bool, Bool)]
-    zip3 = zipWith3 (,,)
-    {-# INLINE zip3 #-}
-
-    zip4 ∷ α → α → α → α → [(Bool, Bool, Bool, Bool)]
-    zip4 = zipWith4 (,,,)
-    {-# INLINE zip4 #-}
-
-    zip5 ∷ α → α → α → α → α → [(Bool, Bool, Bool, Bool, Bool)]
-    zip5 = zipWith5 (,,,,)
-    {-# INLINE zip5 #-}
-
-    zip6 ∷ α → α → α → α → α → α → [(Bool, Bool, Bool, Bool, Bool, Bool)]
-    zip6 = zipWith6 (,,,,,)
-    {-# INLINE zip6 #-}
-
-    zip7 ∷ α → α → α → α → α → α → α → [(Bool, Bool, Bool, Bool, Bool, Bool, Bool)]
-    zip7 = zipWith7 (,,,,,,)
-    {-# INLINE zip7 #-}
-
-    zipWith ∷ (Bool → Bool → β) → α → α → [β]
-    zipWith f α β = L.zipWith f
-                      (unpack α)
-                      (unpack β)
-    {-# INLINE zipWith #-}
-
-    zipWith3 ∷ (Bool → Bool → Bool → β) → α → α → α → [β]
-    zipWith3 f α β γ = L.zipWith3 f
-                          (unpack α)
-                          (unpack β)
-                          (unpack γ)
-    {-# INLINE zipWith3 #-}
-
-    zipWith4 ∷ (Bool → Bool → Bool → Bool → β) → α → α → α → α → [β]
-    zipWith4 f α β γ δ = L.zipWith4 f
-                             (unpack α)
-                             (unpack β)
-                             (unpack γ)
-                             (unpack δ)
-    {-# INLINE zipWith4 #-}
-
-    zipWith5 ∷ (Bool → Bool → Bool → Bool → Bool → β) → α → α → α → α → α → [β]
-    zipWith5 f α β γ δ ε = L.zipWith5 f
-                                (unpack α)
-                                (unpack β)
-                                (unpack γ)
-                                (unpack δ)
-                                (unpack ε)
-    {-# INLINE zipWith5 #-}
-
-    zipWith6 ∷ (Bool → Bool → Bool → Bool → Bool → Bool → β) → α → α → α → α → α → α → [β]
-    zipWith6 f α β γ δ ε ζ = L.zipWith6 f
-                                   (unpack α)
-                                   (unpack β)
-                                   (unpack γ)
-                                   (unpack δ)
-                                   (unpack ε)
-                                   (unpack ζ)
-    {-# INLINE zipWith6 #-}
-
-    zipWith7 ∷ (Bool → Bool → Bool → Bool → Bool → Bool → Bool → β) → α → α → α → α → α → α → α → [β]
-    zipWith7 f α β γ δ ε ζ η = L.zipWith7 f
-                                      (unpack α)
-                                      (unpack β)
-                                      (unpack γ)
-                                      (unpack δ)
-                                      (unpack ε)
-                                      (unpack ζ)
-                                      (unpack η)
-    {-# INLINE zipWith7 #-}
-
-    unzip ∷ [(Bool, Bool)] → (α, α)
-    unzip = L.foldr (\(a, b) ~(as, bs) →
-                         ( a `cons` as
-                         , b `cons` bs )) ((∅), (∅))
-    {-# INLINEABLE unzip #-}
-
-    unzip3 ∷ [(Bool, Bool, Bool)] → (α, α, α)
-    unzip3 = L.foldr (\(a, b, c) ~(as, bs, cs) →
-                          ( a `cons` as
-                          , b `cons` bs
-                          , c `cons` cs )) ((∅), (∅), (∅))
-    {-# INLINEABLE unzip3 #-}
-
-    unzip4 ∷ [(Bool, Bool, Bool, Bool)] → (α, α, α, α)
-    unzip4 = L.foldr (\(a, b, c, d) ~(as, bs, cs, ds) →
-                          ( a `cons` as
-                          , b `cons` bs
-                          , c `cons` cs
-                          , d `cons` ds )) ((∅), (∅), (∅), (∅))
-    {-# INLINEABLE unzip4 #-}
-
-    unzip5 ∷ [(Bool, Bool, Bool, Bool, Bool)] → (α, α, α, α, α)
-    unzip5 = L.foldr (\(a, b, c, d, e) ~(as, bs, cs, ds, es) →
-                          ( a `cons` as
-                          , b `cons` bs
-                          , c `cons` cs
-                          , d `cons` ds
-                          , e `cons` es )) ((∅), (∅), (∅), (∅), (∅))
-    {-# INLINEABLE unzip5 #-}
-
-    unzip6 ∷ [(Bool, Bool, Bool, Bool, Bool, Bool)] → (α, α, α, α, α, α)
-    unzip6 = L.foldr (\(a, b, c, d, e, f) ~(as, bs, cs, ds, es, fs) →
-                          ( a `cons` as
-                          , b `cons` bs
-                          , c `cons` cs
-                          , d `cons` ds
-                          , e `cons` es
-                          , f `cons` fs )) ((∅), (∅), (∅), (∅), (∅), (∅))
-    {-# INLINEABLE unzip6 #-}
-
-    unzip7 ∷ [(Bool, Bool, Bool, Bool, Bool, Bool, Bool)] → (α, α, α, α, α, α, α)
-    unzip7 = L.foldr (\(a, b, c, d, e, f, g) ~(as, bs, cs, ds, es, fs, gs) →
-                          ( a `cons` as
-                          , b `cons` bs
-                          , c `cons` cs
-                          , d `cons` ds
-                          , e `cons` es
-                          , f `cons` fs
-                          , g `cons` gs )) ((∅), (∅), (∅), (∅), (∅), (∅), (∅))
-    {-# INLINEABLE unzip7 #-}
-
     {-# INLINEABLE nub #-}
     nub ∷ α → α
     nub = flip nub' (∅)
@@ -606,6 +496,106 @@ findIndices f
     ∘ S.filter (f ∘ snd)
     ∘ genericIndexed
     ∘ stream
+
+zip ∷ Bitstream α ⇒ α → α → [(Bool, Bool)]
+{-# INLINE zip #-}
+zip = zipWith (,)
+
+zip3 ∷ Bitstream α ⇒ α → α → α → [(Bool, Bool, Bool)]
+{-# INLINE zip3 #-}
+zip3 = zipWith3 (,,)
+
+zip4 ∷ Bitstream α ⇒ α → α → α → α → [(Bool, Bool, Bool, Bool)]
+{-# INLINE zip4 #-}
+zip4 = zipWith4 (,,,)
+
+zip5 ∷ Bitstream α ⇒ α → α → α → α → α → [(Bool, Bool, Bool, Bool, Bool)]
+{-# INLINE zip5 #-}
+zip5 = zipWith5 (,,,,)
+
+zip6 ∷ Bitstream α ⇒ α → α → α → α → α → α → [(Bool, Bool, Bool, Bool, Bool, Bool)]
+{-# INLINE zip6 #-}
+zip6 = zipWith6 (,,,,,)
+
+zipWith ∷ Bitstream α ⇒ (Bool → Bool → β) → α → α → [β]
+{-# INLINE zipWith #-}
+zipWith f α β = S.toList $
+                S.zipWith f
+                     (stream α)
+                     (stream β)
+
+zipWith3 ∷ Bitstream α ⇒ (Bool → Bool → Bool → β) → α → α → α → [β]
+{-# INLINE zipWith3 #-}
+zipWith3 f α β γ = S.toList $
+                   S.zipWith3 f
+                        (stream α)
+                        (stream β)
+                        (stream γ)
+
+zipWith4 ∷ Bitstream α ⇒ (Bool → Bool → Bool → Bool → β) → α → α → α → α → [β]
+{-# INLINE zipWith4 #-}
+zipWith4 f α β γ δ = S.toList $
+                     S.zipWith4 f
+                          (stream α)
+                          (stream β)
+                          (stream γ)
+                          (stream δ)
+
+zipWith5 ∷ Bitstream α ⇒ (Bool → Bool → Bool → Bool → Bool → β) → α → α → α → α → α → [β]
+{-# INLINE zipWith5 #-}
+zipWith5 f α β γ δ ε = S.toList $
+                       S.zipWith5 f
+                            (stream α)
+                            (stream β)
+                            (stream γ)
+                            (stream δ)
+                            (stream ε)
+
+zipWith6 ∷ Bitstream α ⇒ (Bool → Bool → Bool → Bool → Bool → Bool → β) → α → α → α → α → α → α → [β]
+{-# INLINE zipWith6 #-}
+zipWith6 f α β γ δ ε ζ = S.toList $
+                         S.zipWith6 f
+                              (stream α)
+                              (stream β)
+                              (stream γ)
+                              (stream δ)
+                              (stream ε)
+                              (stream ζ)
+
+unzip ∷ Bitstream α ⇒ [(Bool, Bool)] → (α, α)
+{-# INLINEABLE unzip #-}
+unzip xs = ( unstream $ S.map fst $ S.fromList xs
+           , unstream $ S.map snd $ S.fromList xs )
+
+unzip3 ∷ Bitstream α ⇒ [(Bool, Bool, Bool)] → (α, α, α)
+{-# INLINEABLE unzip3 #-}
+unzip3 xs = ( unstream $ S.map (\(α, _, _) → α) $ S.fromList xs
+            , unstream $ S.map (\(_, β, _) → β) $ S.fromList xs
+            , unstream $ S.map (\(_, _, γ) → γ) $ S.fromList xs )
+
+unzip4 ∷ Bitstream α ⇒ [(Bool, Bool, Bool, Bool)] → (α, α, α, α)
+{-# INLINEABLE unzip4 #-}
+unzip4 xs = ( unstream $ S.map (\(α, _, _, _) → α) $ S.fromList xs
+            , unstream $ S.map (\(_, β, _, _) → β) $ S.fromList xs
+            , unstream $ S.map (\(_, _, γ, _) → γ) $ S.fromList xs
+            , unstream $ S.map (\(_, _, _, δ) → δ) $ S.fromList xs )
+
+unzip5 ∷ Bitstream α ⇒ [(Bool, Bool, Bool, Bool, Bool)] → (α, α, α, α, α)
+{-# INLINEABLE unzip5 #-}
+unzip5 xs = ( unstream $ S.map (\(α, _, _, _, _) → α) $ S.fromList xs
+            , unstream $ S.map (\(_, β, _, _, _) → β) $ S.fromList xs
+            , unstream $ S.map (\(_, _, γ, _, _) → γ) $ S.fromList xs
+            , unstream $ S.map (\(_, _, _, δ, _) → δ) $ S.fromList xs
+            , unstream $ S.map (\(_, _, _, _, ε) → ε) $ S.fromList xs )
+
+unzip6 ∷ Bitstream α ⇒ [(Bool, Bool, Bool, Bool, Bool, Bool)] → (α, α, α, α, α, α)
+{-# INLINEABLE unzip6 #-}
+unzip6 xs = ( unstream $ S.map (\(α, _, _, _, _, _) → α) $ S.fromList xs
+            , unstream $ S.map (\(_, β, _, _, _, _) → β) $ S.fromList xs
+            , unstream $ S.map (\(_, _, γ, _, _, _) → γ) $ S.fromList xs
+            , unstream $ S.map (\(_, _, _, δ, _, _) → δ) $ S.fromList xs
+            , unstream $ S.map (\(_, _, _, _, ε, _) → ε) $ S.fromList xs
+            , unstream $ S.map (\(_, _, _, _, _, ζ) → ζ) $ S.fromList xs )
 
 {-# RULES
 "Bitstream stream/unstream fusion"
