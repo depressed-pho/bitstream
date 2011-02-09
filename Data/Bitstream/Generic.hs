@@ -68,18 +68,13 @@ module Data.Bitstream.Generic
     , unzip4
     , unzip5
     , unzip6
-{-
+
     , (∅)
     , (⧺)
     , (∈)
     , (∋)
     , (∉)
     , (∌)
-    , (∖)
-    , (∪)
-    , (∩)
-    , (∆)
--}
     )
     where
 import qualified Data.List as L
@@ -87,8 +82,8 @@ import Data.Bitstream.Fusion
 import Data.Maybe
 import Data.Vector.Fusion.Stream (Stream)
 import qualified Data.Vector.Fusion.Stream as S
-import Prelude ( Bool(..), Integer, Integral(..), Num(..), Ord(..), ($), error
-               , fst, flip, snd, otherwise
+import Prelude ( Bool(..), Integer, Integral(..), Num(..), Ord(..), ($)
+               , fst, flip, snd
                )
 import Prelude.Unicode hiding ((∈), (∉), (⧺))
 
@@ -209,88 +204,6 @@ class Ord α ⇒ Bitstream α where
     {-# INLINEABLE partition #-}
     partition f α = (filter f α, filter ((¬) ∘ f) α)
 
-{-
-    {-# INLINEABLE nub #-}
-    nub ∷ α → α
-    nub = flip nub' (∅)
-        where
-          nub' ∷ Bitstream α ⇒ α → α → α
-          nub' α α'
-              = case uncons α of
-                  Nothing         → α
-                  Just (a, as)
-                      | a ∈ α'    → nub' as α'
-                      | otherwise → a `cons` nub' as (a `cons` α')
-
-    {-# INLINE delete #-}
-    delete ∷ Bool → α → α
-    delete = deleteBy (≡)
-
-    {-# INLINE (\\) #-}
-    (\\) ∷ α → α → α
-    (\\) = foldl (flip delete)
-
-    {-# INLINE union #-}
-    union ∷ α → α → α
-    union = unionBy (≡)
-
-    {-# INLINE intersect #-}
-    intersect ∷ α → α → α
-    intersect = intersectBy (≡)
-
-    {-# INLINEABLE nubBy #-}
-    nubBy ∷ (Bool → Bool → Bool) → α → α
-    nubBy f = flip nubBy' (∅)
-        where
-          nubBy' ∷ Bitstream α ⇒ α → α → α
-          nubBy' α α'
-              = case uncons α of
-                  Nothing            → α
-                  Just (a, as)
-                      | elemBy' a α' → nubBy' as α'
-                      | otherwise    → a `cons` nubBy' as (a `cons` α')
-
-          elemBy' ∷ Bitstream α ⇒ Bool → α → Bool
-          elemBy' b α
-              = case uncons α of
-                  Nothing         → False
-                  Just (a, as)
-                      | f b a     → True
-                      | otherwise → elemBy' b as
-
-    {-# INLINEABLE deleteBy #-}
-    deleteBy ∷ (Bool → Bool → Bool) → Bool → α → α
-    deleteBy f b α
-        = case uncons α of
-            Nothing         → α
-            Just (a, as)
-                | f b a     → as
-                | otherwise → a `cons` deleteBy f b as
-
-    {-# INLINEABLE deleteFirstsBy #-}
-    deleteFirstsBy ∷ (Bool → Bool → Bool) → α → α → α
-    deleteFirstsBy = foldl ∘ flip ∘ deleteBy
-
-    {-# INLINEABLE unionBy #-}
-    unionBy ∷ (Bool → Bool → Bool) → α → α → α
-    unionBy f x y = x ⧺ foldl (flip (deleteBy f)) (nubBy f y) x
-
-    {-# INLINEABLE intersectBy #-}
-    intersectBy ∷ (Bool → Bool → Bool) → α → α → α
-    intersectBy f x y = filter (\a → any (f a) y) x
-
-    {-# INLINEABLE groupBy #-}
-    groupBy ∷ (Bool → Bool → Bool) → α → [α]
-    groupBy f α
-        = case uncons α of
-            Nothing      → []
-            Just (a, α') → let (β, γ) = span (f a) α'
-                           in
-                             (a `cons` β) : groupBy f γ
-
-emptyStream ∷ α
-emptyStream
-    = error "Data.Bitstream.Generic: empty stream"
 
 -- | (&#x2205;) = 'empty'
 --
@@ -305,13 +218,11 @@ emptyStream
 (⧺) ∷ Bitstream α ⇒ α → α → α
 (⧺) = append
 {-# INLINE (⧺) #-}
--}
 
 (∈) ∷ Bitstream α ⇒ Bool → α → Bool
 {-# INLINE (∈) #-}
 (∈) = elem
 
-{-
 (∋) ∷ Bitstream α ⇒ α → Bool → Bool
 (∋) = flip elem
 {-# INLINE (∋) #-}
@@ -323,23 +234,6 @@ emptyStream
 (∌) ∷ Bitstream α ⇒ α → Bool → Bool
 (∌) = flip notElem
 {-# INLINE (∌) #-}
-
-(∖) ∷ Bitstream α ⇒ α → α → α
-(∖) = (\\)
-{-# INLINE (∖) #-}
-
-(∪) ∷ Bitstream α ⇒ α → α → α
-(∪) = union
-{-# INLINE (∪) #-}
-
-(∩) ∷ Bitstream α ⇒ α → α → α
-(∩) = intersect
-{-# INLINE (∩) #-}
-
-(∆) ∷ Bitstream α ⇒ α → α → α
-x ∆ y = (x ∖ y) ∪ (y ∖ x)
-{-# INLINE (∆) #-}
--}
 
 -- | /O(n)/ Convert a ['Bool'] into a 'Bitstream'.
 {-# INLINE pack #-}
