@@ -87,16 +87,12 @@ import Prelude ( Bool(..), Integer, Integral(..), Num(..), Ord(..), ($)
                )
 import Prelude.Unicode hiding ((∈), (∉), (⧺))
 
-{-
 infix  4 ∈, ∋, ∉, ∌, `elem`, `notElem`
 infixr 5 ⧺, `append`
-infixl 6 ∪, `union`
-infixr 6 ∩, `intersect`
-infixl 9 !!, ∖, \\, ∆
+infixl 9 !!
 
 -- THINKME: consider using numeric-prelude's non-negative numbers
 -- instead of Integral n.
--}
 
 -- FIXME: Explain what kind of functions are defined as methods: funcs
 -- that need to preserve the packet/chunk structure
