@@ -37,7 +37,7 @@ Library
         Data.Bitstream.Fusion.Monadic
         Data.Bitstream.Generic
 --        Data.Bitstream.Lazy
---        Data.Bitstream.Packet
+        Data.Bitstream.Packet
 
     Other-Modules:
 --        Data.Bitstream.Internal

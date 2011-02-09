@@ -24,10 +24,14 @@ module Data.Bitstream.Packet
     where
 import Data.Bitstream.Generic
 import Data.Bits
-import qualified Data.List.Stream as L
+import qualified Data.List as L
+import qualified Data.Vector.Fusion.Stream as S
+import Data.Vector.Fusion.Stream.Monadic (Stream(..), Step(..))
+import Data.Vector.Fusion.Stream.Size
+import Data.Vector.Fusion.Util
 import Data.Word
 import Foreign.Storable
-import Prelude hiding ((!!), drop, init, last, length, null, take, tail)
+import Prelude hiding ((!!), drop, head, init, last, length, null, take, tail)
 import Prelude.Unicode
 
 -- | 'Left' bitstreams interpret an octet as a vector of bits whose
@@ -111,33 +115,41 @@ instance Ord (Packet Right) where
           (oy `shiftR` (8-ny))
 
 instance Bitstream (Packet Left) where
-    {-# INLINE [0] pack #-}
-    pack xs0 = case consume 0 0 xs0 of
-                (# n, o #) → Packet n o
+    {-# INLINE [0] stream #-}
+    stream (Packet n o) = Stream step 0 (Exact n)
         where
-          {-# INLINE consume #-}
-          consume !n !o []      = (# n, o #)
-          consume !n !o !(x:xs)
-              | n < 8     = if x
-                            then consume (n+1) (o `setBit` n) xs
-                            else consume (n+1)  o             xs
-              | otherwise = error "packet overflow"
+          {-# INLINE step #-}
+          step !i
+              | i ≥ n     = return Done
+              | otherwise = return $! Yield (o `testBit` i) (i+1)
 
-    {-# INLINE [0] unpack #-}
-    unpack (Packet n o) = L.unfoldr produce 0
+    {-# INLINE [0] unstream #-}
+    unstream (Stream step s0 sz)
+        = case upperBound sz of
+            Just n
+                | n ≤ 8     → unId (unsafeConsume s0 0 0)
+                | otherwise → packetOverflow
+            Nothing         → unId (safeConsume   s0 0 0)
         where
-          {-# INLINE produce #-}
-          produce ∷ Int → Maybe (Bool, Int)
-          produce !p
-              | p < n     = Just (o `testBit` p, p+1)
-              | otherwise = Nothing
-
-    {-# INLINE empty #-}
-    empty = Packet 0 0
-
-    {-# INLINE singleton #-}
-    singleton True  = Packet 1 1
-    singleton False = Packet 1 0
+          {-# INLINE unsafeConsume #-}
+          unsafeConsume s i o
+              = do r ← step s
+                   case r of
+                     Yield True  s' → unsafeConsume s' (i+1) (o `setBit` i)
+                     Yield False s' → unsafeConsume s' (i+1)  o
+                     Skip        s' → unsafeConsume s'  i     o
+                     Done           → return $! Packet i o
+          {-# INLINE safeConsume #-}
+          safeConsume s i o
+              = do r ← step s
+                   case r of
+                     Yield b s'
+                         | i < 8     → safeConsume s' (i+1) (if b
+                                                             then o `setBit` i
+                                                             else o           )
+                         | otherwise → packetOverflow
+                     Skip    s'      → safeConsume s' i o
+                     Done            → return $! Packet i o
 
     {-# INLINE cons #-}
     cons b p
@@ -154,19 +166,6 @@ instance Bitstream (Packet Left) where
         | nx + ny > 8 = packetOverflow
         | otherwise   = Packet (nx + ny) (ox .|. (oy `shiftL` nx))
 
-    {-# INLINE head #-}
-    head (Packet 0 _) = packetEmpty
-    head (Packet _ o) = o `testBit` 0
-
-    {-# INLINE uncons #-}
-    uncons (Packet 0 _) = Nothing
-    uncons (Packet n o) = Just ( o `testBit` 0
-                               , Packet (n-1) (o `shiftR` 1) )
-
-    {-# INLINE last #-}
-    last (Packet 0 _) = packetEmpty
-    last (Packet n o) = o `testBit` (n-1)
-
     {-# INLINE tail #-}
     tail (Packet 0 _) = packetEmpty
     tail (Packet n o) = Packet (n-1) (o `shiftR` 1)
@@ -174,7 +173,7 @@ instance Bitstream (Packet Left) where
     {-# INLINE init #-}
     init (Packet 0 _) = packetEmpty
     init (Packet n o) = Packet (n-1) o
-
+{-
     {-# INLINE null #-}
     null (Packet 0 _) = True
     null _            = False
@@ -182,11 +181,11 @@ instance Bitstream (Packet Left) where
     {-# INLINE length #-}
     {-# SPECIALISE length ∷ Packet Left → Int #-}
     length (Packet n _) = fromIntegral n
-
+-}
     {-# INLINE reverse #-}
     reverse (Packet n o)
         = Packet n (reverseBits o `shiftR` (8-n))
-
+{-
     {-# INLINE and #-}
     and (Packet n o) = (0xff `shiftR` (8-n)) ≡ o
 
@@ -216,9 +215,21 @@ instance Bitstream (Packet Left) where
               = case f β of
                   Nothing      → (α, Nothing)
                   Just (a, β') → loop_unfoldrN (n-1) β' (α `unsafeSnocL` a)
+-}
+
+    {-# INLINE map #-}
+    map f (Packet n o0) = Packet n (go 0 o0)
+        where
+          {-# INLINE go #-}
+          go i o
+              | i ≥ n             = o
+              | f (o `testBit` i) = go (i+1) (o `setBit`   i)
+              | otherwise         = go (i+1) (o `clearBit` i)
+
+    {-# INLINE scanl #-}
+    scanl = scanlPacket
 
     {-# INLINE take #-}
-    {-# SPECIALISE take ∷ Int → Packet Left → Packet Left #-}
     take l (Packet n o)
         | l ≤ 0      = (∅)
         | otherwise
@@ -228,7 +239,6 @@ instance Bitstream (Packet Left) where
                 Packet n' o'
 
     {-# INLINE drop #-}
-    {-# SPECIALISE drop ∷ Int → Packet Left → Packet Left #-}
     drop l (Packet n o)
         | l ≤ 0      = Packet n o
         | otherwise
@@ -243,13 +253,27 @@ instance Bitstream (Packet Left) where
 
     {-# INLINE dropWhile #-}
     dropWhile = dropWhilePacket
-
+{-
     {-# INLINE (!!) #-}
     {-# SPECIALISE (!!) ∷ Packet Left → Int → Bool #-}
     (Packet n o) !! i
         | i < 0 ∨ i ≥ fromIntegral n = indexOutOfRange i
         | otherwise                  = o `testBit` fromIntegral i
+-}
 
+packetHeadL ∷ Packet d → Bool
+{-# RULES "head → packetHeadL" [0] head = packetHeadL #-}
+{-# INLINE packetHeadL #-}
+packetHeadL (Packet 0 _) = packetEmpty
+packetHeadL (Packet _ o) = o `testBit` 0
+
+packetLastL ∷ Packet d → Bool
+{-# RULES "last → packetLastL" [0] last = packetLastL #-}
+{-# INLINE packetLastL #-}
+packetLastL (Packet 0 _) = packetEmpty
+packetLastL (Packet n o) = o `testBit` (n-1)
+
+{-
 instance Bitstream (Packet Right) where
     {-# INLINE [0] pack #-}
     pack xs0 = case consume 0 0 xs0 of
@@ -389,7 +413,7 @@ instance Bitstream (Packet Right) where
     (Packet n o) !! i
         | i < 0 ∨ i ≥ fromIntegral n = indexOutOfRange i
         | otherwise                  = o `testBit` (7 - fromIntegral i)
-
+-}
 {-# INLINE packetEmpty #-}
 packetEmpty ∷ α
 packetEmpty = error "Data.Bitstream.Packet: packet is empty"
@@ -397,11 +421,11 @@ packetEmpty = error "Data.Bitstream.Packet: packet is empty"
 {-# INLINE packetOverflow #-}
 packetOverflow ∷ α
 packetOverflow = error "Data.Bitstream.Packet: packet size overflow"
-
+{-
 {-# INLINE indexOutOfRange #-}
 indexOutOfRange ∷ Integral n ⇒ n → α
 indexOutOfRange n = error ("Data.Bitstream.Packet: index out of range: " L.++ show n)
-
+-}
 {-# INLINE full #-}
 full ∷ Packet d → Bool
 full (Packet 8 _) = True
@@ -419,22 +443,22 @@ toOctet (Packet _ o) = o
 unsafeConsL ∷ Bool → Packet Left → Packet Left
 unsafeConsL True  (Packet n o) = Packet (n+1) ((o `shiftL` 1) .|. 1)
 unsafeConsL False (Packet n o) = Packet (n+1)  (o `shiftL` 1)
-
+{-
 {-# INLINE unsafeConsR #-}
 unsafeConsR ∷ Bool → Packet Right → Packet Right
 unsafeConsR True  (Packet n o) = Packet (n+1) ((o `shiftR` 1) .|. 0x80)
 unsafeConsR False (Packet n o) = Packet (n+1)  (o `shiftR` 1)
-
+-}
 {-# INLINE unsafeSnocL #-}
 unsafeSnocL ∷ Packet Left → Bool → Packet Left
 unsafeSnocL (Packet n o) True  = Packet (n+1) (o `setBit` n)
 unsafeSnocL (Packet n o) False = Packet (n+1)  o
-
+{-
 {-# INLINE unsafeSnocR #-}
 unsafeSnocR ∷ Packet Right → Bool → Packet Right
 unsafeSnocR (Packet n o) True  = Packet (n+1) (o `setBit` (7-n))
 unsafeSnocR (Packet n o) False = Packet (n+1)  o
-
+-}
 {-# INLINE packetLToR #-}
 packetLToR ∷ Packet Left → Packet Right
 packetLToR (Packet n o) = Packet n (reverseBits o)
@@ -454,6 +478,11 @@ reverseBits x
       ((x .&. 0x20) `shiftR` 3) .|.
       ((x .&. 0x40) `shiftR` 5) .|.
       ((x .&. 0x80) `shiftR` 7)
+
+{-# INLINE scanlPacket #-}
+scanlPacket ∷ Bitstream (Packet d) ⇒ (Bool → Bool → Bool) → Bool → Packet d → Packet d
+scanlPacket f b
+    = unstream ∘ S.scanl f b ∘ stream
 
 {-# INLINEABLE takeWhilePacket #-}
 takeWhilePacket ∷ Bitstream (Packet d) ⇒ (Bool → Bool) → Packet d → Packet d
