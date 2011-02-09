@@ -499,17 +499,20 @@ unzip6 xs = ( unstream $ S.map (\(α, _, _, _, _, _) → α) $ S.fromList xs
 "Bitstream cons/unstream fusion"
     ∀b s. cons b (unstream s) = unstream (S.cons b s)
 
+"Bitstream cons'/unstream fusion"
+    ∀b s. cons' b (unstream s) = unstream (S.cons b s)
+
 "Bitstream snoc/unstream fusion"
     ∀s b. snoc (unstream s) b = unstream (S.snoc s b)
 
 "Bitstream append/unstream fusion"
     ∀s1 s2. append (unstream s1) (unstream s2) = unstream (s1 S.++ s2)
 
+"Bitstream tail/unstream fusion"
+    ∀s. tail (unstream s) = unstream (S.tail s)
+
 "Bitstream init/unstream fusion"
     ∀s. init (unstream s) = unstream (S.init s)
-
-"Bitstream null/unstream fusion"
-    ∀s. null (unstream s) = S.null s
 
 "Bitstream map/unstream fusion"
     ∀f s. map f (unstream s) = unstream (S.map f s)
