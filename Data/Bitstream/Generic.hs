@@ -95,6 +95,14 @@ infixl 9 !!
 -- THINKME: consider using numeric-prelude's non-negative numbers
 -- instead of Integral n.
 
+{- Notes about inlining / rewriting phase control:
+
+   1. We want "*/unstream fusion" rules always fire.
+   2. Unfused form specialisations should occur at phase 2 and later.
+   3. Fusible form inlinings should occur at phase 1 and later.
+   4. stream / unstream inlinings should occur last i.e. phase 0.
+ -}
+
 -- FIXME: Explain what kind of functions are defined as methods: funcs
 -- that need to preserve the packet/chunk structure
 class Bitstream α where

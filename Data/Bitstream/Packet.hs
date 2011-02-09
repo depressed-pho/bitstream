@@ -31,8 +31,9 @@ import Data.Vector.Fusion.Stream.Size
 import Data.Vector.Fusion.Util
 import Data.Word
 import Foreign.Storable
-import Prelude ( Bool(..), Eq(..), Int, Ord(..), Maybe(..), Monad(..), Num(..)
-               , Show(..), ($!), error, fromIntegral, otherwise
+import Prelude ( Bool(..), Eq(..), Int, Integral, Ord(..), Maybe(..)
+               , Monad(..), Num(..), Show(..), ($!), error, fromIntegral
+               , otherwise
                )
 import Prelude.Unicode
 
@@ -169,44 +170,16 @@ instance Bitstream (Packet Left) where
         | otherwise   = Packet (nx + ny) (ox .|. (oy `shiftL` nx))
 
     {-# INLINE tail #-}
-    tail (Packet 0 _) = packetEmpty
+    tail (Packet 0 _) = emptyNotAllowed
     tail (Packet n o) = Packet (n-1) (o `shiftR` 1)
 
     {-# INLINE init #-}
-    init (Packet 0 _) = packetEmpty
+    init (Packet 0 _) = emptyNotAllowed
     init (Packet n o) = Packet (n-1) o
 
     {-# INLINE reverse #-}
     reverse (Packet n o)
         = Packet n (reverseBits o `shiftR` (8-n))
-{-
-    {-# INLINE or #-}
-    or (Packet _ o) = o ≢ 0
-
-    {-# INLINE replicate #-}
-    {-# SPECIALISE replicate ∷ Int → Bool → Packet Left #-}
-    replicate n b
-        | n > 8     = packetOverflow
-        | otherwise = let o = if b
-                              then 0xFF `shiftR` (8 - fromIntegral n)
-                              else 0
-                      in
-                        Packet (fromIntegral n) o
-
-    {-# INLINEABLE unfoldrN #-}
-    {-# SPECIALISE
-        unfoldrN ∷ Int → (β → Maybe (Bool, β)) → β → (Packet Left, Maybe β) #-}
-    unfoldrN n0 f β0
-        | n0 > 8    = packetOverflow
-        | otherwise = loop_unfoldrN n0 β0 (∅)
-        where
-          {-# INLINE loop_unfoldrN #-}
-          loop_unfoldrN 0 β α = (α, Just β)
-          loop_unfoldrN n β α
-              = case f β of
-                  Nothing      → (α, Nothing)
-                  Just (a, β') → loop_unfoldrN (n-1) β' (α `unsafeSnocL` a)
--}
 
     {-# INLINE map #-}
     map f (Packet n o0) = Packet n (go 0 o0)
@@ -244,30 +217,44 @@ instance Bitstream (Packet Left) where
 
     {-# INLINE dropWhile #-}
     dropWhile = dropWhilePacket
-{-
-    {-# INLINE (!!) #-}
-    {-# SPECIALISE (!!) ∷ Packet Left → Int → Bool #-}
-    (Packet n o) !! i
-        | i < 0 ∨ i ≥ fromIntegral n = indexOutOfRange i
-        | otherwise                  = o `testBit` fromIntegral i
--}
 
 packetHeadL ∷ Packet Left → Bool
-{-# RULES "head → packetHeadL" [0] head = packetHeadL #-}
+{-# RULES "head → packetHeadL" [2] head = packetHeadL #-}
 {-# INLINE packetHeadL #-}
-packetHeadL (Packet 0 _) = packetEmpty
+packetHeadL (Packet 0 _) = emptyNotAllowed
 packetHeadL (Packet _ o) = o `testBit` 0
 
 packetLastL ∷ Packet Left → Bool
-{-# RULES "last → packetLastL" [0] last = packetLastL #-}
+{-# RULES "last → packetLastL" [2] last = packetLastL #-}
 {-# INLINE packetLastL #-}
-packetLastL (Packet 0 _) = packetEmpty
+packetLastL (Packet 0 _) = emptyNotAllowed
 packetLastL (Packet n o) = o `testBit` (n-1)
 
 packetAndL ∷ Packet Left → Bool
-{-# RULES "and → packetAndL" [0] and = packetAndL #-}
+{-# RULES "and → packetAndL" [2] and = packetAndL #-}
 {-# INLINE packetAndL #-}
 packetAndL (Packet n o) = (0xff `shiftR` (8-n)) ≡ o
+
+packetReplicateL ∷ Integral n ⇒ n → Bool → Packet Left
+{-# RULES "replicate → packetReplicateL" [2]
+    replicate = packetReplicateL #-}
+{-# INLINE packetReplicateL #-}
+packetReplicateL n b
+    | n > 8     = packetOverflow
+    | b         = Packet (fromIntegral n) (0xFF `shiftR` (8 - fromIntegral n))
+    | otherwise = Packet (fromIntegral n) 0
+
+packetIndexL ∷ Integral n ⇒ Packet Left → n → Bool
+{-# RULES "(!!) → packetIndexL" [2] (!!) = packetIndexL #-}
+{-# INLINE packetIndexL #-}
+packetIndexL p i
+        | i < 0 ∨ i ≥ length p = indexOutOfRange i
+        | otherwise            = unsafePacketIndexL p i
+
+unsafePacketIndexL ∷ Integral n ⇒ Packet Left → n → Bool
+{-# INLINE unsafePacketIndexL #-}
+unsafePacketIndexL (Packet _ o) i
+    = o `testBit` fromIntegral i
 
 {-
 instance Bitstream (Packet Right) where
@@ -315,7 +302,7 @@ instance Bitstream (Packet Right) where
         | otherwise   = Packet (nx + ny) (ox .|. (oy `shiftR` nx))
 
     {-# INLINE head #-}
-    head (Packet 0 _) = packetEmpty
+    head (Packet 0 _) = emptyNotAllowed
     head (Packet _ o) = o `testBit` 7
 
     {-# INLINE uncons #-}
@@ -324,15 +311,15 @@ instance Bitstream (Packet Right) where
                                , Packet (n-1) (o `shiftL` 1) )
 
     {-# INLINE last #-}
-    last (Packet 0 _) = packetEmpty
+    last (Packet 0 _) = emptyNotAllowed
     last (Packet n o) = o `testBit` (8-n)
 
     {-# INLINE tail #-}
-    tail (Packet 0 _) = packetEmpty
+    tail (Packet 0 _) = emptyNotAllowed
     tail (Packet n o) = Packet (n-1) (o `shiftL` 1)
 
     {-# INLINE init #-}
-    init (Packet 0 _) = packetEmpty
+    init (Packet 0 _) = emptyNotAllowed
     init (Packet n o) = Packet (n-1) o
 
     {-# INLINE null #-}
@@ -412,28 +399,33 @@ instance Bitstream (Packet Right) where
 -}
 
 packetNull ∷ Packet d → Bool
-{-# RULES "null → packetNull" [0] null = packetNull #-}
+{-# RULES "null → packetNull" [2] null = packetNull #-}
 {-# INLINE packetNull #-}
 packetNull (Packet 0 _) = True
 packetNull _            = False
 
 packetLength ∷ Num n ⇒ Packet d → n
-{-# RULES "length → packetLength" [0] length = packetLength #-}
+{-# RULES "length → packetLength" [2] length = packetLength #-}
 {-# INLINE packetLength #-}
 packetLength (Packet n _) = fromIntegral n
 
-{-# INLINE packetEmpty #-}
-packetEmpty ∷ α
-packetEmpty = error "Data.Bitstream.Packet: packet is empty"
+packetOr ∷ Packet d → Bool
+{-# RULES "or → packetOr" [2] or = packetOr #-}
+{-# INLINE packetOr #-}
+packetOr (Packet _ o) = o ≢ 0
+
+{-# INLINE emptyNotAllowed #-}
+emptyNotAllowed ∷ α
+emptyNotAllowed = error "Data.Bitstream.Packet: packet is empty"
 
 {-# INLINE packetOverflow #-}
 packetOverflow ∷ α
 packetOverflow = error "Data.Bitstream.Packet: packet size overflow"
-{-
+
 {-# INLINE indexOutOfRange #-}
 indexOutOfRange ∷ Integral n ⇒ n → α
 indexOutOfRange n = error ("Data.Bitstream.Packet: index out of range: " L.++ show n)
--}
+
 {-# INLINE full #-}
 full ∷ Packet d → Bool
 full (Packet 8 _) = True
