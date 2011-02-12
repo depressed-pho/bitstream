@@ -195,19 +195,21 @@ module Data.Bitstream
     where
 import Data.Bitstream.Generic hiding (Bitstream)
 import qualified Data.Bitstream.Generic as G
-import Data.Bitstream.Internal
+--import Data.Bitstream.Internal
 import Data.Bitstream.Packet
 import qualified Data.ByteString as BS
-import qualified Data.List.Stream as L
+import qualified Data.List as L
 import Data.Monoid
-import qualified Data.StorableVector as SV
-import qualified Data.StorableVector.Base as SV
-import qualified Data.Stream as S
+import qualified Data.Vector.Generic as GV
+import qualified Data.Vector.Storable as SV
+import qualified Data.Vector.Fusion.Stream as S
+import Data.Vector.Fusion.Stream.Monadic (Stream(..), Step(..))
+import Data.Vector.Fusion.Stream.Size
 import Foreign.Marshal.Array
 import Foreign.Storable
 import Prelude ( Bool(..), Eq(..), Int, Integral, Maybe(..), Monad(..), Num(..)
                , Ord(..), Ordering(..), Show(..), ($), div, error, fmap
-               , fromIntegral, fst, otherwise
+               , fromIntegral, fst, mod, otherwise
                )
 import Prelude.Unicode hiding ((⧺), (∈), (∉))
 import System.IO (FilePath, Handle, IO)
@@ -299,109 +301,41 @@ instance G.Bitstream (Packet d) ⇒ Monoid (Bitstream d) where
     mconcat = concat
 
 instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
-    {-# SPECIALISE instance G.Bitstream (Bitstream Left ) #-}
-    {-# SPECIALISE instance G.Bitstream (Bitstream Right) #-}
-
-    {-# INLINEABLE [0] pack #-}
-    pack xs0 = Bitstream (fst $ SV.unfoldrN l f xs0)
-        where
-          {-# INLINE l #-}
-          l ∷ Int
-          l = (L.length xs0 + 7) `div` 8
-          {-# INLINE f #-}
-          f xs = case L.splitAt 8 xs of
-                   (hd, tl)
-                       | L.null hd → Nothing
-                       | otherwise → Just (pack hd, tl)
-
-    {-# INLINEABLE [0] unpack #-}
-    unpack (Bitstream v) = L.concatMap unpack (SV.unpack v)
-
-    {-# INLINE [0] stream #-}
-    stream (Bitstream v)
-        = S.concatMap stream (streamSV v)
-
-    {-# INLINE [0] unstream #-}
-    unstream
-        = Bitstream ∘ unstreamSV ∘ packStream
-
-    {-# INLINE empty #-}
-    empty = Bitstream SV.empty
-
-    {-# INLINE singleton #-}
-    singleton b
-        = Bitstream (SV.singleton (singleton b))
-
     {-# INLINEABLE cons #-}
     cons b (Bitstream v)
-        = case SV.viewL v of
-            Just (p, v')
-                | length p < (8 ∷ Int)
-                      → Bitstream (SV.cons (cons    b p) v')
-                | otherwise
-                      → Bitstream (SV.cons (singleton b) v )
-            Nothing   → Bitstream (SV.singleton (singleton b))
+        | SV.null v = Bitstream (SV.singleton (singleton b))
+        | otherwise = case SV.head v of
+                        p | length p < (8 ∷ Int)
+                                → Bitstream ((b `cons` p) `SV.cons` SV.tail v)
+                          | otherwise
+                                → Bitstream (singleton b `SV.cons` v)
 
     {-# INLINEABLE snoc #-}
     snoc (Bitstream v) b
-        = case SV.viewR v of
-            Just (v', p)
-                | length p < (8 ∷ Int)
-                      → Bitstream (SV.snoc v' (snoc    p b))
-                | otherwise
-                      → Bitstream (SV.snoc v  (singleton b))
-            Nothing   → Bitstream (SV.singleton (singleton b))
+        | SV.null v = Bitstream (SV.singleton (singleton b))
+        | otherwise = case SV.last v of
+                        p | length p < (8 ∷ Int)
+                                → Bitstream (SV.init v `SV.snoc` (p `snoc` b))
+                          | otherwise
+                                → Bitstream (v `SV.snoc` singleton b)
 
     {-# INLINE append #-}
     append (Bitstream x) (Bitstream y)
-        = Bitstream (SV.append x y)
-
-    {-# INLINE head #-}
-    head (Bitstream v)
-        = head (SV.head v)
-
-    {-# INLINEABLE uncons #-}
-    uncons (Bitstream v)
-        = do (p, v') ← SV.viewL v
-             case uncons p of
-               Just (b, p')
-                   | null p'   → return (b, Bitstream v')
-                   | otherwise → return (b, Bitstream (p' `SV.cons` v'))
-               Nothing         → inconsistentState
-
-    {-# INLINE last #-}
-    last (Bitstream v)
-        = last (SV.last v)
+        = Bitstream (x SV.++ y)
 
     {-# INLINEABLE tail #-}
     tail (Bitstream v)
-        = case SV.viewL v of
-            Just (p, v')
-                → case tail p of
-                     p' | null p'   → Bitstream v'
-                        | otherwise → Bitstream (p' `SV.cons` v')
-            Nothing
-                → emptyStream
+        | SV.null v = emptyStream
+        | otherwise = case tail (SV.head v) of
+                        p' | null p'   → Bitstream (SV.tail v)
+                           | otherwise → Bitstream (p' `SV.cons` SV.tail v)
 
     {-# INLINEABLE init #-}
     init (Bitstream v)
-        = case SV.viewR v of
-            Just (v', p)
-                → case init p of
-                     p' | null p'   → Bitstream v'
-                        | otherwise → Bitstream (v' `SV.snoc` p')
-            Nothing
-                → emptyStream
-
-    {-# INLINE null #-}
-    null (Bitstream v)
-        = SV.null v
-
-    {-# INLINE length #-}
-    {-# SPECIALISE length ∷ Bitstream Left  → Int #-}
-    {-# SPECIALISE length ∷ Bitstream Right → Int #-}
-    length (Bitstream v)
-        = SV.foldl' (\n p → n + length p) 0 v
+        | SV.null v = emptyStream
+        | otherwise = case init (SV.last v) of
+                        p' | null p'   → Bitstream (SV.init v)
+                           | otherwise → Bitstream (SV.init v `SV.snoc` p')
 
     {-# INLINE map #-}
     map f (Bitstream v)
@@ -411,265 +345,146 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
     reverse (Bitstream v)
         = Bitstream (SV.reverse (SV.map reverse v))
 
-    {-# INLINEABLE foldl #-}
-    foldl f β0 (Bitstream v0) = go β0 v0
-        where
-          {-# INLINE go #-}
-          go β v = case SV.viewL v of
-                      Just (p, v') → go (foldl f β p) v'
-                      Nothing      → β
-
-    {-# INLINEABLE foldl' #-}
-    foldl' f β0 (Bitstream v0) = go β0 v0
-        where
-          {-# INLINE go #-}
-          go β v = case SV.viewL v of
-                      Just (p, v') → go (foldl' f β p) v'
-                      Nothing      → β
-
-    {-# INLINEABLE foldr #-}
-    foldr f β0 (Bitstream v0) = go β0 v0
-        where
-          {-# INLINE go #-}
-          go β v = case SV.viewR v of
-                      Just (v', p) → go (foldr f β p) v'
-                      Nothing      → β
-
     {-# INLINE concat #-}
     concat = Bitstream ∘ SV.concat ∘ L.map toPackets
 
-    {-# INLINE concatMap #-}
-    concatMap f (Bitstream v0) = Bitstream (SV.concatMap g v0)
-        where
-          {-# INLINE g #-}
-          g = SV.concat ∘ L.map (toPackets ∘ f) ∘ unpack
-
-    {-# INLINE and #-}
-    and (Bitstream v) = SV.all and v
-
-    {-# INLINE or #-}
-    or (Bitstream v) = SV.any or v
-
-    {-# INLINE any #-}
-    any f (Bitstream v) = SV.any (any f) v
-
-    {-# INLINE all #-}
-    all f (Bitstream v) = SV.all (all f) v
-
-    {-# INLINEABLE replicate #-}
-    {-# SPECIALISE replicate ∷ Int → Bool → Bitstream Left  #-}
-    {-# SPECIALISE replicate ∷ Int → Bool → Bitstream Right #-}
-    replicate n0 b
-        | n0 ≤ 0    = (∅)
-        | otherwise = Bitstream (fst $ SV.unfoldrN len g n0)
-        where
-          {-# INLINE len #-}
-          len ∷ Int
-          len = fromIntegral ((n0 + 7) `div` 8)
-          {-# INLINE g #-}
-          g 0 = Nothing
-          g n = let n' = min 8 n
-                    p  = replicate n' b
-                in
-                  Just (p, n-n')
-
-    {-# INLINEABLE unfoldr #-}
-    unfoldr f = Bitstream ∘ SV.unfoldr g ∘ Just
-        where
-          {-# INLINE g #-}
-          g Nothing  = Nothing
-          g (Just β) = case unfoldrN (8 ∷ Int) f β of
-                          (p, mβ')
-                              | null p    → Nothing
-                              | otherwise → Just (p, mβ')
-
-    {-# INLINEABLE unfoldrN #-}
-    {-# SPECIALISE unfoldrN ∷ Int → (β → Maybe (Bool, β)) → β → (Bitstream Left , Maybe β) #-}
-    {-# SPECIALISE unfoldrN ∷ Int → (β → Maybe (Bool, β)) → β → (Bitstream Right, Maybe β) #-}
-    unfoldrN n0 f β0
-        | n0 ≤ 0    = ((∅), Just β0)
-        | otherwise = case unsafePerformIO $ SV.createAndTrim' l $ \p → go p l n0 β0 of
-                        (v, mβ1) → (Bitstream v, mβ1)
-        where
-          {-# INLINE l #-}
-          l ∷ Int
-          l = fromIntegral ((n0 + 7) `div` 8)
-          {-# INLINE go #-}
-          go _ 0 _ β = return (0, l, Just β)
-          go p i n β = case consume8 n β (∅) of
-                          (pk, Just β')
-                              | null pk   → return (0, l-i, Just β')
-                              | otherwise → do poke p pk
-                                               go (advancePtr p 1) (i-1) (n - length pk) β'
-                          (pk, Nothing)
-                              | null pk   → return (0, l-i, Nothing)
-                              | otherwise → do poke p pk
-                                               return (0, l-i+1, Nothing)
-          {-# INLINE consume8 #-}
-          consume8 0 β p  = (p, Just β)
-          consume8 n β p
-              | full p    = (p, Just β)
-              | otherwise = case f β of
-                              Nothing
-                                  → (p, Nothing)
-                              Just (b, β')
-                                  → consume8 (n-1) β' (p `snoc` b)
-
     {-# INLINEABLE take #-}
-    {-# SPECIALISE take ∷ Int → Bitstream Left  → Bitstream Left  #-}
-    {-# SPECIALISE take ∷ Int → Bitstream Right → Bitstream Right #-}
     take n0 (Bitstream v0)
         | n0 ≤ 0    = (∅)
-        | otherwise = Bitstream (SV.unfoldr g (n0, v0))
+        | otherwise = Bitstream (SV.unfoldrN nOctets go (n0, v0))
         where
-          {-# INLINE g #-}
-          g (0, _) = Nothing
-          g (n, v) = do (p, v') ← SV.viewL v
-                        let p' = take n p
-                            n' = n - length p'
-                        return (p', (n', v'))
+          {-# INLINE nOctets #-}
+          nOctets ∷ Int
+          nOctets = fromIntegral (min n0 (fromIntegral (SV.length v0)))
+          {-# INLINE go #-}
+          go (0, _) = Nothing
+          go (n, v)
+              | SV.null v = Nothing
+              | otherwise = let p  = SV.head v
+                                v' = SV.tail v
+                                p' = take n p
+                                n' = n - length p'
+                            in
+                              return (p', (n', v'))
 
     {-# INLINEABLE drop #-}
-    {-# SPECIALISE drop ∷ Int → Bitstream Left  → Bitstream Left  #-}
-    {-# SPECIALISE drop ∷ Int → Bitstream Right → Bitstream Right #-}
     drop n0 (Bitstream v0)
         | n0 ≤ 0    = Bitstream v0
-        | otherwise = Bitstream (g n0 v0)
+        | otherwise = Bitstream (go n0 v0)
         where
-          {-# INLINE g #-}
-          g 0 v = v
-          g n v = case SV.viewL v of
-                    Just (p, v')
-                        | n ≥ length p → g (n - length p) v'
-                        | otherwise    → drop n p `SV.cons` v'
-                    Nothing            → v
-
-    {-# INLINEABLE splitAt #-}
-    {-# SPECIALISE splitAt ∷ Int → Bitstream Left  → (Bitstream Left , Bitstream Left ) #-}
-    {-# SPECIALISE splitAt ∷ Int → Bitstream Right → (Bitstream Right, Bitstream Right) #-}
-    splitAt n0 (Bitstream v0)
-        = case unfoldrN n0 split' ((∅), v0) of
-            (hd, Just (p, tl))
-                | null p    → (hd, Bitstream tl)
-                | otherwise → (hd, Bitstream (p `SV.cons` tl))
-            (hd, Nothing)   → (hd, (∅))
-        where
-          {-# INLINE split' #-}
-          split' (p, v)
-              | null p    = do (p', v') ← SV.viewL v
-                               (h , t ) ← uncons p'
-                               return (h, (t, v'))
-              | otherwise = do (h , t ) ← uncons p
-                               return (h, (t, v))
+          {-# INLINE go #-}
+          go 0 v = v
+          go n v
+              | SV.null v = v
+              | otherwise = case SV.head v of
+                              p | n ≥ length p → go (n - length p) (SV.tail v)
+                                | otherwise    → drop n p `SV.cons` (SV.tail v)
 
     {-# INLINEABLE takeWhile #-}
     takeWhile f (Bitstream v0)
-        = Bitstream (fst $ SV.unfoldrN (SV.length v0) g (Just v0))
+        = Bitstream (GV.unstream (takeWhilePS (GV.stream v0)))
         where
-          {-# INLINE g #-}
-          g mv = do v       ← mv
-                    (p, v') ← SV.viewL v
-                    case takeWhile f p of
-                      p' | p ≡ p'    → Just (p', Just v')
-                         | otherwise → Just (p', Nothing)
+          {-# INLINE takeWhilePS #-}
+          takeWhilePS (Stream step s0 sz) = Stream step' (Just s0) (toMax sz)
+              where
+                {-# INLINE step' #-}
+                step' Nothing  = return Done
+                step' (Just s)
+                    = do r ← step s
+                         case r of
+                           Yield p s'
+                               → case takeWhile f p of
+                                    p' | p ≡ p'    → return $ Yield p' (Just s')
+                                       | otherwise → return $ Yield p' Nothing
+                           Skip    s'
+                               → return $ Skip (Just s')
+                           Done
+                               → return Done
 
     {-# INLINEABLE dropWhile #-}
-    dropWhile f (Bitstream v0) = Bitstream (g v0)
-        where
-          {-# INLINE g #-}
-          g v = case SV.viewL v of
-                  Just (p, v')
-                      → case dropWhile f p of
-                           p' | null p'   → g v'
-                              | otherwise → p' `SV.cons` v'
-                  Nothing
-                      → SV.empty
-
-    {-# INLINEABLE isPrefixOf #-}
-    isPrefixOf (Bitstream x0) (Bitstream y0) = go ((∅), x0) ((∅), y0)
+    dropWhile f (Bitstream v0) = Bitstream (go v0)
         where
           {-# INLINE go #-}
-          go (px, x) (py, y)
-              | null px
-                  = case SV.viewL x of
-                      Just (px', x') → go (px', x') (py, y)
-                      Nothing        → True
-              | null py
-                  = case SV.viewL y of
-                      Just (py', y') → go (px, x) (py', y')
-                      Nothing        → False
-              | otherwise
-                  = let n          ∷ Int
-                        n          = min (length px) (length py)
-                        (pxH, pxT) = splitAt n px
-                        (pyH, pyT) = splitAt n py
-                    in
-                      if pxH ≡ pyH then
-                          go (pxT, x) (pyT, y)
-                      else
-                          False
-
-    {-# INLINEABLE find #-}
-    find f (Bitstream v0) = go v0
-        where
-          {-# INLINE go #-}
-          go v = case SV.viewL v of
-                   Just (p, v')
-                       → case find f p of
-                            r@(Just _) → r
-                            Nothing    → go v'
-                   Nothing
-                       → Nothing
+          go v | SV.null v = v
+               | otherwise = case dropWhile f (SV.head v) of
+                               p' | null p'   → go (SV.tail v)
+                                  | otherwise → p' `SV.cons` SV.tail v
 
     {-# INLINEABLE filter #-}
     filter f (Bitstream v0)
-        = Bitstream (fst $ SV.unfoldrN (SV.length v0) g v0)
+        = Bitstream (GV.unstream (filterPS (GV.stream v0)))
         where
-          {-# INLINE g #-}
-          g v = do (p, v') ← SV.viewL v
-                   case filter f p of
-                     p' | null p'   → g v'
-                        | otherwise → return (p', v')
+          {-# INLINE filterPS #-}
+          filterPS (Stream step s0 sz) = Stream step' s0 (toMax sz)
+              where
+                {-# INLINE step' #-}
+                step' s
+                    = do r ← step s
+                         case r of
+                           Yield p s' → case filter f p of
+                                           p' | null p'   → return $ Skip s'
+                                              | otherwise → return $ Yield p' s'
+                           Skip    s' → return $ Skip s'
+                           Done       → return Done
 
-    {-# INLINEABLE (!!) #-}
-    {-# SPECIALISE (!!) ∷ Bitstream Left  → Int → Bool #-}
-    {-# SPECIALISE (!!) ∷ Bitstream Right → Int → Bool #-}
-    (Bitstream v0) !! i0
-        | i0 < 0    = indexOutOfRange i0
-        | otherwise = go v0 i0
-        where
-          {-# INLINE go #-}
-          go v i = case SV.viewL v of
-                     Just (p, v')
-                         | i < length p → p !! i
-                         | otherwise    → go v' (i - length p)
-                     Nothing            → indexOutOfRange i
+strictHead ∷ Bitstream d → Bool
+{-# RULES "head → strictHead" [2] head = strictHead #-}
+{-# INLINE strictHead #-}
+strictHead (Bitstream v) = head (SV.head v)
 
-    {-# INLINEABLE findIndex #-}
-    {-# SPECIALISE findIndex ∷ (Bool → Bool) → Bitstream Left  → Maybe Int #-}
-    {-# SPECIALISE findIndex ∷ (Bool → Bool) → Bitstream Right → Maybe Int #-}
-    findIndex f (Bitstream v0) = go v0 0
-        where
-          {-# INLINE go #-}
-          go v i = do (p, v') ← SV.viewL v
-                      case findIndex f p of
-                        Just j  → return (i + j)
-                        Nothing → go v' (i + length p)
+strictLast ∷ Bitstream d → Bool
+{-# RULES "last → strictLast" [2] last = strictLast #-}
+{-# INLINE strictLast #-}
+strictLast (Bitstream v) = last (SV.last v)
 
-    {-# INLINEABLE findIndices #-}
-    {-# SPECIALISE findIndices ∷ (Bool → Bool) → Bitstream Left  → [Int] #-}
-    {-# SPECIALISE findIndices ∷ (Bool → Bool) → Bitstream Right → [Int] #-}
-    findIndices f (Bitstream v0) = go 0 v0
-        where
-          {-# INLINE go #-}
-          go i v = case SV.viewL v of
-                     Just (p, v')
-                         → let is   = L.map (+ i) (findIndices f p)
-                               rest = go (i + length p) v'
-                           in
-                             is L.++ rest
-                     Nothing
-                         → []
+strictNull ∷ Bitstream d → Bool
+{-# RULES "null → strictNull" [2] null = strictNull #-}
+{-# INLINE strictNull #-}
+strictNull (Bitstream v) = SV.null v
+
+strictLength ∷ Num n ⇒ Bitstream d → n
+{-# RULES "length → strictLength" [2] length = strictLength #-}
+{-# INLINE strictLength #-}
+strictLength (Bitstream v)
+    = SV.foldl' (\n p → n + length p) 0 v
+
+strictReplicate ∷ Integral n ⇒ n → Bool → Bitstream d
+{-# RULES "replicate → strictReplicate" [2]
+    replicate = strictReplicate #-}
+{-# INLINEABLE strictReplicate #-}
+strictReplicate n0 b
+    | n0 ≤ 0    = (∅)
+    | otherwise = Bitstream (anterior `SV.snoc` posterior)
+    where
+      {-# INLINE anterior #-}
+      anterior = SV.replicate n p
+          where
+            n ∷ Int
+            {-# INLINE n #-}
+            n = fromIntegral (n0 `div` 8)
+            {-# INLINE p #-}
+            p = replicate 8 b
+
+      {-# INLINE posterior #-}
+      posterior = replicate n b
+          where
+            n ∷ Int
+            {-# INLINE n #-}
+            n = fromIntegral (n0 `mod` 8)
+
+strictIndex ∷ Integral n ⇒ Bitstream d → n → Bool
+{-# RULES "(!!) → strictIndex" [2] (!!) = strictIndex #-}
+{-# INLINEABLE strictIndex #-}
+strictIndex (Bitstream v0) i0
+    | i0 < 0    = indexOutOfRange
+    | otherwise = go v0 i0
+    where
+      {-# INLINE go #-}
+      go v i
+          | SV.null v = indexOutOfRange i
+          | otherwise = case SV.head v of
+                          p | i < length p → p !! i
+                            | otherwise    → go (SV.tail v) (i - length p)
 
 inconsistentState ∷ α
 inconsistentState
@@ -686,14 +501,43 @@ indexOutOfRange n = error ("Data.Bitstream: index out of range: " L.++ show n)
 -- | /O(n)/ Convert a 'BS.ByteString' into a 'Bitstream'.
 {-# INLINE fromByteString #-}
 fromByteString ∷ BS.ByteString → Bitstream d
-fromByteString = Bitstream ∘ fromBS
+fromByteString bs0 = Bitstream (SV.unfoldrN nOctets go bs0)
+    where
+      {-# INLINE nOctets #-}
+      nOctets ∷ Int
+      nOctets = BS.length bs0
+      {-# INLINE go #-}
+      go bs = do (o, bs') ← BS.uncons bs
+                 return (fromOctet o, bs')
 
 -- | /O(n)/ @'toByteString' bs@ converts a 'Bitstream' @bits@ into a
 -- 'BS.ByteString'. The resulting octets will be padded with zeroes if
 -- the 'length' of @bs@ is not multiple of 8.
 {-# INLINE toByteString #-}
 toByteString ∷ G.Bitstream (Packet d) ⇒ Bitstream d → BS.ByteString
-toByteString (Bitstream v) = toBS v
+toByteString (Bitstream v0)
+    = fst $ BS.unfoldrN nOctets go ((∅), (∅), v0)
+    where
+      {-# INLINE nOctets #-}
+      nOctets ∷ Int
+      nOctets = SV.length v0
+      {-# INLINE go #-}
+      go (p, r, v)
+          | full p
+              = Just (toOctet p, ((∅), r, v))
+          | null r
+              = case SV.null v of
+                  False           → go (p, SV.head v, SV.tail v)
+                  True
+                      | null p    → Nothing
+                      | otherwise → Just (toOctet p, ((∅), (∅), SV.empty))
+          | otherwise
+              = let lenR ∷ Int
+                    lenR = 8 - length p
+                    rH   = take lenR r
+                    rT   = drop lenR r
+                in
+                  go (p ⧺ rH, rT, v)
 
 -- | /O(1)/ Convert a 'SV.Vector' of 'Packet's into a 'Bitstream'.
 {-# INLINE fromPackets #-}
