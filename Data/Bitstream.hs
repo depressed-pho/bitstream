@@ -502,58 +502,58 @@ unstreamBS (Stream step s0 sz)
                     Done       → return Nothing
 
 -- | /O(1)/ Convert a 'SV.Vector' of 'Packet's into a 'Bitstream'.
-{-# INLINE fromPackets #-}
 fromPackets ∷ SV.Vector (Packet d) → Bitstream d
+{-# INLINE fromPackets #-}
 fromPackets = Bitstream
 
 -- | /O(1)/ Convert a 'Bitstream' into a 'SV.Vector' of 'Packet's.
-{-# INLINE toPackets #-}
 toPackets ∷ Bitstream d → SV.Vector (Packet d)
+{-# INLINE toPackets #-}
 toPackets (Bitstream d) = d
 
 -- | /O(n)/ Convert a @'Bitstream' 'Left'@ into a @'Bitstream'
 -- 'Right'@. Bit directions only affect octet-based operations like
 -- 'toByteString'.
-{-# INLINE directionLToR #-}
 directionLToR ∷ Bitstream Left → Bitstream Right
+{-# INLINE directionLToR #-}
 directionLToR (Bitstream v) = Bitstream (SV.map packetLToR v)
 
 -- | /O(n)/ Convert a @'Bitstream' 'Right'@ into a @'Bitstream'
 -- 'Left'@. Bit directions only affect octet-based operations like
 -- 'toByteString'.
-{-# INLINE directionRToL #-}
 directionRToL ∷ Bitstream Right → Bitstream Left
+{-# INLINE directionRToL #-}
 directionRToL (Bitstream v) = Bitstream (SV.map packetRToL v)
 
-{-# INLINE getContents #-}
 getContents ∷ G.Bitstream (Packet d) ⇒ IO (Bitstream d)
+{-# INLINE getContents #-}
 getContents = fmap fromByteString BS.getContents
 
-{-# INLINE putBits #-}
 putBits ∷ G.Bitstream (Packet d) ⇒ Bitstream d → IO ()
+{-# INLINE putBits #-}
 putBits = BS.putStr ∘ toByteString
 
-{-# INLINE interact #-}
 interact ∷ G.Bitstream (Packet d) ⇒ (Bitstream d → Bitstream d) → IO ()
+{-# INLINE interact #-}
 interact = BS.interact ∘ lift'
     where
       {-# INLINE lift' #-}
       lift' f = toByteString ∘ f ∘ fromByteString
 
-{-# INLINE readFile #-}
 readFile ∷ G.Bitstream (Packet d) ⇒ FilePath → IO (Bitstream d)
+{-# INLINE readFile #-}
 readFile = fmap fromByteString ∘ BS.readFile
 
-{-# INLINE writeFile #-}
 writeFile ∷ G.Bitstream (Packet d) ⇒ FilePath → Bitstream d → IO ()
+{-# INLINE writeFile #-}
 writeFile = (∘ toByteString) ∘ BS.writeFile
 
-{-# INLINE appendFile #-}
 appendFile ∷ G.Bitstream (Packet d) ⇒ FilePath → Bitstream d → IO ()
+{-# INLINE appendFile #-}
 appendFile = (∘ toByteString) ∘ BS.appendFile
 
-{-# INLINE hGetContents #-}
 hGetContents ∷ G.Bitstream (Packet d) ⇒ Handle → IO (Bitstream d)
+{-# INLINE hGetContents #-}
 hGetContents = fmap fromByteString ∘ BS.hGetContents
 
 -- |@'hGet' h n@ reads a 'Bitstream' directly from the specified
@@ -565,18 +565,18 @@ hGetContents = fmap fromByteString ∘ BS.hGetContents
 -- If the handle is a pipe or socket, and the writing end is closed,
 -- 'hGet' will behave as if EOF was reached.
 --
-{-# INLINE hGet #-}
 hGet ∷ G.Bitstream (Packet d) ⇒ Handle → Int → IO (Bitstream d)
+{-# INLINE hGet #-}
 hGet = (fmap fromByteString ∘) ∘ BS.hGet
 
-{-# INLINE hGetSome #-}
 hGetSome ∷ G.Bitstream (Packet d) ⇒ Handle → Int → IO (Bitstream d)
+{-# INLINE hGetSome #-}
 hGetSome = (fmap fromByteString ∘) ∘ BS.hGetSome
 
-{-# INLINE hGetNonBlocking #-}
 hGetNonBlocking ∷ G.Bitstream (Packet d) ⇒ Handle → Int → IO (Bitstream d)
+{-# INLINE hGetNonBlocking #-}
 hGetNonBlocking = (fmap fromByteString ∘) ∘ BS.hGetNonBlocking
 
-{-# INLINE hPut #-}
 hPut ∷ G.Bitstream (Packet d) ⇒ Handle → Bitstream d → IO ()
+{-# INLINE hPut #-}
 hPut = (∘ toByteString) ∘ BS.hPut

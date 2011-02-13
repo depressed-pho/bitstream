@@ -185,7 +185,7 @@ module Data.Bitstream.Lazy
     , hPut
     )
     where
-import qualified Data.Bitstream as Strict
+import qualified Data.Bitstream as SB
 import Data.Bitstream.Generic hiding (Bitstream)
 import qualified Data.Bitstream.Generic as G
 import Data.Bitstream.Packet
@@ -193,10 +193,13 @@ import qualified Data.ByteString.Lazy as LS
 import qualified Data.List as L
 import Data.Monoid
 import qualified Data.Vector.Fusion.Stream as S
+import Data.Vector.Fusion.Stream.Monadic (Stream(..), Step(..))
+import Data.Vector.Fusion.Stream.Size
+import Data.Vector.Fusion.Util
 import Foreign.Storable
 import Prelude ( Bool(..), Either(..), Eq(..), Int, Integral, Maybe(..)
                , Monad(..), Num(..), Ord(..), Ordering(..), Show(..)
-               , error, flip, fmap, otherwise
+               , ($), error, flip, fmap, otherwise
                )
 import Prelude.Unicode hiding ((⧺), (∈), (∉))
 import System.IO (FilePath, Handle, IO)
@@ -208,7 +211,7 @@ chunkSize = fromInteger (32 ⋅ 1024)
 
 newtype Bitstream d
     = Empty
-    | Chunk {-# UNPACK #-} !(Strict.Bitstream d) (Bitstream d)
+    | Chunk {-# UNPACK #-} !(SB.Bitstream d) (Bitstream d)
 
 instance Show (Packet d) ⇒ Show (Bitstream d) where
     {-# INLINEABLE show #-}
@@ -316,56 +319,47 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
 
     {-# INLINEABLE [2] cons' #-}
     cons' b Empty
-        = Chunk (Strict.singleton b) Empty
-    cons' b (Chunk ch rest)
-        = let v = Strict.toPackets ch
+        = Chunk (SB.singleton b) Empty
+    cons' b ch@(Chunk x xs)
+        = let v = SB.toPackets x
           in
             case SV.head v of
               p | length p < (8 ∷ Int)
-                      → Chunk (Strict.fromPackets ((b `cons` p) `SV.cons` SV.tail v)) rest
+                      → Chunk (SB.fromPackets ((b `cons` p) `SV.cons` SV.tail v)) xs
                 | SV.length v < chunkSize
-                      → Chunk (Strict.fromPackets (singleton b `SV.cons` v)) rest
+                      → Chunk (SB.fromPackets (singleton b `SV.cons` v)) xs
                 | otherwise
-                      → Chunk (singleton b) rest
+                      → Chunk (singleton b) ch
     cons' b ch
         = Chunk (singleton b) ch
 
     {-# INLINEABLE [2] snoc #-}
     snoc Empty b
-        = Chunk (Strict.singleton b) Empty
-    snoc (Chunk ch Empty)
-        = let v = Strict.toPackets ch
+        = Chunk (SB.singleton b) Empty
+    snoc (Chunk x Empty)
+        = let v = SB.toPackets x
           in
             case SV.last v of
               p | length p < (8 ∷ Int)
-                      → Chunk (Strict.fromPackets (SV.init v `SV.snoc` (p `snoc` b))) Empty
+                      → Chunk (SB.fromPackets (SV.init v `SV.snoc` (p `snoc` b))) Empty
                 | SV.length v < chunkSize
-                      → Chunk (Strict.fromPackets (v `SV.snoc` singleton b) Empty)
+                      → Chunk (SB.fromPackets (v `SV.snoc` singleton b) Empty)
                 | otherwise
                       → Chunk ch (Chunk (singleton b) Empty)
-    snoc (Chunk ch rest)
-        = Chunk ch (rest `snoc` b)
+    snoc (Chunk x xs) b
+        = Chunk x (xs `snoc` b)
 
-    {-# INLINE append #-}
+    {-# INLINE [2] append #-}
     append (Bitstream x) (Bitstream y)
         = Bitstream (LV.append x y)
 
-    {-# INLINE head #-}
+    {-# INLINE [2] head #-}
     head (Bitstream v)
         = case LV.viewL v of
             Just (p, _) → head p
             Nothing     → emptyStream
 
-    {-# INLINEABLE uncons #-}
-    uncons (Bitstream v)
-        = do (p, v') ← LV.viewL v
-             case uncons p of
-               Just (b, p')
-                   | null p'   → return (b, Bitstream v')
-                   | otherwise → return (b, Bitstream (p' `LV.cons` v'))
-               Nothing         → inconsistentState
-
-    {-# INLINE last #-}
+    {-# INLINE [2] last #-}
     last = go ∘ toChunks
         where
           {-# INLINE go #-}
@@ -373,7 +367,7 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
           go [x]    = last x
           go (_:xs) = go xs
 
-    {-# INLINEABLE tail #-}
+    {-# INLINEABLE [2] tail #-}
     tail (Bitstream v)
         = case LV.viewL v of
             Just (p, v')
@@ -383,7 +377,7 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
             Nothing
                 → emptyStream
 
-    {-# INLINEABLE init #-}
+    {-# INLINEABLE [2] init #-}
     init = fromChunks ∘ go ∘ toChunks
         where
           {-# INLINE go #-}
@@ -391,28 +385,26 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
           go [x]    = [init x]
           go (x:xs) = x : go xs
 
-    {-# INLINE null #-}
+    {-# INLINE [2] null #-}
     null (Bitstream v)
         = LV.null v
 
-    {-# INLINE length #-}
-    {-# SPECIALISE length ∷ Bitstream Left  → Int #-}
-    {-# SPECIALISE length ∷ Bitstream Right → Int #-}
+    {-# INLINE [2] length #-}
     length (Bitstream v)
         = LV.foldl' (\n p → n + length p) 0 v
 
-    {-# INLINE map #-}
+    {-# INLINE [2] map #-}
     map f (Bitstream v)
         = Bitstream (LV.map (map f) v)
 
-    {-# INLINE reverse #-}
+    {-# INLINE [2] reverse #-}
     reverse (Bitstream v)
         = Bitstream (LV.reverse (LV.map reverse v))
 
-    {-# INLINE foldl #-}
+    {-# INLINE [2] foldl #-}
     foldl f β0 = L.foldl (foldl f) β0 ∘ toChunks
 
-    {-# INLINEABLE foldl' #-}
+    {-# INLINEABLE [2] foldl' #-}
     foldl' f β0 = L.foldl' (foldl' f) β0 ∘ toChunks
 
     {-# INLINE foldr #-}
@@ -590,7 +582,7 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
                    Nothing
                        → Nothing
 
-    {-# INLINEABLE filter #-}
+    {-# INLINEABLE [2] filter #-}
     filter f (Bitstream v0)
         = Bitstream (LV.unfoldr chunkSize g v0)
         where
@@ -600,45 +592,21 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
                      p' | null p'   → g v'
                         | otherwise → return (p', v')
 
-    {-# INLINEABLE (!!) #-}
-    {-# SPECIALISE (!!) ∷ Bitstream Left  → Int → Bool #-}
-    {-# SPECIALISE (!!) ∷ Bitstream Right → Int → Bool #-}
-    (Bitstream v0) !! i0
-        | i0 < 0    = indexOutOfRange i0
-        | otherwise = go v0 i0
-        where
-          {-# INLINE go #-}
-          go v i = case LV.viewL v of
-                     Just (p, v')
-                         | i < length p → p !! i
-                         | otherwise    → go v' (i - length p)
-                     Nothing            → indexOutOfRange i
-
-    {-# INLINEABLE findIndex #-}
-    {-# SPECIALISE findIndex ∷ (Bool → Bool) → Bitstream Left  → Maybe Int #-}
-    {-# SPECIALISE findIndex ∷ (Bool → Bool) → Bitstream Right → Maybe Int #-}
-    findIndex f (Bitstream v0) = go v0 0
-        where
-          {-# INLINE go #-}
-          go v i = do (p, v') ← LV.viewL v
-                      case findIndex f p of
-                        Just j  → return (i + j)
-                        Nothing → go v' (i + length p)
-
-    {-# INLINEABLE findIndices #-}
-    {-# SPECIALISE findIndices ∷ (Bool → Bool) → Bitstream Left  → [Int] #-}
-    {-# SPECIALISE findIndices ∷ (Bool → Bool) → Bitstream Right → [Int] #-}
-    findIndices f (Bitstream v0) = go 0 v0
-        where
-          {-# INLINE go #-}
-          go i v = case LV.viewL v of
-                     Just (p, v')
-                         → let is   = L.map (+ i) (findIndices f p)
-                               rest = go (i + length p) v'
-                           in
-                             is L.++ rest
-                     Nothing
-                         → []
+lazyIndex ∷ (G.Bitstream (Packet d), Integral n) ⇒ Bitstream d → n → Bool
+{-# RULES "(!!) → lazyIndex" [2]
+    ∀(v ∷ G.Bitstream (Packet d) ⇒ Bitstream d) n.
+    v !! n = lazyIndex v n #-}
+{-# INLINEABLE lazyIndex #-}
+lazyIndex ch0 i0
+    | i0 < 0    = indexOutOfRange i0
+    | otherwise = go ch0 i0
+    where
+      {-# INLINE go #-}
+      go Empty _
+          = indexOutOfRange
+      go (Chunk x xs) i
+          | i < length x = x !! i
+          | otherwise    = go xs (i - length x)
 
 inconsistentState ∷ α
 inconsistentState
@@ -652,42 +620,66 @@ emptyStream
 indexOutOfRange ∷ Integral n ⇒ n → α
 indexOutOfRange n = error ("Data.Bitstream.Lazy: index out of range: " L.++ show n)
 
+fromChunks ∷ [SB.Bitstream d] → Bitstream d
 {-# INLINE fromChunks #-}
-fromChunks ∷ [Strict.Bitstream d] → Bitstream d
-fromChunks = Bitstream ∘ LV.fromChunks ∘ L.map Strict.toPackets
+fromChunks []     = Empty
+fromChunks (x:xs) = Chunk x (fromChunks xs)
 
+toChunks ∷ Bitstream d → [SB.Bitstream d]
 {-# INLINE toChunks #-}
-toChunks ∷ Bitstream d → [Strict.Bitstream d]
-toChunks (Bitstream v) = L.map Strict.fromPackets (LV.chunks v)
+toChunks Empty        = []
+toChunks (Chunk x xs) = x : toChunks xs
 
 {-# INLINE fromByteString #-}
 fromByteString ∷ LS.ByteString → Bitstream d
-fromByteString = Bitstream ∘ fromLBS
+fromByteString = fromChunks ∘ L.map SB.fromByteString ∘ LS.toChunks
 
 {-# INLINE toByteString #-}
 toByteString ∷ G.Bitstream (Packet d) ⇒ Bitstream d → LS.ByteString
-toByteString (Bitstream v) = toLBS v
+toByteString = L.map SB.toByteString ∘ toChunks
 
 -- | /O(1)/ Convert a 'LV.Vector' of 'Packet's into a 'Bitstream'.
+fromPackets ∷ [Packet d] → Bitstream d
 {-# INLINE fromPackets #-}
-fromPackets ∷ LV.Vector (Packet d) → Bitstream d
-fromPackets = Bitstream
+fromPackets = unstreamPackets ∘ S.fromList
 
--- | /O(1)/ Convert a 'Bitstream' into a 'LV.Vector' of 'Packet's.
+-- | /O(1)/ Convert a 'Bitstream' into a list of 'Packet's.
+toPackets ∷ Bitstream d → [Packet d]
 {-# INLINE toPackets #-}
-toPackets ∷ Bitstream d → LV.Vector (Packet d)
-toPackets (Bitstream d) = d
+toPackets = S.toList ∘ streamPackets
+
+streamPackets ∷ Monad m ⇒ Bitstream d → Stream m (Packet d)
+{-# INLINE streamPackets #-}
+streamPackets ch0 = Stream step ch0 Unknown
+    where
+      {-# INLINE step #-}
+      step Empty        = return Done
+      step (Chunk x xs) = return $ Yield x xs
+
+unstreamPackets ∷ Monad m ⇒ Stream m (Packet d) → m (Bitstream d)
+{-# INLINE unstreamPackets #-}
+unstreamPackets (Stream step s0 _) = go s0
+    where
+      {-# INLINE go #-}
+      go s = do r ← step s
+                case r of
+                  Yield p s' → do xs ← go s'
+                                  return $ Chunk p xs
+                  Skip    s' → go s'
+                  Done       → return Empty
 
 -- | /O(n)/ Convert a @'Bitstream' 'Left'@ into a @'Bitstream'
 -- 'Right'@. Bit directions only affect octet-based operations like
 -- 'toByteString'.
-{-# INLINE directionLToR #-}
 directionLToR ∷ Bitstream Left → Bitstream Right
-directionLToR (Bitstream v) = Bitstream (LV.map packetLToR v)
+{-# INLINE directionLToR #-}
+directionLToR Empty        = Empty
+directionLToR (Chunk x xs) = Chunk (SB.directionLToR x) (directionLToR xs)
 
-{-# INLINE directionRToL #-}
 directionRToL ∷ Bitstream Right → Bitstream Left
-directionRToL (Bitstream v) = Bitstream (LV.map packetRToL v)
+{-# INLINE directionRToL #-}
+directionRToL Empty        = Empty
+directionRToL (Chunk x xs) = Chunk (SB.directionRToL x) (directionRToL xs)
 
 {- There are only 4 functions of the type Bool → Bool.
 
@@ -703,24 +695,24 @@ directionRToL (Bitstream v) = Bitstream (LV.map packetRToL v)
  -}
 {-# INLINE iterate #-}
 iterate ∷ G.Bitstream (Packet d) ⇒ (Bool → Bool) → Bool → Bitstream d
-iterate f b = bs
+iterate f b = xs
     where
-      bs = Chunk ch bs
-      ch = repeat chunkSize p
+      xs = Chunk x xs
+      x  = repeat chunkSize p
       p  = pack (L.take 8 (L.iterate f b))
 
 {-# INLINE repeat #-}
 repeat ∷ G.Bitstream (Packet d) ⇒ Bool → Bitstream d
-repeat b = bs
+repeat b = xs
     where
-      bs = Chunk ch bs
-      ch = repeat chunkSize p
+      xs = Chunk x xs
+      x  = repeat chunkSize p
       p  = replicate 8 b
 
 {-# INLINE cycle #-}
 cycle ∷ G.Bitstream (Packet d) ⇒ Bitstream d → Bitstream d
-cycle Empty           = emptyStream
-cycle ch@(Chunk bs _) = Chunk bs ch
+cycle Empty          = emptyStream
+cycle ch@(Chunk x _) = Chunk x ch
 
 {-# INLINE getContents #-}
 getContents ∷ G.Bitstream (Packet d) ⇒ IO (Bitstream d)
