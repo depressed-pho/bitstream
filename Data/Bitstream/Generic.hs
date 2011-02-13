@@ -38,8 +38,6 @@ module Data.Bitstream.Generic
     , scanr
     , scanr1
 
-    , replicate
-
     , span
     , break
 
@@ -204,6 +202,10 @@ class Bitstream α where
 
     scanl ∷ (Bool → Bool → Bool) → Bool → α → α
 
+    replicate ∷ Integral n ⇒ n → Bool → α
+    {-# INLINE replicate #-}
+    replicate n = unstream ∘ genericReplicate n
+
     take ∷ Integral n ⇒ n → α → α
 
     drop ∷ Integral n ⇒ n → α → α
@@ -358,10 +360,6 @@ scanr f b = reverse ∘ scanl (flip f) b ∘ reverse
 scanr1 ∷ Bitstream α ⇒ (Bool → Bool → Bool) → α → α
 {-# INLINE [1] scanr1 #-}
 scanr1 f = reverse ∘ scanl1 (flip f) ∘ reverse
-
-replicate ∷ (Bitstream α, Integral n) ⇒ n → Bool → α
-{-# INLINE [1] replicate #-}
-replicate n = unstream ∘ genericReplicate n
 
 foldl ∷ Bitstream α ⇒ (β → Bool → β) → β → α → β
 {-# RULES "Bitstream foldl/unstream fusion"

@@ -50,7 +50,6 @@ module Data.Bitstream
     , append
     , (⧺)
     , head
-    , uncons
     , last
     , tail
     , init
@@ -60,9 +59,6 @@ module Data.Bitstream
       -- * Transforming 'Bitstream's
     , map
     , reverse
-    , intersperse
-    , intercalate
-    , transpose
 
       -- * Reducing 'Bitstream's
     , foldl
@@ -87,10 +83,6 @@ module Data.Bitstream
     , scanr
     , scanr1
 
-      -- ** Accumulating maps
-    , mapAccumL
-    , mapAccumR
-
       -- ** Replication
     , replicate
 
@@ -101,20 +93,10 @@ module Data.Bitstream
       -- * Substreams
     , take
     , drop
-    , splitAt
     , takeWhile
     , dropWhile
     , span
     , break
-    , group
-    , groupBy
-    , inits
-    , tails
-
-      -- * Predicates
-    , isPrefixOf
-    , isSuffixOf
-    , isInfixOf
 
       -- * Searching streams
       -- ** Searching by equality
@@ -143,36 +125,16 @@ module Data.Bitstream
     , zip4
     , zip5
     , zip6
-    , zip7
     , zipWith
     , zipWith3
     , zipWith4
     , zipWith5
     , zipWith6
-    , zipWith7
     , unzip
     , unzip3
     , unzip4
     , unzip5
     , unzip6
-    , unzip7
-
-      -- * Special streams
-      -- ** \"Set\" operations
-    , nub
-    , delete
-    , (\\)
-    , (∖)
-    , (∆)
-    , union
-    , (∪)
-    , intersect
-    , (∩)
-    , nubBy
-    , deleteBy
-    , deleteFirstsBy
-    , unionBy
-    , intersectBy
 
     -- * I/O with 'Bitstream's
     -- ** Standard input and output
@@ -205,15 +167,12 @@ import qualified Data.Vector.Storable as SV
 import qualified Data.Vector.Fusion.Stream as S
 import Data.Vector.Fusion.Stream.Monadic (Stream(..), Step(..))
 import Data.Vector.Fusion.Stream.Size
-import Foreign.Marshal.Array
-import Foreign.Storable
 import Prelude ( Bool(..), Eq(..), Int, Integral, Maybe(..), Monad(..), Num(..)
-               , Ord(..), Ordering(..), Show(..), ($), div, error, fmap
+               , Ord(..), Show(..), ($), div, error, fmap
                , fromIntegral, fst, mod, otherwise
                )
 import Prelude.Unicode hiding ((⧺), (∈), (∉))
 import System.IO (FilePath, Handle, IO)
-import System.IO.Unsafe
 
 -- THINKME: Use vector instead of storablevector.
 
@@ -235,12 +194,12 @@ instance Show (Packet d) ⇒ Show (Bitstream d) where
           ]
         where
           {-# INLINE go #-}
-          go v = do (p, v') ← SV.viewL v
-                    return (show p, v')
+          go v | SV.null v = Nothing
+               | otherwise = Just (show (SV.head v), SV.tail v)
 
-instance Ord (Bitstream d) ⇒ Eq (Bitstream d) where
+instance G.Bitstream (Packet d) ⇒ Eq (Bitstream d) where
     {-# INLINE (==) #-}
-    x == y = (x `compare` y) ≡ EQ
+    x == y = stream x ≡ stream y
 
 -- | 'Bitstream's are lexicographically ordered.
 --
@@ -254,39 +213,8 @@ instance Ord (Bitstream d) ⇒ Eq (Bitstream d) where
 --   ]
 -- @
 instance G.Bitstream (Packet d) ⇒ Ord (Bitstream d) where
-    {-# INLINEABLE compare #-}
-    (Bitstream x0) `compare` (Bitstream y0) = go ((∅), x0) ((∅), y0)
-        where
-          {-# INLINE go #-}
-          go (px, x) (py, y)
-              | null px
-                  = case SV.viewL x of
-                      Just (px', x')
-                          → go (px', x') (py, y)
-                      Nothing
-                          → if null py then
-                                case SV.viewL y of
-                                  Just _  → LT
-                                  Nothing → EQ
-                            else
-                                LT
-              | null py
-                  = case SV.viewL y of
-                      Just (py', y')
-                          → go (px, x) (py', y')
-                      Nothing
-                          → GT
-              | otherwise
-                  = let len ∷ Int
-                        len = min (length px) (length py)
-                        pxH, pxT, pyH, pyT ∷ Packet d
-                        (pxH, pxT) = splitAt len px
-                        (pyH, pyT) = splitAt len py
-                    in
-                      case pxH `compare` pyH of
-                        LT → LT
-                        GT → GT
-                        EQ → go (pxT, x) (pyT, y)
+    {-# INLINE compare #-}
+    x `compare` y = stream x `compare` stream y
 
 -- | 'Bitstream' forms 'Monoid' in the same way as ordinary lists:
 --
@@ -301,6 +229,33 @@ instance G.Bitstream (Packet d) ⇒ Monoid (Bitstream d) where
     mconcat = concat
 
 instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
+    {-# INLINE [0] stream #-}
+    stream (Bitstream v) = S.concatMap stream (GV.stream v)
+
+    {-# INLINE [0] unstream #-}
+    unstream (Stream step s0 sz)
+        = Bitstream (GV.unstream (Stream packPackets ((∅), Just s0) sz'))
+        where
+          sz' ∷ Size
+          {-# INLINE sz' #-}
+          sz' = case sz of
+                  Exact n → Exact (n+7 `div` 8)
+                  Max   n → Max   (n+7 `div` 8)
+                  Unknown → Unknown
+          {-# INLINE packPackets #-}
+          packPackets (p, Just s)
+              = do r ← step s
+                   case r of
+                     Yield b s'
+                         | full p    → return $ Yield p (singleton b, Just s')
+                         | otherwise → return $ Skip    (p `snoc` b , Just s')
+                     Skip    s'      → return $ Skip    (p          , Just s')
+                     Done
+                         | null p    → return Done
+                         | otherwise → return $ Yield p ((⊥)       , Nothing)
+          packPackets (_, Nothing)
+              = return Done
+
     {-# INLINEABLE cons #-}
     cons b (Bitstream v)
         | SV.null v = Bitstream (SV.singleton (singleton b))
@@ -345,8 +300,33 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
     reverse (Bitstream v)
         = Bitstream (SV.reverse (SV.map reverse v))
 
+    {-# INLINE scanl #-}
+    scanl f b
+        = unstream ∘ S.scanl f b ∘ stream
+
     {-# INLINE concat #-}
     concat = Bitstream ∘ SV.concat ∘ L.map toPackets
+
+    {-# INLINEABLE replicate #-}
+    replicate n0 b
+        | n0 ≤ 0    = (∅)
+        | otherwise = Bitstream (anterior `SV.snoc` posterior)
+        where
+          {-# INLINE anterior #-}
+          anterior = SV.replicate n p
+              where
+                n ∷ Int
+                {-# INLINE n #-}
+                n = fromIntegral (n0 `div` 8)
+                {-# INLINE p #-}
+                p = replicate (8 ∷ Int) b
+
+          {-# INLINE posterior #-}
+          posterior = replicate n b
+              where
+                n ∷ Int
+                {-# INLINE n #-}
+                n = fromIntegral (n0 `mod` 8)
 
     {-# INLINEABLE take #-}
     take n0 (Bitstream v0)
@@ -427,13 +407,17 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
                            Skip    s' → return $ Skip s'
                            Done       → return Done
 
-strictHead ∷ Bitstream d → Bool
-{-# RULES "head → strictHead" [2] head = strictHead #-}
+strictHead ∷ G.Bitstream (Packet d) ⇒ Bitstream d → Bool
+{-# RULES "head → strictHead" [2]
+    ∀(v ∷ G.Bitstream (Packet d) ⇒ Bitstream d).
+    head v = strictHead v #-}
 {-# INLINE strictHead #-}
 strictHead (Bitstream v) = head (SV.head v)
 
-strictLast ∷ Bitstream d → Bool
-{-# RULES "last → strictLast" [2] last = strictLast #-}
+strictLast ∷ G.Bitstream (Packet d) ⇒ Bitstream d → Bool
+{-# RULES "last → strictLast" [2]
+    ∀(v ∷ G.Bitstream (Packet d) ⇒ Bitstream d).
+    last v = strictLast v #-}
 {-# INLINE strictLast #-}
 strictLast (Bitstream v) = last (SV.last v)
 
@@ -442,41 +426,21 @@ strictNull ∷ Bitstream d → Bool
 {-# INLINE strictNull #-}
 strictNull (Bitstream v) = SV.null v
 
-strictLength ∷ Num n ⇒ Bitstream d → n
-{-# RULES "length → strictLength" [2] length = strictLength #-}
+strictLength ∷ (G.Bitstream (Packet d), Num n) ⇒ Bitstream d → n
+{-# RULES "length → strictLength" [2]
+    ∀(v ∷ G.Bitstream (Packet d) ⇒ Bitstream d).
+    length v = strictLength v #-}
 {-# INLINE strictLength #-}
 strictLength (Bitstream v)
     = SV.foldl' (\n p → n + length p) 0 v
 
-strictReplicate ∷ Integral n ⇒ n → Bool → Bitstream d
-{-# RULES "replicate → strictReplicate" [2]
-    replicate = strictReplicate #-}
-{-# INLINEABLE strictReplicate #-}
-strictReplicate n0 b
-    | n0 ≤ 0    = (∅)
-    | otherwise = Bitstream (anterior `SV.snoc` posterior)
-    where
-      {-# INLINE anterior #-}
-      anterior = SV.replicate n p
-          where
-            n ∷ Int
-            {-# INLINE n #-}
-            n = fromIntegral (n0 `div` 8)
-            {-# INLINE p #-}
-            p = replicate 8 b
-
-      {-# INLINE posterior #-}
-      posterior = replicate n b
-          where
-            n ∷ Int
-            {-# INLINE n #-}
-            n = fromIntegral (n0 `mod` 8)
-
-strictIndex ∷ Integral n ⇒ Bitstream d → n → Bool
-{-# RULES "(!!) → strictIndex" [2] (!!) = strictIndex #-}
+strictIndex ∷ (G.Bitstream (Packet d), Integral n) ⇒ Bitstream d → n → Bool
+{-# RULES "(!!) → strictIndex" [2]
+    ∀(v ∷ G.Bitstream (Packet d) ⇒ Bitstream d) n.
+    v !! n = strictIndex v n #-}
 {-# INLINEABLE strictIndex #-}
 strictIndex (Bitstream v0) i0
-    | i0 < 0    = indexOutOfRange
+    | i0 < 0    = indexOutOfRange i0
     | otherwise = go v0 i0
     where
       {-# INLINE go #-}
@@ -485,10 +449,6 @@ strictIndex (Bitstream v0) i0
           | otherwise = case SV.head v of
                           p | i < length p → p !! i
                             | otherwise    → go (SV.tail v) (i - length p)
-
-inconsistentState ∷ α
-inconsistentState
-    = error "Data.Bitstream: internal error: inconsistent state"
 
 emptyStream ∷ α
 emptyStream

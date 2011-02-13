@@ -193,6 +193,12 @@ instance Bitstream (Packet Left) where
     {-# INLINE scanl #-}
     scanl = scanlPacket
 
+    {-# INLINE replicate #-}
+    replicate n b
+        | n > 8     = packetOverflow
+        | b         = Packet (fromIntegral n) (0xFF `shiftR` (8 - fromIntegral n))
+        | otherwise = Packet (fromIntegral n) 0
+
     {-# INLINE take #-}
     take l (Packet n o)
         | l ≤ 0      = (∅)
@@ -294,6 +300,12 @@ instance Bitstream (Packet Right) where
     {-# INLINE scanl #-}
     scanl = scanlPacket
 
+    {-# INLINE replicate #-}
+    replicate n b
+        | n > 8     = packetOverflow
+        | b         = Packet (fromIntegral n) (0xFF `shiftL` (8 - fromIntegral n))
+        | otherwise = Packet (fromIntegral n) 0
+
     {-# INLINE take #-}
     take l (Packet n o)
         | l ≤ 0      = (∅)
@@ -352,24 +364,6 @@ packetAndR ∷ Packet Right → Bool
 {-# RULES "and → packetAndR" [2] and = packetAndR #-}
 {-# INLINE packetAndR #-}
 packetAndR (Packet n o) = (0xFF `shiftL` (8-n)) ≡ o
-
-packetReplicateL ∷ Integral n ⇒ n → Bool → Packet Left
-{-# RULES "replicate → packetReplicateL" [2]
-    replicate = packetReplicateL #-}
-{-# INLINE packetReplicateL #-}
-packetReplicateL n b
-    | n > 8     = packetOverflow
-    | b         = Packet (fromIntegral n) (0xFF `shiftR` (8 - fromIntegral n))
-    | otherwise = Packet (fromIntegral n) 0
-
-packetReplicateR ∷ Integral n ⇒ n → Bool → Packet Right
-{-# RULES "replicate → packetReplicateR" [2]
-    replicate = packetReplicateR #-}
-{-# INLINE packetReplicateR #-}
-packetReplicateR n b
-    | n > 8     = packetOverflow
-    | b         = Packet (fromIntegral n) (0xFF `shiftL` (8 - fromIntegral n))
-    | otherwise = Packet (fromIntegral n) 0
 
 packetIndexL ∷ Integral n ⇒ Packet Left → n → Bool
 {-# RULES "(!!) → packetIndexL" [2] (!!) = packetIndexL #-}
