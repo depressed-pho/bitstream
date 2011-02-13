@@ -119,7 +119,8 @@ instance Ord (Packet Right) where
 
 instance Bitstream (Packet Left) where
     {-# INLINE [0] stream #-}
-    stream (Packet n o) = Stream step 0 (Exact n)
+    stream (Packet n o) = {-# CORE "Packet Left stream" #-}
+                          Stream step 0 (Exact n)
         where
           {-# INLINE step #-}
           step !i
@@ -128,14 +129,15 @@ instance Bitstream (Packet Left) where
 
     {-# INLINE [0] unstream #-}
     unstream (Stream step s0 sz)
-        = case upperBound sz of
+        = {-# CORE "Packet Left unstream" #-}
+          case upperBound sz of
             Just n
                 | n ≤ 8     → unId (unsafeConsume s0 0 0)
                 | otherwise → packetOverflow
             Nothing         → unId (safeConsume   s0 0 0)
         where
           {-# INLINE unsafeConsume #-}
-          unsafeConsume s i o
+          unsafeConsume s !i !o
               = do r ← step s
                    case r of
                      Yield True  s' → unsafeConsume s' (i+1) (o `setBit` i)
@@ -143,7 +145,7 @@ instance Bitstream (Packet Left) where
                      Skip        s' → unsafeConsume s'  i     o
                      Done           → return $! Packet i o
           {-# INLINE safeConsume #-}
-          safeConsume s i o
+          safeConsume s !i !o
               = do r ← step s
                    case r of
                      Yield b s'
@@ -226,7 +228,8 @@ instance Bitstream (Packet Left) where
 
 instance Bitstream (Packet Right) where
     {-# INLINE [0] stream #-}
-    stream (Packet n o) = Stream step 0 (Exact n)
+    stream (Packet n o) = {-# CORE "Packet Right stream" #-}
+                          Stream step 0 (Exact n)
         where
           {-# INLINE step #-}
           step !i
@@ -235,7 +238,8 @@ instance Bitstream (Packet Right) where
 
     {-# INLINE [0] unstream #-}
     unstream (Stream step s0 sz)
-        = case upperBound sz of
+        = {-# CORE "Packet Right unstream" #-}
+          case upperBound sz of
             Just n
                 | n ≤ 8     → unId (unsafeConsume s0 0 0)
                 | otherwise → packetOverflow

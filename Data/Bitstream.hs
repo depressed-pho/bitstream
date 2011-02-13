@@ -1,5 +1,6 @@
 {-# LANGUAGE
-    FlexibleContexts
+    BangPatterns
+  , FlexibleContexts
   , ScopedTypeVariables
   , UndecidableInstances
   , UnicodeSyntax
@@ -157,7 +158,6 @@ module Data.Bitstream
     where
 import Data.Bitstream.Generic hiding (Bitstream)
 import qualified Data.Bitstream.Generic as G
---import Data.Bitstream.Internal
 import Data.Bitstream.Packet
 import qualified Data.ByteString as BS
 import qualified Data.List as L
@@ -167,6 +167,7 @@ import qualified Data.Vector.Storable as SV
 import qualified Data.Vector.Fusion.Stream as S
 import Data.Vector.Fusion.Stream.Monadic (Stream(..), Step(..))
 import Data.Vector.Fusion.Stream.Size
+import Data.Vector.Fusion.Util
 import Prelude ( Bool(..), Eq(..), Int, Integral, Maybe(..), Monad(..), Num(..)
                , Ord(..), Show(..), ($), div, error, fmap
                , fromIntegral, fst, mod, otherwise
@@ -230,31 +231,14 @@ instance G.Bitstream (Packet d) ⇒ Monoid (Bitstream d) where
 
 instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
     {-# INLINE [0] stream #-}
-    stream (Bitstream v) = S.concatMap stream (GV.stream v)
+    stream (Bitstream v)
+        = {-# CORE "Bitstream stream" #-}
+          S.concatMap stream (GV.stream v) `S.sized` Exact (length (Bitstream v))
 
     {-# INLINE [0] unstream #-}
-    unstream (Stream step s0 sz)
-        = Bitstream (GV.unstream (Stream packPackets ((∅), Just s0) sz'))
-        where
-          sz' ∷ Size
-          {-# INLINE sz' #-}
-          sz' = case sz of
-                  Exact n → Exact (n+7 `div` 8)
-                  Max   n → Max   (n+7 `div` 8)
-                  Unknown → Unknown
-          {-# INLINE packPackets #-}
-          packPackets (p, Just s)
-              = do r ← step s
-                   case r of
-                     Yield b s'
-                         | full p    → return $ Yield p (singleton b, Just s')
-                         | otherwise → return $ Skip    (p `snoc` b , Just s')
-                     Skip    s'      → return $ Skip    (p          , Just s')
-                     Done
-                         | null p    → return Done
-                         | otherwise → return $ Yield p ((⊥)       , Nothing)
-          packPackets (_, Nothing)
-              = return Done
+    unstream
+        = {-# CORE "Bitstream unstream" #-}
+          Bitstream ∘ GV.unstream ∘ packPackets
 
     {-# INLINEABLE cons #-}
     cons b (Bitstream v)
@@ -454,6 +438,30 @@ emptyStream ∷ α
 emptyStream
     = error "Data.Bitstream: empty stream"
 
+packPackets ∷ (G.Bitstream (Packet d), Monad m) ⇒ Stream m Bool → Stream m (Packet d)
+{-# INLINE packPackets #-}
+packPackets (Stream step s0 sz) = Stream step' ((∅), Just s0) sz'
+    where
+      sz' ∷ Size
+      {-# INLINE sz' #-}
+      sz' = case sz of
+              Exact n → Exact (n+7 `div` 8)
+              Max   n → Max   (n+7 `div` 8)
+              Unknown → Unknown
+      {-# INLINE step' #-}
+      step' (p, Just s)
+          = do r ← step s
+               case r of
+                 Yield b s'
+                     | full p    → return $ Yield p (singleton b, Just s')
+                     | otherwise → return $ Skip    (p `snoc` b , Just s')
+                 Skip    s'      → return $ Skip    (p          , Just s')
+                 Done
+                     | null p    → return Done
+                     | otherwise → return $ Yield p ((⊥)       , Nothing)
+      step' (_, Nothing)
+          = return Done
+
 {-# INLINE indexOutOfRange #-}
 indexOutOfRange ∷ Integral n ⇒ n → α
 indexOutOfRange n = error ("Data.Bitstream: index out of range: " L.++ show n)
@@ -473,31 +481,25 @@ fromByteString bs0 = Bitstream (SV.unfoldrN nOctets go bs0)
 -- | /O(n)/ @'toByteString' bs@ converts a 'Bitstream' @bits@ into a
 -- 'BS.ByteString'. The resulting octets will be padded with zeroes if
 -- the 'length' of @bs@ is not multiple of 8.
-{-# INLINE toByteString #-}
-toByteString ∷ G.Bitstream (Packet d) ⇒ Bitstream d → BS.ByteString
-toByteString (Bitstream v0)
-    = fst $ BS.unfoldrN nOctets go ((∅), (∅), v0)
-    where
-      {-# INLINE nOctets #-}
-      nOctets ∷ Int
-      nOctets = SV.length v0
-      {-# INLINE go #-}
-      go (p, r, v)
-          | full p
-              = Just (toOctet p, ((∅), r, v))
-          | null r
-              = case SV.null v of
-                  False           → go (p, SV.head v, SV.tail v)
-                  True
-                      | null p    → Nothing
-                      | otherwise → Just (toOctet p, ((∅), (∅), SV.empty))
-          | otherwise
-              = let lenR ∷ Int
-                    lenR = 8 - length p
-                    rH   = take lenR r
-                    rT   = drop lenR r
-                in
-                  go (p ⧺ rH, rT, v)
+{-# INLINEABLE toByteString #-}
+toByteString ∷ ∀d. G.Bitstream (Packet d) ⇒ Bitstream d → BS.ByteString
+toByteString = unstreamBS
+             ∘ (packPackets ∷ Stream Id Bool → Stream Id (Packet d))
+             ∘ stream
+
+unstreamBS ∷ Stream Id (Packet d) → BS.ByteString
+{-# INLINE unstreamBS #-}
+unstreamBS (Stream step s0 sz)
+    = case upperBound sz of
+        Just n  → fst $ BS.unfoldrN n (unId ∘ go) s0
+        Nothing → BS.unfoldr (unId ∘ go) s0
+      where
+        {-# INLINE go #-}
+        go s = do r ← step s
+                  case r of
+                    Yield p s' → return $ Just (toOctet p, s')
+                    Skip    s' → go s'
+                    Done       → return Nothing
 
 -- | /O(1)/ Convert a 'SV.Vector' of 'Packet's into a 'Bitstream'.
 {-# INLINE fromPackets #-}

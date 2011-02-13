@@ -1,5 +1,6 @@
 {-# LANGUAGE
-    UnicodeSyntax
+    BangPatterns
+  , UnicodeSyntax
   #-}
 module Data.Bitstream.Fusion.Monadic
     ( genericLength
@@ -104,7 +105,7 @@ genericUnfoldrNM ∷ (Monad m, Integral n) ⇒ n → (β → m (Maybe (α, β)))
 genericUnfoldrNM n0 f β0 = unfoldrM go (n0, β0)
     where
       {-# INLINE go #-}
-      go (n, β)
+      go (!n, β)
           | n ≤ 0     = return Nothing
           | otherwise = do r ← f β
                            return $ do (α, β') ← r

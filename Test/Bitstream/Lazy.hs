@@ -5,7 +5,7 @@
   , UndecidableInstances
   , UnicodeSyntax
   #-}
-module Main where
+module Main (main) where
 import Control.Arrow
 import Data.Bitstream.Lazy (Bitstream, Left, Right)
 import Data.ByteString.Lazy.Char8 ()
