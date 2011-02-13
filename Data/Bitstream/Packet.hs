@@ -156,30 +156,30 @@ instance Bitstream (Packet Left) where
                      Skip    s'      → safeConsume s' i o
                      Done            → return $! Packet i o
 
-    {-# INLINE cons #-}
+    {-# INLINE [2] cons #-}
     cons b p
         | full p    = packetOverflow
         | otherwise = b `unsafeConsL` p
 
-    {-# INLINE snoc #-}
+    {-# INLINE [2] snoc #-}
     snoc p b
         | full p    = packetOverflow
         | otherwise = p `unsafeSnocL` b
 
-    {-# INLINE append #-}
+    {-# INLINE [2] append #-}
     append (Packet nx ox) (Packet ny oy)
         | nx + ny > 8 = packetOverflow
         | otherwise   = Packet (nx + ny) (ox .|. (oy `shiftL` nx))
 
-    {-# INLINE tail #-}
+    {-# INLINE [2] tail #-}
     tail (Packet 0 _) = emptyNotAllowed
     tail (Packet n o) = Packet (n-1) (o `shiftR` 1)
 
-    {-# INLINE init #-}
+    {-# INLINE [2] init #-}
     init (Packet 0 _) = emptyNotAllowed
     init (Packet n o) = Packet (n-1) o
 
-    {-# INLINE map #-}
+    {-# INLINE [2] map #-}
     map f (Packet n o0) = Packet n (go 0 o0)
         where
           {-# INLINE go #-}
@@ -188,20 +188,20 @@ instance Bitstream (Packet Left) where
               | f (o `testBit` i) = go (i+1) (o `setBit`   i)
               | otherwise         = go (i+1) (o `clearBit` i)
 
-    {-# INLINE reverse #-}
+    {-# INLINE [2] reverse #-}
     reverse (Packet n o)
         = Packet n (reverseBits o `shiftR` (8-n))
 
-    {-# INLINE scanl #-}
+    {-# INLINE [1] scanl #-}
     scanl = scanlPacket
 
-    {-# INLINE replicate #-}
+    {-# INLINE [2] replicate #-}
     replicate n b
         | n > 8     = packetOverflow
         | b         = Packet (fromIntegral n) (0xFF `shiftR` (8 - fromIntegral n))
         | otherwise = Packet (fromIntegral n) 0
 
-    {-# INLINE take #-}
+    {-# INLINE [2] take #-}
     take l (Packet n o)
         | l ≤ 0      = (∅)
         | otherwise
@@ -210,7 +210,7 @@ instance Bitstream (Packet Left) where
               in
                 Packet n' o'
 
-    {-# INLINE drop #-}
+    {-# INLINE [2] drop #-}
     drop l (Packet n o)
         | l ≤ 0      = Packet n o
         | otherwise
@@ -220,10 +220,10 @@ instance Bitstream (Packet Left) where
               in
                 Packet n' o'
 
-    {-# INLINE takeWhile #-}
+    {-# INLINE [2] takeWhile #-}
     takeWhile = takeWhilePacket
 
-    {-# INLINE dropWhile #-}
+    {-# INLINE [2] dropWhile #-}
     dropWhile = dropWhilePacket
 
 instance Bitstream (Packet Right) where
@@ -265,30 +265,30 @@ instance Bitstream (Packet Right) where
                      Skip    s'      → safeConsume s' i o
                      Done            → return $! Packet i o
 
-    {-# INLINE cons #-}
+    {-# INLINE [2] cons #-}
     cons b p
         | full p    = packetOverflow
         | otherwise = b `unsafeConsR` p
 
-    {-# INLINE snoc #-}
+    {-# INLINE [2] snoc #-}
     snoc p b
         | full p    = packetOverflow
         | otherwise = p `unsafeSnocR` b
 
-    {-# INLINE append #-}
+    {-# INLINE [2] append #-}
     append (Packet nx ox) (Packet ny oy)
         | nx + ny > 8 = packetOverflow
         | otherwise   = Packet (nx + ny) (ox .|. (oy `shiftR` nx))
 
-    {-# INLINE tail #-}
+    {-# INLINE [2] tail #-}
     tail (Packet 0 _) = emptyNotAllowed
     tail (Packet n o) = Packet (n-1) (o `shiftL` 1)
 
-    {-# INLINE init #-}
+    {-# INLINE [2] init #-}
     init (Packet 0 _) = emptyNotAllowed
     init (Packet n o) = Packet (n-1) o
 
-    {-# INLINE map #-}
+    {-# INLINE [2] map #-}
     map f (Packet n o0) = Packet n (go 0 o0)
         where
           {-# INLINE go #-}
@@ -297,20 +297,20 @@ instance Bitstream (Packet Right) where
               | f (o `testBit` (7-i)) = go (i+1) (o `setBit`   (7-i))
               | otherwise             = go (i+1) (o `clearBit` (7-i))
 
-    {-# INLINE reverse #-}
+    {-# INLINE [2] reverse #-}
     reverse (Packet n o)
         = Packet n (reverseBits o `shiftL` (8-n))
 
-    {-# INLINE scanl #-}
+    {-# INLINE [1] scanl #-}
     scanl = scanlPacket
 
-    {-# INLINE replicate #-}
+    {-# INLINE [2] replicate #-}
     replicate n b
         | n > 8     = packetOverflow
         | b         = Packet (fromIntegral n) (0xFF `shiftL` (8 - fromIntegral n))
         | otherwise = Packet (fromIntegral n) 0
 
-    {-# INLINE take #-}
+    {-# INLINE [2] take #-}
     take l (Packet n o)
         | l ≤ 0      = (∅)
         | otherwise
@@ -319,7 +319,7 @@ instance Bitstream (Packet Right) where
               in
                 Packet n' o'
 
-    {-# INLINE drop #-}
+    {-# INLINE [2] drop #-}
     drop l (Packet n o)
         | l ≤ 0      = Packet n o
         | otherwise
@@ -329,10 +329,10 @@ instance Bitstream (Packet Right) where
               in
                 Packet n' o'
 
-    {-# INLINE takeWhile #-}
+    {-# INLINE [2] takeWhile #-}
     takeWhile = takeWhilePacket
 
-    {-# INLINE dropWhile #-}
+    {-# INLINE [2] dropWhile #-}
     dropWhile = dropWhilePacket
 
 packetHeadL ∷ Packet Left → Bool

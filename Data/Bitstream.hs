@@ -240,7 +240,7 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
         = {-# CORE "Bitstream unstream" #-}
           Bitstream ∘ GV.unstream ∘ packPackets
 
-    {-# INLINEABLE cons #-}
+    {-# INLINEABLE [2] cons #-}
     cons b (Bitstream v)
         | SV.null v = Bitstream (SV.singleton (singleton b))
         | otherwise = case SV.head v of
@@ -249,7 +249,7 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
                           | otherwise
                                 → Bitstream (singleton b `SV.cons` v)
 
-    {-# INLINEABLE snoc #-}
+    {-# INLINEABLE [2] snoc #-}
     snoc (Bitstream v) b
         | SV.null v = Bitstream (SV.singleton (singleton b))
         | otherwise = case SV.last v of
@@ -258,40 +258,40 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
                           | otherwise
                                 → Bitstream (v `SV.snoc` singleton b)
 
-    {-# INLINE append #-}
+    {-# INLINE [2] append #-}
     append (Bitstream x) (Bitstream y)
         = Bitstream (x SV.++ y)
 
-    {-# INLINEABLE tail #-}
+    {-# INLINEABLE [2] tail #-}
     tail (Bitstream v)
         | SV.null v = emptyStream
         | otherwise = case tail (SV.head v) of
                         p' | null p'   → Bitstream (SV.tail v)
                            | otherwise → Bitstream (p' `SV.cons` SV.tail v)
 
-    {-# INLINEABLE init #-}
+    {-# INLINEABLE [2] init #-}
     init (Bitstream v)
         | SV.null v = emptyStream
         | otherwise = case init (SV.last v) of
                         p' | null p'   → Bitstream (SV.init v)
                            | otherwise → Bitstream (SV.init v `SV.snoc` p')
 
-    {-# INLINE map #-}
+    {-# INLINE [2] map #-}
     map f (Bitstream v)
         = Bitstream (SV.map (map f) v)
 
-    {-# INLINE reverse #-}
+    {-# INLINE [2] reverse #-}
     reverse (Bitstream v)
         = Bitstream (SV.reverse (SV.map reverse v))
 
-    {-# INLINE scanl #-}
+    {-# INLINE [1] scanl #-}
     scanl f b
         = unstream ∘ S.scanl f b ∘ stream
 
-    {-# INLINE concat #-}
+    {-# INLINE [2] concat #-}
     concat = Bitstream ∘ SV.concat ∘ L.map toPackets
 
-    {-# INLINEABLE replicate #-}
+    {-# INLINEABLE [2] replicate #-}
     replicate n0 b
         | n0 ≤ 0    = (∅)
         | otherwise = Bitstream (anterior `SV.snoc` posterior)
@@ -312,7 +312,7 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
                 {-# INLINE n #-}
                 n = fromIntegral (n0 `mod` 8)
 
-    {-# INLINEABLE take #-}
+    {-# INLINEABLE [2] take #-}
     take n0 (Bitstream v0)
         | n0 ≤ 0    = (∅)
         | otherwise = Bitstream (SV.unfoldrN nOctets go (n0, v0))
@@ -331,7 +331,7 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
                             in
                               return (p', (n', v'))
 
-    {-# INLINEABLE drop #-}
+    {-# INLINEABLE [2] drop #-}
     drop n0 (Bitstream v0)
         | n0 ≤ 0    = Bitstream v0
         | otherwise = Bitstream (go n0 v0)
@@ -344,7 +344,7 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
                               p | n ≥ length p → go (n - length p) (SV.tail v)
                                 | otherwise    → drop n p `SV.cons` (SV.tail v)
 
-    {-# INLINEABLE takeWhile #-}
+    {-# INLINEABLE [2] takeWhile #-}
     takeWhile f (Bitstream v0)
         = Bitstream (GV.unstream (takeWhilePS (GV.stream v0)))
         where
@@ -365,7 +365,7 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
                            Done
                                → return Done
 
-    {-# INLINEABLE dropWhile #-}
+    {-# INLINEABLE [2] dropWhile #-}
     dropWhile f (Bitstream v0) = Bitstream (go v0)
         where
           {-# INLINE go #-}
@@ -374,7 +374,7 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
                                p' | null p'   → go (SV.tail v)
                                   | otherwise → p' `SV.cons` SV.tail v
 
-    {-# INLINEABLE filter #-}
+    {-# INLINEABLE [2] filter #-}
     filter f (Bitstream v0)
         = Bitstream (GV.unstream (filterPS (GV.stream v0)))
         where

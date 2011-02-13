@@ -188,14 +188,11 @@ module Data.Bitstream.Lazy
 import qualified Data.Bitstream as Strict
 import Data.Bitstream.Generic hiding (Bitstream)
 import qualified Data.Bitstream.Generic as G
-import Data.Bitstream.Internal
 import Data.Bitstream.Packet
 import qualified Data.ByteString.Lazy as LS
-import qualified Data.List.Stream as L
+import qualified Data.List as L
 import Data.Monoid
-import qualified Data.StorableVector as SV
-import qualified Data.StorableVector.Lazy as LV
-import qualified Data.Stream as S
+import qualified Data.Vector.Fusion.Stream as S
 import Foreign.Storable
 import Prelude ( Bool(..), Either(..), Eq(..), Int, Integral, Maybe(..)
                , Monad(..), Num(..), Ord(..), Ordering(..), Show(..)
@@ -210,7 +207,8 @@ chunkSize = fromInteger (32 ⋅ 1024)
 {-# INLINE chunkSize #-}
 
 newtype Bitstream d
-    = Bitstream (LV.Vector (Packet d))
+    = Empty
+    | Chunk {-# UNPACK #-} !(Strict.Bitstream d) (Bitstream d)
 
 instance Show (Packet d) ⇒ Show (Bitstream d) where
     {-# INLINEABLE show #-}
@@ -281,9 +279,6 @@ instance G.Bitstream (Packet d) ⇒ Monoid (Bitstream d) where
     mconcat = concat
 
 instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
-    {-# SPECIALISE instance G.Bitstream (Bitstream Left ) #-}
-    {-# SPECIALISE instance G.Bitstream (Bitstream Right) #-}
-
     {-# INLINE [0] pack #-}
     pack = Bitstream ∘ LV.unfoldr chunkSize f ∘ Just
         where
@@ -315,12 +310,41 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
     singleton b
         = Bitstream (LV.singleton (singleton b))
 
-    {-# INLINE cons #-}
+    {-# INLINE [2] cons #-}
     cons b (Bitstream v)
         = Bitstream (LV.cons (singleton b) v)
 
-    {-# INLINE snoc #-}
-    snoc = snoc'
+    {-# INLINEABLE [2] cons' #-}
+    cons' b Empty
+        = Chunk (Strict.singleton b) Empty
+    cons' b (Chunk ch rest)
+        = let v = Strict.toPackets ch
+          in
+            case SV.head v of
+              p | length p < (8 ∷ Int)
+                      → Chunk (Strict.fromPackets ((b `cons` p) `SV.cons` SV.tail v)) rest
+                | SV.length v < chunkSize
+                      → Chunk (Strict.fromPackets (singleton b `SV.cons` v)) rest
+                | otherwise
+                      → Chunk (singleton b) rest
+    cons' b ch
+        = Chunk (singleton b) ch
+
+    {-# INLINEABLE [2] snoc #-}
+    snoc Empty b
+        = Chunk (Strict.singleton b) Empty
+    snoc (Chunk ch Empty)
+        = let v = Strict.toPackets ch
+          in
+            case SV.last v of
+              p | length p < (8 ∷ Int)
+                      → Chunk (Strict.fromPackets (SV.init v `SV.snoc` (p `snoc` b))) Empty
+                | SV.length v < chunkSize
+                      → Chunk (Strict.fromPackets (v `SV.snoc` singleton b) Empty)
+                | otherwise
+                      → Chunk ch (Chunk (singleton b) Empty)
+    snoc (Chunk ch rest)
+        = Chunk ch (rest `snoc` b)
 
     {-# INLINE append #-}
     append (Bitstream x) (Bitstream y)
@@ -665,43 +689,6 @@ directionLToR (Bitstream v) = Bitstream (LV.map packetLToR v)
 directionRToL ∷ Bitstream Right → Bitstream Left
 directionRToL (Bitstream v) = Bitstream (LV.map packetRToL v)
 
-{-# INLINEABLE cons' #-}
-{-# SPECIALISE cons' ∷ Bool → Bitstream Left  → Bitstream Left  #-}
-{-# SPECIALISE cons' ∷ Bool → Bitstream Right → Bitstream Right #-}
-cons' ∷ G.Bitstream (Packet d) ⇒ Bool → Bitstream d → Bitstream d
-cons' b (Bitstream v) = Bitstream (LV.fromChunks (go (LV.chunks v)))
-    where
-      {-# INLINE go #-}
-      go []     = [SV.singleton (singleton b)]
-      go (x:xs) = case SV.viewL x of
-                    Just (p, ps)
-                        | length p < (8 ∷ Int)
-                              → SV.cons (cons b p) ps : xs
-                        | SV.length x < chunkSize
-                              → SV.cons (singleton b) x : xs
-                        | otherwise
-                              → SV.singleton (singleton b) : x : xs
-                    Nothing   → inconsistentState
-
-{-# INLINEABLE snoc' #-}
-{-# SPECIALISE snoc' ∷ Bitstream Left  → Bool → Bitstream Left  #-}
-{-# SPECIALISE snoc' ∷ Bitstream Right → Bool → Bitstream Right #-}
-snoc' ∷ G.Bitstream (Packet d) ⇒ Bitstream d → Bool → Bitstream d
-snoc' (Bitstream v) b = Bitstream (LV.fromChunks (go (LV.chunks v)))
-    where
-      {-# INLINE go #-}
-      go []     = [SV.singleton (singleton b)]
-      go (x:[]) = case SV.viewR x of
-                    Just (ps, p)
-                        | length p < (8 ∷ Int)
-                              → [SV.snoc ps (snoc p b)]
-                        | SV.length x < chunkSize
-                              → [SV.snoc x (singleton b)]
-                        | otherwise
-                              → [x, SV.singleton (singleton b)]
-                    Nothing   → [SV.singleton (singleton b)]
-      go (x:xs) = x : go xs
-
 {- There are only 4 functions of the type Bool → Bool.
 
    * iterate id b            == [b    , b    , b    , b    , ...]
@@ -716,19 +703,24 @@ snoc' (Bitstream v) b = Bitstream (LV.fromChunks (go (LV.chunks v)))
  -}
 {-# INLINE iterate #-}
 iterate ∷ G.Bitstream (Packet d) ⇒ (Bool → Bool) → Bool → Bitstream d
-iterate f b
-    = case pack (L.take 8 (L.iterate f b)) of
-        p → Bitstream (LV.repeat chunkSize p)
+iterate f b = bs
+    where
+      bs = Chunk ch bs
+      ch = repeat chunkSize p
+      p  = pack (L.take 8 (L.iterate f b))
 
 {-# INLINE repeat #-}
 repeat ∷ G.Bitstream (Packet d) ⇒ Bool → Bitstream d
-repeat b
-    = case pack (L.replicate 8 b) of
-        p → Bitstream (LV.repeat chunkSize p)
+repeat b = bs
+    where
+      bs = Chunk ch bs
+      ch = repeat chunkSize p
+      p  = replicate 8 b
 
 {-# INLINE cycle #-}
 cycle ∷ G.Bitstream (Packet d) ⇒ Bitstream d → Bitstream d
-cycle (Bitstream v) = Bitstream (LV.cycle v)
+cycle Empty           = emptyStream
+cycle ch@(Chunk bs _) = Chunk bs ch
 
 {-# INLINE getContents #-}
 getContents ∷ G.Bitstream (Packet d) ⇒ IO (Bitstream d)
