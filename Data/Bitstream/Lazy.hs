@@ -308,18 +308,11 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
 
     {-# INLINE [0] unstream #-}
     unstream
-        = Bitstream ∘ unstreamLV chunkSize ∘ packStream
-
-    {-# INLINE empty #-}
-    empty = Bitstream LV.empty
-
-    {-# INLINE singleton #-}
-    singleton b
-        = Bitstream (LV.singleton (singleton b))
+        = {-# CORE "Lazy Bitstream unstream" #-}
+          unstreamChunks ∘ packChunks
 
     {-# INLINE [2] cons #-}
-    cons b (Bitstream v)
-        = Bitstream (LV.cons (singleton b) v)
+    cons b = Chunk (singleton b)
 
     {-# INLINEABLE [2] cons' #-}
     cons' b Empty
@@ -342,32 +335,14 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
         = Chunk x (xs `snoc` b)
 
     {-# INLINE [2] append #-}
-    append (Bitstream x) (Bitstream y)
-        = Bitstream (LV.append x y)
-
-    {-# INLINE [2] head #-}
-    head (Bitstream v)
-        = case LV.viewL v of
-            Just (p, _) → head p
-            Nothing     → emptyStream
-
-    {-# INLINE [2] last #-}
-    last = go ∘ toChunks
-        where
-          {-# INLINE go #-}
-          go []     = emptyStream
-          go [x]    = last x
-          go (_:xs) = go xs
+    append Empty ch           = ch
+    append ch Empty           = ch
+    append (Chunk x Empty) ch = Chunk x ch
+    append (Chunk x xs   ) ch = Chunk x (append xs ch)
 
     {-# INLINEABLE [2] tail #-}
-    tail (Bitstream v)
-        = case LV.viewL v of
-            Just (p, v')
-                → case tail p of
-                     p' | null p'   → Bitstream v'
-                        | otherwise → Bitstream (p' `LV.cons` v')
-            Nothing
-                → emptyStream
+    tail Empty        = emptyStream
+    tail (Chunk x xs) = Chunk (tail x) xs
 
     {-# INLINEABLE [2] init #-}
     init Empty           = emptyStream
@@ -386,10 +361,7 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
           go (Chunk x xs) ch = go xs (Chunk (reverse x) ch)
 
     {-# INLINE [2] concat #-}
-    concat Empty ch           = ch
-    concat ch Empty           = ch
-    concat (Chunk x Empty) ch = Chunk x ch
-    concat (Chunk x xs   ) ch = Chunk x (concat xs ch)
+    concat = fromChunks ∘ L.concatMap toChunks
 
     {-# INLINEABLE replicate #-}
     replicate n b
@@ -430,13 +402,30 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
                               x' | null x'   → filter f xs
                                  | otherwise → Chunk x' (filter f xs)
 
+lazyHead ∷ G.Bitstream (Packet d) ⇒ Bitstream d → Bool
+{-# RULES "head → lazyHead" [2]
+    ∀(v ∷ G.Bitstream (Packet d) ⇒ Bitstream d).
+    head v = lazyHead v #-}
+{-# INLINE lazyHead #-}
+lazyHead Empty       = emptyStream
+lazyHead (Chunk x _) = head x
+
+lazyLast ∷ G.Bitstream (Packet d) ⇒ Bitstream d → Bool
+{-# RULES "last → lazyLast" [2]
+    ∀(v ∷ G.Bitstream (Packet d) ⇒ Bitstream d).
+    last v = lazyLast v #-}
+{-# INLINE lazyLast #-}
+lazyLast Empty           = emptyStream
+lazyLast (Chunk x Empty) = last x
+lazyLast (Chunk x xs   ) = lazyLast xs
+
 lazyNull ∷ Bitstream d → Bool
 {-# RULES "null → lazyNull" [2] null = lazyNull #-}
 {-# INLINE lazyNull #-}
 lazyNull Empty = True
 lazyNull _     = False
 
-lazyLength ∷ (G.Bitstream (Packet n), Num n) ⇒ Bitstream d → n
+lazyLength ∷ (G.Bitstream (Packet d), Num n) ⇒ Bitstream d → n
 {-# RULES "length → lazyLength" [2]
     ∀(v ∷ G.Bitstream (Packet d) ⇒ Bitstream d).
     length v = lazyLength v #-}
