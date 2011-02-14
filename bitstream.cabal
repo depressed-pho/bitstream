@@ -39,6 +39,9 @@ Library
         Data.Bitstream.Lazy
         Data.Bitstream.Packet
 
+    Other-Modules:
+        Data.Bitstream.Internal
+
     GHC-Options:
         -Wall
 

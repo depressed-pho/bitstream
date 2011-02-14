@@ -186,6 +186,7 @@ module Data.Bitstream.Lazy
 import qualified Data.Bitstream as SB
 import Data.Bitstream.Generic hiding (Bitstream)
 import qualified Data.Bitstream.Generic as G
+import Data.Bitstream.Internal
 import Data.Bitstream.Packet
 import qualified Data.ByteString.Lazy as LS
 import qualified Data.List as L
@@ -216,16 +217,16 @@ newtype Bitstream d
 
 instance Show (Packet d) ⇒ Show (Bitstream d) where
     {-# INLINEABLE show #-}
-    show (Bitstream v0)
+    show ch
         = L.concat
           [ "(L"
-          , L.concat (L.unfoldr go v0)
+          , L.concat (L.unfoldr go ch)
           , ")"
           ]
         where
           {-# INLINE go #-}
-          go v = do (p, v') ← LV.viewL v
-                    return (show p, v')
+          go Empty        = Nothing
+          go (Chunk x xs) = Just ("{" L.++ show x L.++ "}", xs)
 
 instance G.Bitstream (Packet d) ⇒ Eq (Bitstream d) where
     {-# INLINE (==) #-}
