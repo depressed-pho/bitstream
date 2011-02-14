@@ -291,10 +291,11 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
     {-# INLINE [2] concat #-}
     concat = Bitstream ∘ SV.concat ∘ L.map toPackets
 
-    {-# INLINEABLE [2] replicate #-}
+    {-# INLINEABLE replicate #-}
     replicate n0 b
-        | n0 ≤ 0    = (∅)
-        | otherwise = Bitstream (anterior `SV.snoc` posterior)
+        | n0 ≤ 0         = (∅)
+        | n0 `mod` 8 ≡ 0 = Bitstream anterior
+        | otherwise      = Bitstream (anterior `SV.snoc` posterior)
         where
           {-# INLINE anterior #-}
           anterior = SV.replicate n p
@@ -414,9 +415,25 @@ strictLength ∷ (G.Bitstream (Packet d), Num n) ⇒ Bitstream d → n
 {-# RULES "length → strictLength" [2]
     ∀(v ∷ G.Bitstream (Packet d) ⇒ Bitstream d).
     length v = strictLength v #-}
-{-# INLINE strictLength #-}
+{-# INLINEABLE strictLength #-}
 strictLength (Bitstream v)
     = SV.foldl' (\n p → n + length p) 0 v
+
+strictAnd ∷ G.Bitstream (Packet d) ⇒ Bitstream d → Bool
+{-# RULES "and → strictAnd" [2]
+    ∀(v ∷ G.Bitstream (Packet d) ⇒ Bitstream d).
+    and v = strictAnd v #-}
+{-# INLINE strictAnd #-}
+strictAnd (Bitstream v)
+    = SV.all and v
+
+strictOr ∷ G.Bitstream (Packet d) ⇒ Bitstream d → Bool
+{-# RULES "or → strictOr" [2]
+    ∀(v ∷ G.Bitstream (Packet d) ⇒ Bitstream d).
+    or v = strictOr v #-}
+{-# INLINE strictOr #-}
+strictOr (Bitstream v)
+    = SV.any or v
 
 strictIndex ∷ (G.Bitstream (Packet d), Integral n) ⇒ Bitstream d → n → Bool
 {-# RULES "(!!) → strictIndex" [2]

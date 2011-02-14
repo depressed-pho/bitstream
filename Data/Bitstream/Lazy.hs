@@ -1,5 +1,6 @@
 {-# LANGUAGE
-    FlexibleContexts
+    BangPatterns
+  , FlexibleContexts
   , ScopedTypeVariables
   , UndecidableInstances
   , UnicodeSyntax
@@ -209,6 +210,9 @@ chunkSize ∷ Num α ⇒ α
 chunkSize = fromInteger (32 ⋅ 1024)
 {-# INLINE chunkSize #-}
 
+chunkBits ∷ Num α ⇒ α
+chunkBits = chunkSize ⋅ 8
+
 newtype Bitstream d
     = Empty
     | Chunk {-# UNPACK #-} !(SB.Bitstream d) (Bitstream d)
@@ -320,32 +324,20 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
     {-# INLINEABLE [2] cons' #-}
     cons' b Empty
         = Chunk (SB.singleton b) Empty
-    cons' b ch@(Chunk x xs)
-        = let v = SB.toPackets x
-          in
-            case SV.head v of
-              p | length p < (8 ∷ Int)
-                      → Chunk (SB.fromPackets ((b `cons` p) `SV.cons` SV.tail v)) xs
-                | SV.length v < chunkSize
-                      → Chunk (SB.fromPackets (singleton b `SV.cons` v)) xs
-                | otherwise
-                      → Chunk (singleton b) ch
-    cons' b ch
-        = Chunk (singleton b) ch
+    cons' b (Chunk x xs)
+        | length x < (chunkBits ∷ Int)
+            = Chunk (x `cons` b) xs
+        | otherwise
+            = Chunk (singleton b) (Chunk x xs)
 
     {-# INLINEABLE [2] snoc #-}
     snoc Empty b
         = Chunk (SB.singleton b) Empty
-    snoc (Chunk x Empty)
-        = let v = SB.toPackets x
-          in
-            case SV.last v of
-              p | length p < (8 ∷ Int)
-                      → Chunk (SB.fromPackets (SV.init v `SV.snoc` (p `snoc` b))) Empty
-                | SV.length v < chunkSize
-                      → Chunk (SB.fromPackets (v `SV.snoc` singleton b) Empty)
-                | otherwise
-                      → Chunk ch (Chunk (singleton b) Empty)
+    snoc (Chunk x Empty) b
+        | length x < (chunkBits ∷ Int)
+            = Chunk (x `snoc` b) Empty
+        | otherwise
+            = Chunk x (Chunk (singleton b) Empty)
     snoc (Chunk x xs) b
         = Chunk x (xs `snoc` b)
 
@@ -378,219 +370,102 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
                 → emptyStream
 
     {-# INLINEABLE [2] init #-}
-    init = fromChunks ∘ go ∘ toChunks
-        where
-          {-# INLINE go #-}
-          go []     = emptyStream
-          go [x]    = [init x]
-          go (x:xs) = x : go xs
-
-    {-# INLINE [2] null #-}
-    null (Bitstream v)
-        = LV.null v
-
-    {-# INLINE [2] length #-}
-    length (Bitstream v)
-        = LV.foldl' (\n p → n + length p) 0 v
+    init Empty           = emptyStream
+    init (Chunk x Empty) = Chunk (init x) Empty
+    init (Chunk x xs   ) = Chunk x (init xs)
 
     {-# INLINE [2] map #-}
-    map f (Bitstream v)
-        = Bitstream (LV.map (map f) v)
+    map _ Empty        = Empty
+    map f (Chunk x xs) = Chunk (map f x) (map f xs)
 
-    {-# INLINE [2] reverse #-}
-    reverse (Bitstream v)
-        = Bitstream (LV.reverse (LV.map reverse v))
-
-    {-# INLINE [2] foldl #-}
-    foldl f β0 = L.foldl (foldl f) β0 ∘ toChunks
-
-    {-# INLINEABLE [2] foldl' #-}
-    foldl' f β0 = L.foldl' (foldl' f) β0 ∘ toChunks
-
-    {-# INLINE foldr #-}
-    foldr f β0 = L.foldr (flip (foldr f)) β0 ∘ toChunks
-
-    {-# INLINE concat #-}
-    concat = Bitstream ∘ LV.fromChunks ∘ L.concatMap g
+    {-# INLINEABLE [2] reverse #-}
+    reverse ch0 = go ch0 Empty
         where
-          {-# INLINE g #-}
-          g = LV.chunks ∘ toPackets
+          {-# INLINE go #-}
+          go Empty        ch = ch
+          go (Chunk x xs) ch = go xs (Chunk (reverse x) ch)
 
-    {-# INLINE concatMap #-}
-    concatMap f (Bitstream v0) = Bitstream (LV.concat (L.map g (LV.unpack v0)))
-        where
-          {-# INLINE g #-}
-          g = LV.concat ∘ L.map (i ∘ f) ∘ unpack
-          {-# INLINE i #-}
-          i (Bitstream v) = v
-
-    {-# INLINE and #-}
-    and (Bitstream v) = LV.all and v
-
-    {-# INLINE or #-}
-    or (Bitstream v) = LV.any or v
-
-    {-# INLINE any #-}
-    any f (Bitstream v) = LV.any (any f) v
-
-    {-# INLINE all #-}
-    all f (Bitstream v) = LV.all (all f) v
+    {-# INLINE [2] concat #-}
+    concat Empty ch           = ch
+    concat ch Empty           = ch
+    concat (Chunk x Empty) ch = Chunk x ch
+    concat (Chunk x xs   ) ch = Chunk x (concat xs ch)
 
     {-# INLINEABLE replicate #-}
-    {-# SPECIALISE replicate ∷ Int → Bool → Bitstream Left  #-}
-    {-# SPECIALISE replicate ∷ Int → Bool → Bitstream Right #-}
-    replicate n0 b
-        | n0 ≤ 0    = (∅)
-        | otherwise = Bitstream (LV.unfoldr chunkSize g n0)
+    replicate n b
+        | n ≤ 0                  = Empty
+        | n ≥ (chunkBits ∷ Int) = Chunk x (replicate (n - chunkBits) b)
         where
-          {-# INLINE g #-}
-          g 0 = Nothing
-          g n = let n' = min 8 n
-                    p  = replicate n' b
-                in
-                  Just (p, n-n')
+          x = replicate chunkBits b
 
-    {-# INLINEABLE unfoldr #-}
-    unfoldr f = Bitstream ∘ LV.unfoldr chunkSize g ∘ Just
-        where
-          {-# INLINE g #-}
-          g Nothing  = Nothing
-          g (Just β) = case unfoldrN (8 ∷ Int) f β of
-                          (p, mβ')
-                              | null p    → Nothing
-                              | otherwise → Just (p, mβ')
+    {-# INLINEABLE [2] take #-}
+    take _ Empty        = Empty
+    take n (Chunk x xs)
+        | n ≤ 0         = Empty
+        | n ≥ length x  = Chunk x (take (n - length x) xs)
+        | otherwise     = Chunk (take n x) Empty
 
-    {-# INLINEABLE unfoldrN #-}
-    {-# SPECIALISE unfoldrN ∷ Int → (β → Maybe (Bool, β)) → β → (Bitstream Left , Maybe β) #-}
-    {-# SPECIALISE unfoldrN ∷ Int → (β → Maybe (Bool, β)) → β → (Bitstream Right, Maybe β) #-}
-    unfoldrN n0 f β0
-        | n0 ≤ 0    = ((∅), Just β0)
-        | otherwise = case LV.unfoldrResult chunkSize g (n0, Just β0) of
-                        (v, mβ1) → (Bitstream v, mβ1)
-        where
-          {-# INLINE g #-}
-          g (0, mβ     ) = Left mβ
-          g (_, Nothing) = Left Nothing
-          g (n, Just β ) = case unfoldrN (min 8 n) f β of
-                            (p, mβ')
-                                | null p    → Left Nothing
-                                | otherwise → Right (p, (n - length p, mβ'))
+    {-# INLINEABLE [2] drop #-}
+    drop _ Empty       = Empty
+    drop n (Chunk x xs)
+        | n ≤ 0        = Chunk x xs
+        | n ≥ length x = drop (n - length x) xs
+        | otherwise    = Chunk (drop n x) xs
 
-    {-# INLINEABLE take #-}
-    {-# SPECIALISE take ∷ Int → Bitstream Left  → Bitstream Left  #-}
-    {-# SPECIALISE take ∷ Int → Bitstream Right → Bitstream Right #-}
-    take n0 (Bitstream v0)
-        | n0 ≤ 0    = (∅)
-        | otherwise = Bitstream (LV.unfoldr chunkSize g (n0, v0))
-        where
-          {-# INLINE g #-}
-          g (0, _) = Nothing
-          g (n, v) = do (p, v') ← LV.viewL v
-                        let p' = take n p
-                            n' = n - length p'
-                        return (p', (n', v'))
+    {-# INLINEABLE [2] takeWhile #-}
+    takeWhile _ Empty        = Empty
+    takeWhile f (Chunk x xs) = case takeWhile f x of
+                                 x' | x ≡ x'    → Chunk x' (takeWhile f xs)
+                                    | otherwise → Chunk x' Empty
 
-    {-# INLINEABLE drop #-}
-    {-# SPECIALISE drop ∷ Int → Bitstream Left  → Bitstream Left  #-}
-    {-# SPECIALISE drop ∷ Int → Bitstream Right → Bitstream Right #-}
-    drop n0 (Bitstream v0)
-        | n0 ≤ 0    = Bitstream v0
-        | otherwise = Bitstream (g n0 v0)
-        where
-          {-# INLINE g #-}
-          g 0 v = v
-          g n v = case LV.viewL v of
-                    Just (p, v')
-                        | n ≥ length p → g (n - length p) v'
-                        | otherwise    → drop n p `LV.cons` v'
-                    Nothing            → v
-
-    {-# INLINEABLE splitAt #-}
-    {-# SPECIALISE splitAt ∷ Int → Bitstream Left  → (Bitstream Left , Bitstream Left ) #-}
-    {-# SPECIALISE splitAt ∷ Int → Bitstream Right → (Bitstream Right, Bitstream Right) #-}
-    splitAt n0 (Bitstream v0)
-        = case unfoldrN n0 split' ((∅), v0) of
-            (hd, Just (p, tl))
-                | null p    → (hd, Bitstream tl)
-                | otherwise → (hd, Bitstream (p `LV.cons` tl))
-            (hd, Nothing)   → (hd, (∅))
-        where
-          {-# INLINE split' #-}
-          split' (p, v)
-              | null p    = do (p', v') ← LV.viewL v
-                               (h , t ) ← uncons p'
-                               return (h, (t, v'))
-              | otherwise = do (h , t ) ← uncons p
-                               return (h, (t, v))
-
-    {-# INLINEABLE takeWhile #-}
-    takeWhile f (Bitstream v0)
-        = Bitstream (LV.unfoldr chunkSize g (Just v0))
-        where
-          {-# INLINE g #-}
-          g mv = do v       ← mv
-                    (p, v') ← LV.viewL v
-                    case takeWhile f p of
-                      p' | p ≡ p'    → Just (p', Just v')
-                         | otherwise → Just (p', Nothing)
-
-    {-# INLINEABLE dropWhile #-}
-    dropWhile f (Bitstream v0) = Bitstream (g v0)
-        where
-          {-# INLINE g #-}
-          g v = case LV.viewL v of
-                  Just (p, v')
-                      → case dropWhile f p of
-                           p' | null p'   → g v'
-                              | otherwise → p' `LV.cons` v'
-                  Nothing
-                      → LV.empty
-
-    {-# INLINEABLE isPrefixOf #-}
-    isPrefixOf (Bitstream x0) (Bitstream y0) = go ((∅), x0) ((∅), y0)
-        where
-          {-# INLINE go #-}
-          go (px, x) (py, y)
-              | null px
-                  = case LV.viewL x of
-                      Just (px', x') → go (px', x') (py, y)
-                      Nothing        → True
-              | null py
-                  = case LV.viewL y of
-                      Just (py', y') → go (px, x) (py', y')
-                      Nothing        → False
-              | otherwise
-                  = let n          ∷ Int
-                        n          = min (length px) (length py)
-                        (pxH, pxT) = splitAt n px
-                        (pyH, pyT) = splitAt n py
-                    in
-                      if pxH ≡ pyH then
-                          go (pxT, x) (pyT, y)
-                      else
-                          False
-
-    {-# INLINEABLE find #-}
-    find f (Bitstream v0) = go v0
-        where
-          {-# INLINE go #-}
-          go v = case LV.viewL v of
-                   Just (p, v')
-                       → case find f p of
-                            r@(Just _) → r
-                            Nothing    → go v'
-                   Nothing
-                       → Nothing
+    {-# INLINEABLE [2] dropWhile #-}
+    dropWhile f Empty        = Empty
+    dropWhile f (Chunk x xs) = case dropWhile f x of
+                                 x' | null x'   → dropWhile f xs
+                                    | otherwise → Chunk x' xs
 
     {-# INLINEABLE [2] filter #-}
-    filter f (Bitstream v0)
-        = Bitstream (LV.unfoldr chunkSize g v0)
-        where
-          {-# INLINE g #-}
-          g v = do (p, v') ← LV.viewL v
-                   case filter f p of
-                     p' | null p'   → g v'
-                        | otherwise → return (p', v')
+    filter _ Empty        = Empty
+    filter f (Chunk x xs) = case filter f x of
+                              x' | null x'   → filter f xs
+                                 | otherwise → Chunk x' (filter f xs)
+
+lazyNull ∷ Bitstream d → Bool
+{-# RULES "null → lazyNull" [2] null = lazyNull #-}
+{-# INLINE lazyNull #-}
+lazyNull Empty = True
+lazyNull _     = False
+
+lazyLength ∷ (G.Bitstream (Packet n), Num n) ⇒ Bitstream d → n
+{-# RULES "length → lazyLength" [2]
+    ∀(v ∷ G.Bitstream (Packet d) ⇒ Bitstream d).
+    length v = lazyLength v #-}
+{-# INLINE lazyLength #-}
+lazyLength = go 0
+    where
+      {-# INLINE go #-}
+      go !soFar Empty        = soFar
+      go !soFar (Chunk x xs) = go (soFar + length x) xs
+
+lazyAnd ∷ G.Bitstream (Packet d) ⇒ Bitstream d ⇒ Bool
+{-# RULES "and → lazyAnd" [2]
+    ∀(v ∷ G.Bitstream (Packet d) ⇒ Bitstream d).
+    and v = lazyAnd v #-}
+{-# INLINEABLE lazyAnd #-}
+lazyAnd Empty        = False
+lazyAnd (Chunk x xs)
+    | and x          = lazyAnd xs
+    | otherwise      = False
+
+lazyOr ∷ G.Bitstream (Packet d) ⇒ Bitstream d ⇒ Bool
+{-# RULES "or → lazyOr" [2]
+    ∀(v ∷ G.Bitstream (Packet d) ⇒ Bitstream d).
+    or v = lazyOr v #-}
+{-# INLINEABLE lazyOr #-}
+lazyOr Empty        = True
+lazyOr (Chunk x xs)
+    | or x          = True
+    | otherwise     = lazyOr xs
 
 lazyIndex ∷ (G.Bitstream (Packet d), Integral n) ⇒ Bitstream d → n → Bool
 {-# RULES "(!!) → lazyIndex" [2]
@@ -649,7 +524,7 @@ toPackets ∷ Bitstream d → [Packet d]
 toPackets = S.toList ∘ streamPackets
 
 streamPackets ∷ Monad m ⇒ Bitstream d → Stream m (Packet d)
-{-# INLINE streamPackets #-}
+{-# INLINE [0] streamPackets #-}
 streamPackets ch0 = Stream step ch0 Unknown
     where
       {-# INLINE step #-}
@@ -657,7 +532,7 @@ streamPackets ch0 = Stream step ch0 Unknown
       step (Chunk x xs) = return $ Yield x xs
 
 unstreamPackets ∷ Monad m ⇒ Stream m (Packet d) → m (Bitstream d)
-{-# INLINE unstreamPackets #-}
+{-# INLINE [0] unstreamPackets #-}
 unstreamPackets (Stream step s0 _) = go s0
     where
       {-# INLINE go #-}
@@ -667,6 +542,14 @@ unstreamPackets (Stream step s0 _) = go s0
                                   return $ Chunk p xs
                   Skip    s' → go s'
                   Done       → return Empty
+
+{-# RULES
+"Lazy Bitstream streamPackets/unstreamPackets fusion"
+    ∀s. streamPackets (unstreamPackets s) = s
+
+"Lazy Bitstream unstreamPackets/streamPackets fusion"
+    ∀v. unstreamPackets (streamPackets v) = v
+  #-}
 
 -- | /O(n)/ Convert a @'Bitstream' 'Left'@ into a @'Bitstream'
 -- 'Right'@. Bit directions only affect octet-based operations like
