@@ -233,7 +233,9 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
     {-# INLINE [0] stream #-}
     stream (Bitstream v)
         = {-# CORE "Bitstream stream" #-}
-          S.concatMap stream (GV.stream v) `S.sized` Exact (length (Bitstream v))
+          S.concatMap stream (GV.stream v)
+          `S.sized`
+          Exact (length (Bitstream v))
 
     {-# INLINE [0] unstream #-}
     unstream

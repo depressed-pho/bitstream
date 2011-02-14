@@ -19,8 +19,6 @@ module Data.Bitstream.Lazy
     , unpack
     , fromChunks
     , toChunks
-    , fromPackets
-    , toPackets
 
       -- ** Converting from\/to lazy 'BS.ByteString's
     , fromByteString
@@ -95,7 +93,6 @@ module Data.Bitstream.Lazy
       -- * Substreams
     , take
     , drop
-    , splitAt
     , takeWhile
     , dropWhile
     , span
@@ -230,9 +227,9 @@ instance Show (Packet d) ⇒ Show (Bitstream d) where
           go v = do (p, v') ← LV.viewL v
                     return (show p, v')
 
-instance Ord (Bitstream d) ⇒ Eq (Bitstream d) where
+instance G.Bitstream (Packet d) ⇒ Eq (Bitstream d) where
     {-# INLINE (==) #-}
-    x == y = (x `compare` y) ≡ EQ
+    x == y = stream x ≡ stream y
 
 -- | 'Bitstream's are lexicographically ordered.
 --
@@ -246,39 +243,8 @@ instance Ord (Bitstream d) ⇒ Eq (Bitstream d) where
 --   ]
 -- @
 instance G.Bitstream (Packet d) ⇒ Ord (Bitstream d) where
-    {-# INLINEABLE compare #-}
-    (Bitstream x0) `compare` (Bitstream y0) = go ((∅), x0) ((∅), y0)
-        where
-          {-# INLINE go #-}
-          go (px, x) (py, y)
-              | null px
-                  = case LV.viewL x of
-                      Just (px', x')
-                          → go (px', x') (py, y)
-                      Nothing
-                          → if null py then
-                                 case LV.viewL y of
-                                   Just _  → LT
-                                   Nothing → EQ
-                            else
-                                LT
-              | null py
-                  = case LV.viewL y of
-                      Just (py', y')
-                          → go (px, x) (py', y')
-                      Nothing
-                          → GT
-              | otherwise
-                  = let len ∷ Int
-                        len = min (length px) (length py)
-                        pxH, pxT, pyH, pyT ∷ Packet d
-                        (pxH, pxT) = splitAt len px
-                        (pyH, pyT) = splitAt len py
-                    in
-                      case pxH `compare` pyH of
-                        LT → LT
-                        GT → GT
-                        EQ → go (pxT, x) (pyT, y)
+    {-# INLINE compare #-}
+    x `compare` y = stream x `compare` stream y
 
 instance G.Bitstream (Packet d) ⇒ Monoid (Bitstream d) where
     mempty  = (∅)
@@ -286,30 +252,15 @@ instance G.Bitstream (Packet d) ⇒ Monoid (Bitstream d) where
     mconcat = concat
 
 instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
-    {-# INLINE [0] pack #-}
-    pack = Bitstream ∘ LV.unfoldr chunkSize f ∘ Just
-        where
-          {-# INLINE f #-}
-          f Nothing   = Nothing
-          f (Just xs) = case unfoldrN (8 ∷ Int) g xs of
-                          (p, mxs')
-                              | null p    → Nothing
-                              | otherwise → Just (p, mxs')
-          {-# INLINE g #-}
-          g []     = Nothing
-          g (x:xs) = Just (x, xs)
-
-    {-# INLINE [0] unpack #-}
-    unpack (Bitstream v) = L.concatMap unpack (LV.unpack v)
-
     {-# INLINE [0] stream #-}
-    stream (Bitstream v)
-        = S.concatMap G.stream (streamLV v)
+    stream
+        = {-# CORE "Lazy Bitstream stream" #-}
+          S.concatMap stream ∘ streamChunks
 
     {-# INLINE [0] unstream #-}
     unstream
         = {-# CORE "Lazy Bitstream unstream" #-}
-          unstreamChunks ∘ packChunks
+          unstreamChunks ∘ packChunks ∘ packPackets
 
     {-# INLINE [2] cons #-}
     cons b = Chunk (singleton b)
@@ -502,27 +453,17 @@ fromByteString = fromChunks ∘ L.map SB.fromByteString ∘ LS.toChunks
 toByteString ∷ G.Bitstream (Packet d) ⇒ Bitstream d → LS.ByteString
 toByteString = L.map SB.toByteString ∘ toChunks
 
--- | /O(1)/ Convert a 'LV.Vector' of 'Packet's into a 'Bitstream'.
-fromPackets ∷ [Packet d] → Bitstream d
-{-# INLINE fromPackets #-}
-fromPackets = unstreamPackets ∘ S.fromList
-
--- | /O(1)/ Convert a 'Bitstream' into a list of 'Packet's.
-toPackets ∷ Bitstream d → [Packet d]
-{-# INLINE toPackets #-}
-toPackets = S.toList ∘ streamPackets
-
-streamPackets ∷ Monad m ⇒ Bitstream d → Stream m (Packet d)
-{-# INLINE [0] streamPackets #-}
-streamPackets ch0 = Stream step ch0 Unknown
+streamChunks ∷ Monad m ⇒ Bitstream d → Stream m (SB.Bitstream d)
+{-# INLINE [0] streamChunks #-}
+streamChunks ch0 = Stream step ch0 Unknown
     where
       {-# INLINE step #-}
       step Empty        = return Done
       step (Chunk x xs) = return $ Yield x xs
 
-unstreamPackets ∷ Monad m ⇒ Stream m (Packet d) → m (Bitstream d)
-{-# INLINE [0] unstreamPackets #-}
-unstreamPackets (Stream step s0 _) = go s0
+unstreamChunks ∷ Monad m ⇒ Stream m (SB.Bitstream d) → m (Bitstream d)
+{-# INLINE [0] unstreamChunks #-}
+unstreamChunks (Stream step s0 _) = go s0
     where
       {-# INLINE go #-}
       go s = do r ← step s
@@ -533,11 +474,11 @@ unstreamPackets (Stream step s0 _) = go s0
                   Done       → return Empty
 
 {-# RULES
-"Lazy Bitstream streamPackets/unstreamPackets fusion"
-    ∀s. streamPackets (unstreamPackets s) = s
+"Lazy Bitstream streamChunks/unstreamChunks fusion"
+    ∀s. streamChunks (unstreamChunks s) = s
 
-"Lazy Bitstream unstreamPackets/streamPackets fusion"
-    ∀v. unstreamPackets (streamPackets v) = v
+"Lazy Bitstream unstreamChunks/streamChunks fusion"
+    ∀v. unstreamChunks (streamChunks v) = v
   #-}
 
 -- | /O(n)/ Convert a @'Bitstream' 'Left'@ into a @'Bitstream'
