@@ -9,10 +9,10 @@ module Test.Bitstream.Utils where
 import Control.Monad
 import qualified Data.Bitstream as SB
 import qualified Data.Bitstream.Generic as G
---import qualified Data.Bitstream.Lazy as LB
+import qualified Data.Bitstream.Lazy as LB
 import Data.Bitstream.Packet
 import qualified Data.ByteString as BS
---import qualified Data.ByteString.Lazy as LS
+import qualified Data.ByteString.Lazy as LS
 import Prelude.Unicode
 import System.Exit
 import Test.QuickCheck
@@ -37,22 +37,22 @@ instance G.Bitstream (Packet d) ⇒ Arbitrary (SB.Bitstream d) where
     arbitrary = sized $ \ n →
                 do xs ← replicateM n arbitrary
                    return (SB.pack xs)
-{-
+
 instance G.Bitstream (Packet d) ⇒ Arbitrary (LB.Bitstream d) where
     arbitrary = sized $ \ n →
                 do xs ← replicateM n arbitrary
                    return (LB.pack xs)
--}
+
 instance Arbitrary BS.ByteString where
     arbitrary = sized $ \ n →
                 do xs ← replicateM n arbitrary
                    return (BS.unfoldr uncons xs)
-{-
+
 instance Arbitrary LS.ByteString where
     arbitrary = sized $ \ n →
                 do xs ← replicateM n arbitrary
                    return (LS.unfoldr uncons xs)
--}
+
 instance ( Arbitrary α, Arbitrary β, Arbitrary γ
          , Arbitrary δ, Arbitrary ε, Arbitrary ζ
          )

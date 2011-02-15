@@ -73,7 +73,7 @@ tests = [ -- ∅
                                          , 0, 1, 1, 1, 0, 0, 1, 0
                                          , 1, 1, 0, 1, 0, 0, 1, 0 ])
         , property $ \str → B.toByteString (B.fromByteString str ∷ BitL) ≡ str
-        , mapSize (⋅ 8) $ \bs → (B.length bs `mod` 8) ≡ (0 ∷ Int)
+        , mapSize (⋅ 8) $ \bs → (B.length bs `rem` 8) ≡ (0 ∷ Int)
                                   ⟹ B.fromByteString (B.toByteString (bs ∷ BitL)) ≡ bs
 
         , property $ (B.fromByteString "UNK" ∷ BitR)
@@ -81,7 +81,7 @@ tests = [ -- ∅
                                          , 0, 1, 0, 0, 1, 1, 1, 0
                                          , 0, 1, 0, 0, 1, 0, 1, 1 ])
         , property $ \str → B.toByteString (B.fromByteString str ∷ BitR) ≡ str
-        , mapSize (⋅ 8) $ \bs → (B.length bs `mod` 8) ≡ (0 ∷ Int)
+        , mapSize (⋅ 8) $ \bs → (B.length bs `rem` 8) ≡ (0 ∷ Int)
                                   ⟹ B.fromByteString (B.toByteString (bs ∷ BitR)) ≡ bs
 
           -- stream/unstream
@@ -213,22 +213,22 @@ tests = [ -- ∅
         , property $ \bl → B.scanr1 xor (B.pack bl ∷ BitR) ≡ B.pack (scanr1 xor bl)
 
           -- replication
-        , property $ \(n, b) → (B.replicate (n `mod` 800) b ∷ BitL) ≡ B.pack (replicate (n `mod` 800) b)
-        , property $ \(n, b) → (B.replicate (n `mod` 800) b ∷ BitR) ≡ B.pack (replicate (n `mod` 800) b)
+        , property $ \(n, b) → (B.replicate (n `rem` 800) b ∷ BitL) ≡ B.pack (replicate (n `rem` 800) b)
+        , property $ \(n, b) → (B.replicate (n `rem` 800) b ∷ BitR) ≡ B.pack (replicate (n `rem` 800) b)
 
           -- unfolding
-        , property $ \n → (B.unfoldr decr (abs (n `mod` 800)) ∷ BitL) ≡ B.pack (unfoldr decr (abs (n `mod` 800)))
-        , property $ \(m, n) → let m'            = m `mod` 800
-                                   n'            = abs (n `mod` 800)
+        , property $ \n → (B.unfoldr decr (abs (n `rem` 800)) ∷ BitL) ≡ B.pack (unfoldr decr (abs (n `rem` 800)))
+        , property $ \(m, n) → let m'            = m `rem` 800
+                                   n'            = abs (n `rem` 800)
                                    r             = B.unfoldrN m' decr n'
                                    p | m' ≤ 0    = label "m ≤ 0"     $ r ≡ ((B.∅) ∷ BitL)
                                      | m' ≤ n'   = label "m ≤ n'"    $ r ≡ B.pack (take m' (unfoldr decr n'))
                                      | otherwise = label "otherwise" $ r ≡ B.pack (unfoldr decr n')
                                in p
 
-        , property $ \n → (B.unfoldr decr (abs (n `mod` 800)) ∷ BitR) ≡ B.pack (unfoldr decr (abs (n `mod` 800)))
-        , property $ \(m, n) → let m'            = m `mod` 800
-                                   n'            = abs (n `mod` 800)
+        , property $ \n → (B.unfoldr decr (abs (n `rem` 800)) ∷ BitR) ≡ B.pack (unfoldr decr (abs (n `rem` 800)))
+        , property $ \(m, n) → let m'            = m `rem` 800
+                                   n'            = abs (n `rem` 800)
                                    r             = B.unfoldrN m' decr n'
                                    p | m' ≤ 0    = label "m ≤ 0"     $ r ≡ ((B.∅) ∷ BitR)
                                      | m' ≤ n'   = label "m ≤ n'"    $ r ≡ B.pack (take m' (unfoldr decr n'))

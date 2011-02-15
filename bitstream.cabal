@@ -60,6 +60,8 @@ Test-Suite test-strict-bitstream-O0
         -Wall -fhpc -fno-warn-orphans -O0
 
 Test-Suite test-strict-bitstream-O2
+    -- FIXME
+    Buildable: False
     Type:    exitcode-stdio-1.0
     Main-Is: Test/Bitstream.hs
     Other-Modules:

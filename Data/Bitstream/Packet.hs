@@ -151,7 +151,7 @@ instance Bitstream (Packet Left) where
                      Yield b s'
                          | i < 8     → safeConsume s' (i+1) (if b
                                                              then o `setBit` i
-                                                             else o           )
+                                                             else o)
                          | otherwise → packetOverflow
                      Skip    s'      → safeConsume s' i o
                      Done            → return $! Packet i o
@@ -259,8 +259,8 @@ instance Bitstream (Packet Right) where
                    case r of
                      Yield b s'
                          | i < 8     → safeConsume s' (i+1) (if b
-                                                             then o `setBit` i
-                                                             else o           )
+                                                             then o `setBit` (7-i)
+                                                             else o)
                          | otherwise → packetOverflow
                      Skip    s'      → safeConsume s' i o
                      Done            → return $! Packet i o

@@ -231,6 +231,9 @@ instance G.Bitstream (Packet d) ⇒ Monoid (Bitstream d) where
     mconcat = concat
 
 instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
+    {-# SPECIALISE instance G.Bitstream (Bitstream Left ) #-}
+    {-# SPECIALISE instance G.Bitstream (Bitstream Right) #-}
+
     {-# INLINE [0] stream #-}
     stream (Bitstream v)
         = {-# CORE "Bitstream stream" #-}
