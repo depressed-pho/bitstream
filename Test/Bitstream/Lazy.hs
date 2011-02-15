@@ -21,24 +21,12 @@ import Test.QuickCheck
 
 main ∷ IO ()
 main = mapM_ runTest tests
-{-
-main = do let n = 8
-              b = False
-          print $ B.take (n `rem` 800) (B.iterate (¬) b ∷ BitR)
-          print $ take (n `rem` 800) (iterate (¬) b)
--}
-{-
-main = do let b  = False
-              bl = [False, False, True]
-          print $ B.scanl xor b (B.pack bl ∷ BitL)
-          print $ scanl xor b bl
--}
 
 type BitL = Bitstream Left
 type BitR = Bitstream Right
 
 tests ∷ [Property]
-tests = [ {- -- ∅
+tests = [ -- ∅
           conjoin
           [ property $ B.null      ((B.∅) ∷ BitL)
           , property $ B.length    ((B.∅) ∷ BitL) ≡ (0 ∷Int)
@@ -233,7 +221,7 @@ tests = [ {- -- ∅
         , property $ \(n, bl) → (¬) (null bl) ⟹
                          B.take (n `rem` 800) (B.cycle (B.pack bl ∷ BitL)) ≡ B.pack (take (n `rem` 800) (cycle bl))
 
-        , -}property $ \(n, b) → B.take (n `rem` 800) (B.iterate (¬) b ∷ BitR) ≡ B.pack (take (n `rem` 800) (iterate (¬) b))
+        , property $ \(n, b) → B.take (n `rem` 800) (B.iterate (¬) b ∷ BitR) ≡ B.pack (take (n `rem` 800) (iterate (¬) b))
         , property $ \(n, b) → B.take (n `rem` 800) (B.repeat b ∷ BitR) ≡ B.pack (take (n `rem` 800) (repeat b))
         , property $ \(n, b) → (B.replicate (n `rem` 800) b ∷ BitR) ≡ B.pack (replicate (n `rem` 800) b)
         , property $ \(n, bl) → (¬) (null bl) ⟹

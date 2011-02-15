@@ -60,8 +60,6 @@ Test-Suite test-strict-bitstream-O0
         -Wall -fhpc -fno-warn-orphans -O0
 
 Test-Suite test-strict-bitstream-O2
-    -- FIXME
-    Buildable: False
     Type:    exitcode-stdio-1.0
     Main-Is: Test/Bitstream.hs
     Other-Modules:
@@ -88,3 +86,17 @@ Test-Suite test-lazy-bitstream-O0
         vector               == 0.7.*
     GHC-Options:
         -Wall -fhpc -fno-warn-orphans -O0
+
+Test-Suite test-lazy-bitstream-O2
+    Type:    exitcode-stdio-1.0
+    Main-Is: Test/Bitstream/Lazy.hs
+    Other-Modules:
+        Test.Bitstream.Utils
+    Build-Depends:
+        QuickCheck           == 2.4.*,
+        base                 == 4.*,
+        base-unicode-symbols == 0.2.*,
+        bytestring           == 0.9.*,
+        vector               == 0.7.*
+    GHC-Options:
+        -Wall -fhpc -fno-warn-orphans -O2
