@@ -518,14 +518,23 @@ directionRToL ∷ Bitstream Right → Bitstream Left
 {-# INLINE directionRToL #-}
 directionRToL (Bitstream v) = Bitstream (SV.map packetRToL v)
 
+-- | /O(n)/ Read a 'Bitstream' from the stdin strictly, equivalent to
+-- 'hGetContents' @stdin@. The 'Handle' is closed after the contents
+-- have been read.
 getContents ∷ G.Bitstream (Packet d) ⇒ IO (Bitstream d)
 {-# INLINE getContents #-}
 getContents = fmap fromByteString BS.getContents
 
+-- | /O(n)/ Write a 'Bitstream' to the stdout, equivalent to 'hPut'
+-- @stdout@.
 putBits ∷ G.Bitstream (Packet d) ⇒ Bitstream d → IO ()
 {-# INLINE putBits #-}
 putBits = BS.putStr ∘ toByteString
 
+-- | The 'interact' function takes a function of type @'Bitstream' d
+-- -> 'Bitstream' d@ as its argument. The entire input from the stdin
+-- is passed to this function as its argument, and the resulting
+-- 'Bitstream' is output on the stdout.
 interact ∷ G.Bitstream (Packet d) ⇒ (Bitstream d → Bitstream d) → IO ()
 {-# INLINE interact #-}
 interact = BS.interact ∘ lift'
@@ -533,43 +542,62 @@ interact = BS.interact ∘ lift'
       {-# INLINE lift' #-}
       lift' f = toByteString ∘ f ∘ fromByteString
 
+-- | /O(n)/ Read an entire file strictly into a 'Bitstream'.
 readFile ∷ G.Bitstream (Packet d) ⇒ FilePath → IO (Bitstream d)
 {-# INLINE readFile #-}
 readFile = fmap fromByteString ∘ BS.readFile
 
+-- | /O(n)/ Write a 'Bitstream' to a file.
 writeFile ∷ G.Bitstream (Packet d) ⇒ FilePath → Bitstream d → IO ()
 {-# INLINE writeFile #-}
 writeFile = (∘ toByteString) ∘ BS.writeFile
 
+-- | /O(n)/ Append a 'Bitstream' to a file.
 appendFile ∷ G.Bitstream (Packet d) ⇒ FilePath → Bitstream d → IO ()
 {-# INLINE appendFile #-}
 appendFile = (∘ toByteString) ∘ BS.appendFile
 
+-- | /O(n)/ Read entire handle contents strictly into a 'Bitstream'.
+--
+-- This function reads chunks at a time, doubling the chunksize on each
+-- read. The final buffer is then realloced to the appropriate size. For
+-- files > half of available memory, this may lead to memory exhaustion.
+-- Consider using 'readFile' in this case.
+--
+-- The 'Handle' is closed once the contents have been read, or if an
+-- exception is thrown.
 hGetContents ∷ G.Bitstream (Packet d) ⇒ Handle → IO (Bitstream d)
 {-# INLINE hGetContents #-}
 hGetContents = fmap fromByteString ∘ BS.hGetContents
 
--- |@'hGet' h n@ reads a 'Bitstream' directly from the specified
--- 'Handle' @h@. First argument @h@ is the 'Handle' to read from, and
--- the second @n@ is the number of /octets/ to read, not /bits/. It
--- returns the octets read, up to @n@, or null if EOF has been
--- reached.
+-- | /O(n)/ @'hGet' h n@ reads a 'Bitstream' directly from the
+-- specified 'Handle' @h@. First argument @h@ is the 'Handle' to read
+-- from, and the second @n@ is the number of /octets/ to read, not
+-- /bits/. It returns the octets read, up to @n@, or null if EOF has
+-- been reached.
 --
 -- If the handle is a pipe or socket, and the writing end is closed,
 -- 'hGet' will behave as if EOF was reached.
---
 hGet ∷ G.Bitstream (Packet d) ⇒ Handle → Int → IO (Bitstream d)
 {-# INLINE hGet #-}
 hGet = (fmap fromByteString ∘) ∘ BS.hGet
 
+-- | /O(n)/ Like 'hGet', except that a shorter 'Bitstream' may be
+-- returned if there are not enough octets immediately available to
+-- satisfy the whole request. 'hGetSome' only blocks if there is no
+-- data available, and EOF has not yet been reached.
 hGetSome ∷ G.Bitstream (Packet d) ⇒ Handle → Int → IO (Bitstream d)
 {-# INLINE hGetSome #-}
 hGetSome = (fmap fromByteString ∘) ∘ BS.hGetSome
 
+-- | /O(n)/ 'hGetNonBlocking' is identical to 'hGet', except that it
+-- will never block waiting for data to become available. If there is
+-- no data available to be read, 'hGetNonBlocking' returns 'empty'.
 hGetNonBlocking ∷ G.Bitstream (Packet d) ⇒ Handle → Int → IO (Bitstream d)
 {-# INLINE hGetNonBlocking #-}
 hGetNonBlocking = (fmap fromByteString ∘) ∘ BS.hGetNonBlocking
 
+-- | /O(n)/ Write a 'Bitstream' to the given 'Handle'.
 hPut ∷ G.Bitstream (Packet d) ⇒ Handle → Bitstream d → IO ()
 {-# INLINE hPut #-}
 hPut = (∘ toByteString) ∘ BS.hPut
