@@ -2,6 +2,8 @@
     BangPatterns
   , UnicodeSyntax
   #-}
+-- | Some functions currently missing from
+-- "Data.Vector.Fusion.Stream.Monadic".
 module Data.Bitstream.Fusion.Monadic
     ( genericLength
     , genericTake

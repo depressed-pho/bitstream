@@ -1,6 +1,8 @@
 {-# LANGUAGE
     UnicodeSyntax
   #-}
+-- | Some functions currently missing from
+-- "Data.Vector.Fusion.Stream".
 module Data.Bitstream.Fusion
     ( genericLength
     , genericTake

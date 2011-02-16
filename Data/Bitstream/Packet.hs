@@ -226,6 +226,9 @@ instance Bitstream (Packet Left) where
     {-# INLINE [2] dropWhile #-}
     dropWhile = dropWhilePacket
 
+    {-# INLINE [1] filter #-}
+    filter = filterPacket
+
 instance Bitstream (Packet Right) where
     {-# INLINE [0] stream #-}
     stream (Packet n o) = {-# CORE "Packet Right stream" #-}
@@ -334,6 +337,9 @@ instance Bitstream (Packet Right) where
 
     {-# INLINE [2] dropWhile #-}
     dropWhile = dropWhilePacket
+
+    {-# INLINE [1] filter #-}
+    filter = filterPacket
 
 packetHeadL ∷ Packet Left → Bool
 {-# RULES "head → packetHeadL" [2] head = packetHeadL #-}
@@ -496,3 +502,7 @@ dropWhilePacket f α = drop (go 0 ∷ Int) α
       go i | i ≥ length α = i
            | f (α !! i)   = go (i+1)
            | otherwise    = i
+
+filterPacket ∷ Bitstream (Packet d) ⇒ (Bool → Bool) → Packet d → Packet d
+{-# INLINE filterPacket #-}
+filterPacket f = unstream ∘ S.filter f ∘ stream

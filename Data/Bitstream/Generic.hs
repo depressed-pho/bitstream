@@ -3,6 +3,7 @@
   , RankNTypes
   , UnicodeSyntax
   #-}
+-- | Generic interface to diverse types of 'Bitstream'.
 module Data.Bitstream.Generic
     ( Bitstream(..)
 
@@ -105,8 +106,14 @@ infixl 9 !!
    4. stream / unstream inlinings should occur last i.e. phase 0.
  -}
 
--- FIXME: Explain what kind of functions are defined as methods: funcs
--- that need to preserve the packet/chunk structure
+-- | Class of diverse types of 'Bitstream'.
+--
+-- Methods of this class are functions of 'Bitstream's that is either
+-- basic functions to implement other ones, or have to preserve their
+-- packet/chunk structure for efficiency and strictness behaviour.
+--
+-- Minimum complete implementation: /All but/ 'cons'', 'concat',
+-- 'replicate' and 'partition'.
 class Bitstream α where
     -- | /O(n)/ Explicitly convert a 'Bitstream' into a 'Stream' of
     -- 'Bool'.
@@ -178,6 +185,14 @@ class Bitstream α where
     -- for lists.
     cons ∷ Bool → α → α
 
+    -- | /O(n)/ For strict 'Bitstream's, 'cons'' is exactly the same
+    -- as 'cons'.
+    --
+    -- For lazy ones, 'cons'' is strict in the 'Bitstream' we are
+    -- consing onto. More precisely, it forces the first chunk to be
+    -- evaluated. It does this because, for space efficiency, it may
+    -- coalesce the new bit onto the first chunk rather than starting
+    -- a new chunk.
     cons' ∷ Bool → α → α
     {-# INLINE cons' #-}
     cons' = cons
@@ -250,8 +265,6 @@ class Bitstream α where
     -- returns the 'Bitstream' of those bits that satisfy the
     -- predicate.
     filter ∷ (Bool → Bool) → α → α
-    {-# INLINE filter #-}
-    filter f = unstream ∘ S.filter f ∘ stream
 
     -- | /O(n)/ The 'partition' function takes a predicate and a
     -- 'Bitstream' and returns the pair of 'Bitstream's of bits which
