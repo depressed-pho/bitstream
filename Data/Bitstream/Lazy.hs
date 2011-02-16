@@ -183,8 +183,12 @@ data Bitstream d
 
 instance Show (Packet d) ⇒ Show (Bitstream d) where
     {-# INLINEABLE show #-}
-    show Empty        = "Empty"
-    show (Chunk x xs) = "Chunk " L.++ show x L.++ " " L.++ show xs
+    show ch
+        = L.concat
+          [ "[L: "
+          , L.concat (L.intersperse " " (L.map show (toChunks ch)))
+          , " ]"
+          ]
 
 instance G.Bitstream (Packet d) ⇒ Eq (Bitstream d) where
     {-# INLINE (==) #-}
@@ -211,9 +215,6 @@ instance G.Bitstream (Packet d) ⇒ Monoid (Bitstream d) where
     mconcat = concat
 
 instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
-    {-# SPECIALISE instance G.Bitstream (Bitstream Left ) #-}
-    {-# SPECIALISE instance G.Bitstream (Bitstream Right) #-}
-
     {-# INLINE [0] stream #-}
     stream
         = {-# CORE "Lazy Bitstream stream" #-}

@@ -106,11 +106,11 @@ tests = [ -- ∅
           [ property $ show (B.pack [ True , False, False, True, True
                                     , False, False, False, True, False
                                     , True , False, True , True, True  ] ∷ BitL)
-                       ≡ "Chunk (S[00011001←][1110101←]) Empty"
+                       ≡ "[L: (S[00011001←][1110101←]) ]"
           , property $ show (B.pack [ True , False, False, True, True
                                     , False, False, False, True, False
                                     , True , False, True , True, True  ] ∷ BitR)
-                       ≡ "Chunk (S[→10011000][→1010111]) Empty"
+                       ≡ "[L: (S[→10011000][→1010111]) ]"
           ]
 
           -- equality

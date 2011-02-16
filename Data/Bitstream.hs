@@ -5,7 +5,8 @@
   , UndecidableInstances
   , UnicodeSyntax
   #-}
--- | Fast, packed, strict bit streams with optional stream fusion.
+-- | Fast, packed, strict bit streams (i.e. list of 'Bool's) with
+-- semi-automatic stream fusion.
 --
 -- This module is intended to be imported @qualified@, to avoid name
 -- clashes with "Prelude" functions. e.g.
@@ -14,10 +15,6 @@
 --
 -- Strict 'Bitstream's are made of strict 'SV.Vector' of 'Packet's,
 -- and each 'Packet's have at least 1 bit.
---
--- Note that stream fusion does NOT automatically occurs as there are
--- possibilities that stream fusion produces a slower code for this
--- data structure. See 'unstream' for more details.
 module Data.Bitstream
     ( -- * Types
       Bitstream
@@ -231,9 +228,6 @@ instance G.Bitstream (Packet d) ⇒ Monoid (Bitstream d) where
     mconcat = concat
 
 instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
-    {-# SPECIALISE instance G.Bitstream (Bitstream Left ) #-}
-    {-# SPECIALISE instance G.Bitstream (Bitstream Right) #-}
-
     {-# INLINE [0] stream #-}
     stream (Bitstream v)
         = {-# CORE "Bitstream stream" #-}
