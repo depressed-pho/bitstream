@@ -74,7 +74,7 @@ module Data.Bitstream
     , any
     , all
 
-      -- * Building lists
+      -- * Building 'Bitstream's
       -- ** Scans
     , scanl
     , scanl1
