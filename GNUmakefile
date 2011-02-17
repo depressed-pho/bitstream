@@ -5,4 +5,12 @@ CONFIGURE_ARGS = -O0 --enable-tests
 #RUN_COMMAND = time ./dist/build/test-lazy-bitstream-O2/test-lazy-bitstream-O2
 RUN_COMMAND = time ./dist/build/test-lazy-bitstream/test-lazy-bitstream
 
+update-web-pages: doc ditz
+	rsync -av --delete \
+		dist/doc/html/bitstream/ \
+		www@nem.cielonegro.org:static.cielonegro.org/htdocs/doc/bitstream
+	rsync -av --delete \
+		dist/ditz/ \
+		www@nem.cielonegro.org:static.cielonegro.org/htdocs/ditz/bitstream
+
 include cabal-package.mk
