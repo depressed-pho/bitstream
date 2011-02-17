@@ -94,6 +94,16 @@ test: build
 		$(HPC) markup --destdir="dist/hpc" --fun-entry-count "merged.tix"; \
 	fi
 
+fixme:
+	@find . \
+		\( -name 'dist' -or -name '.git' -or -name '_darcs' \) -prune \
+		-or \
+		\( -name '*.c'   -or -name '*.h'   -or \
+		   -name '*.hs'  -or -name '*.lhs' -or \
+		   -name '*.hsc' -or -name '*.cabal' \) \
+		-exec egrep -i '(fixme|thinkme)' {} \+ \
+		|| echo 'No FIXME or THINKME found.'
+
 lint:
 	$(HLINT) . --report
 #	$(HLINT) . --report \
