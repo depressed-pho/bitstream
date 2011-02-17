@@ -15,6 +15,7 @@ SUDO     ?= sudo
 AUTOCONF ?= autoconf
 HLINT    ?= hlint
 HPC      ?= hpc
+DITZ     ?= ditz
 
 CONFIGURE_ARGS ?= --disable-optimization
 
@@ -94,8 +95,11 @@ test: build
 		$(HPC) markup --destdir="dist/hpc" --fun-entry-count "merged.tix"; \
 	fi
 
+ditz:
+	$(DITZ) html dist/ditz
+
 fixme:
-	@find . \
+	@$(FIND) . \
 		\( -name 'dist' -or -name '.git' -or -name '_darcs' \) -prune \
 		-or \
 		\( -name '*.c'   -or -name '*.h'   -or \

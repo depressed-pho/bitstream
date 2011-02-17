@@ -91,9 +91,6 @@ infix  4 ∈, ∋, ∉, ∌, `elem`, `notElem`
 infixr 5 ⧺, `append`
 infixl 9 !!
 
--- THINKME: consider using numeric-prelude's non-negative numbers
--- instead of Integral n.
-
 {- Notes about inlining / rewriting phase control:
 
    1. We want "*/unstream fusion" rules always fire.
