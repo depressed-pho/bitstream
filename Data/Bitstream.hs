@@ -173,8 +173,6 @@ import Prelude ( Bool(..), Eq(..), Int, Integral, Maybe(..), Monad(..), Num(..)
 import Prelude.Unicode hiding ((⧺), (∈), (∉))
 import System.IO (FilePath, Handle, IO)
 
--- THINKME: Use vector instead of storablevector.
-
 -- | A space-efficient representation of a 'Bool' vector, supporting
 -- many efficient operations. 'Bitstream's have an idea of
 -- /directions/ controlling how octets are interpreted as bits. There
@@ -459,7 +457,8 @@ emptyStream
 indexOutOfRange ∷ Integral n ⇒ n → α
 indexOutOfRange n = error ("Data.Bitstream: index out of range: " L.++ show n)
 
--- | /O(n)/ Convert a 'BS.ByteString' into a 'Bitstream'.
+-- | /O(n)/ Convert a strict 'BS.ByteString' into a strict
+-- 'Bitstream'.
 {-# INLINE fromByteString #-}
 fromByteString ∷ BS.ByteString → Bitstream d
 fromByteString bs0 = Bitstream (SV.unfoldrN nOctets go bs0)
@@ -471,9 +470,9 @@ fromByteString bs0 = Bitstream (SV.unfoldrN nOctets go bs0)
       go bs = do (o, bs') ← BS.uncons bs
                  return (fromOctet o, bs')
 
--- | /O(n)/ @'toByteString' bs@ converts a 'Bitstream' @bits@ into a
--- 'BS.ByteString'. The resulting octets will be padded with zeroes if
--- the 'length' of @bs@ is not multiple of 8.
+-- | /O(n)/ @'toByteString' bits@ converts a strict 'Bitstream' @bits@
+-- into a strict 'BS.ByteString'. The resulting octets will be padded
+-- with zeroes if the 'length' of @bs@ is not multiple of 8.
 {-# INLINEABLE toByteString #-}
 toByteString ∷ ∀d. G.Bitstream (Packet d) ⇒ Bitstream d → BS.ByteString
 toByteString = unstreamBS
@@ -505,14 +504,14 @@ toPackets ∷ Bitstream d → SV.Vector (Packet d)
 toPackets (Bitstream d) = d
 
 -- | /O(n)/ Convert a @'Bitstream' 'Left'@ into a @'Bitstream'
--- 'Right'@. Bit directions only affect octet-based operations like
+-- 'Right'@. Bit directions only affect octet-based operations such as
 -- 'toByteString'.
 directionLToR ∷ Bitstream Left → Bitstream Right
 {-# INLINE directionLToR #-}
 directionLToR (Bitstream v) = Bitstream (SV.map packetLToR v)
 
 -- | /O(n)/ Convert a @'Bitstream' 'Right'@ into a @'Bitstream'
--- 'Left'@. Bit directions only affect octet-based operations like
+-- 'Left'@. Bit directions only affect octet-based operations such as
 -- 'toByteString'.
 directionRToL ∷ Bitstream Right → Bitstream Left
 {-# INLINE directionRToL #-}
@@ -590,7 +589,7 @@ hGetSome ∷ G.Bitstream (Packet d) ⇒ Handle → Int → IO (Bitstream d)
 {-# INLINE hGetSome #-}
 hGetSome = (fmap fromByteString ∘) ∘ BS.hGetSome
 
--- | /O(n)/ 'hGetNonBlocking' is identical to 'hGet', except that it
+-- | /O(n)/ 'hGetNonBlocking' is similar to 'hGet', except that it
 -- will never block waiting for data to become available. If there is
 -- no data available to be read, 'hGetNonBlocking' returns 'empty'.
 hGetNonBlocking ∷ G.Bitstream (Packet d) ⇒ Handle → Int → IO (Bitstream d)

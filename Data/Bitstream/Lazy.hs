@@ -5,6 +5,16 @@
   , UndecidableInstances
   , UnicodeSyntax
   #-}
+-- | Fast, packed, lazy bit streams (i.e. list of 'Bool's) with
+-- semi-automatic stream fusion.
+--
+-- This module is intended to be imported @qualified@, to avoid name
+-- clashes with "Prelude" functions. e.g.
+--
+-- > import qualified Data.BitStream.Lazy as LS
+--
+-- Lazy 'Bitstream's are made of possibly infinite list of strict
+-- 'SB.Bitstream's as chunks, and each chunks have at least 1 bit.
 module Data.Bitstream.Lazy
     ( -- * Types
       Bitstream
@@ -20,7 +30,7 @@ module Data.Bitstream.Lazy
     , fromChunks
     , toChunks
 
-      -- ** Converting from\/to lazy 'BS.ByteString's
+      -- ** Converting from\/to lazy 'LS.ByteString's
     , fromByteString
     , toByteString
 
@@ -177,6 +187,11 @@ chunkSize = fromInteger (32 ⋅ 1024)
 chunkBits ∷ Num α ⇒ α
 chunkBits = chunkSize ⋅ 8
 
+-- | A space-efficient representation of a 'Bool' vector, supporting
+-- many efficient operations. 'Bitstream's have an idea of
+-- /directions/ controlling how octets are interpreted as bits. There
+-- are two types of concrete 'Bitstream's: @'Bitstream' 'Left'@ and
+-- @'Bitstream' 'Right'@.
 data Bitstream d
     = Empty
     | Chunk {-# UNPACK #-} !(SB.Bitstream d) (Bitstream d)
@@ -209,6 +224,13 @@ instance G.Bitstream (Packet d) ⇒ Ord (Bitstream d) where
     {-# INLINE compare #-}
     x `compare` y = stream x `compare` stream y
 
+-- | 'Bitstream' forms 'Monoid' in the same way as ordinary lists:
+--
+-- @
+-- 'mempty'  = 'empty'
+-- 'mappend' = 'append'
+-- 'mconcat' = 'concat'
+-- @
 instance G.Bitstream (Packet d) ⇒ Monoid (Bitstream d) where
     mempty  = (∅)
     mappend = (⧺)
@@ -411,6 +433,8 @@ emptyStream
 indexOutOfRange ∷ Integral n ⇒ n → α
 indexOutOfRange n = error ("Data.Bitstream.Lazy: index out of range: " L.++ show n)
 
+-- | /O(n)/ Convert a list of chunks, strict 'SB.Bitstream's, into a
+-- lazy 'Bitstream'.
 fromChunks ∷ G.Bitstream (Packet d) ⇒ [SB.Bitstream d] → Bitstream d
 {-# INLINE fromChunks #-}
 fromChunks []     = Empty
@@ -418,17 +442,24 @@ fromChunks (x:xs)
     | null x      = fromChunks xs
     | otherwise   = Chunk x (fromChunks xs)
 
+-- | /O(n)/ Convert a lazy 'Bitstream' into a list of chunks, strict
+-- 'SB.Bitstream's.
 toChunks ∷ Bitstream d → [SB.Bitstream d]
 {-# INLINE toChunks #-}
 toChunks Empty        = []
 toChunks (Chunk x xs) = x : toChunks xs
 
-{-# INLINE fromByteString #-}
+-- | /O(n)/ Convert a lazy 'LS.ByteString' into a lazy 'Bitstream'.
 fromByteString ∷ G.Bitstream (Packet d) ⇒ LS.ByteString → Bitstream d
+{-# INLINE fromByteString #-}
 fromByteString = fromChunks ∘ L.map SB.fromByteString ∘ LS.toChunks
 
-{-# INLINE toByteString #-}
+-- | /O(n)/ @'toByteString' bits@ converts a lazy 'Bitstream' @bits@
+-- into a lazy 'LS.ByteString'. The resulting octets will be padded
+-- with zeroes if @bs@ is finite and its 'length' is not multiple of
+-- 8.
 toByteString ∷ G.Bitstream (Packet d) ⇒ Bitstream d → LS.ByteString
+{-# INLINE toByteString #-}
 toByteString = LS.fromChunks ∘ L.map SB.toByteString ∘ toChunks
 
 streamChunks ∷ Monad m ⇒ Bitstream d → Stream m (SB.Bitstream d)
@@ -521,13 +552,16 @@ packChunks (Stream step s0 sz)
           = return Done
 
 -- | /O(n)/ Convert a @'Bitstream' 'Left'@ into a @'Bitstream'
--- 'Right'@. Bit directions only affect octet-based operations like
+-- 'Right'@. Bit directions only affect octet-based operations such as
 -- 'toByteString'.
 directionLToR ∷ Bitstream Left → Bitstream Right
 {-# INLINE directionLToR #-}
 directionLToR Empty        = Empty
 directionLToR (Chunk x xs) = Chunk (SB.directionLToR x) (directionLToR xs)
 
+-- | /O(n)/ Convert a @'Bitstream' 'Right'@ into a @'Bitstream'
+-- 'Left'@. Bit directions only affect octet-based operations such as
+-- 'toByteString'.
 directionRToL ∷ Bitstream Right → Bitstream Left
 {-# INLINE directionRToL #-}
 directionRToL Empty        = Empty
@@ -543,57 +577,84 @@ directionRToL (Chunk x xs) = Chunk (SB.directionRToL x) (directionRToL xs)
 
    As seen above, all of them are cyclic so we just replicate the
    first 8 bits i.e. a single Packet. Dunno when the given function
-   involves unsafeInlineIO!
+   involves unsafeInlineIO and produces random bits.
  -}
-{-# INLINE iterate #-}
+-- | /O(n)/ 'iterate' @f x@ returns an infinite 'Bitstream' of
+-- repeated applications of @f@ to @x@:
+--
+-- @
+-- 'iterate' f x == [x, f x, f (f x), ...]
+-- @
 iterate ∷ G.Bitstream (Packet d) ⇒ (Bool → Bool) → Bool → Bitstream d
+{-# INLINE iterate #-}
 iterate f b = xs
     where
       xs = Chunk x xs
       x  = SB.fromPackets (SV.replicate chunkSize p)
       p  = pack (L.take 8 (L.iterate f b))
 
-{-# INLINE repeat #-}
+-- | /O(n)/ 'repeat' @x@ is an infinite 'Bitstream', with @x@ the
+-- value of every bits.
 repeat ∷ G.Bitstream (Packet d) ⇒ Bool → Bitstream d
+{-# INLINE repeat #-}
 repeat b = xs
     where
       xs = Chunk x xs
       x  = replicate (chunkBits ∷ Int) b
 
-{-# INLINE cycle #-}
+-- | /O(n)/ 'cycle' ties a finite 'Bitstream' into a circular one, or
+-- equivalently, the infinite repetition of the original 'Bitstream'.
+-- It is the identity on infinite 'Bitstream's.
 cycle ∷ G.Bitstream (Packet d) ⇒ Bitstream d → Bitstream d
+{-# INLINE cycle #-}
 cycle Empty = emptyStream
 cycle ch    = ch ⧺ cycle ch
 
-{-# INLINE getContents #-}
+-- | /O(n)/ 'getContents' is equivalent to 'hGetContents'
+-- @stdin@. Will read /lazily/.
 getContents ∷ G.Bitstream (Packet d) ⇒ IO (Bitstream d)
+{-# INLINE getContents #-}
 getContents = fmap fromByteString LS.getContents
 
-{-# INLINE putBits #-}
+-- | /O(n)/ Write a 'Bitstream' to @stdout@, equivalent to 'hPut'
+-- @stdout@.
 putBits ∷ G.Bitstream (Packet d) ⇒ Bitstream d → IO ()
+{-# INLINE putBits #-}
 putBits = LS.putStr ∘ toByteString
 
-{-# INLINE interact #-}
+-- | The 'interact' function takes a function of type @'Bitstream' d
+-- -> 'Bitstream' d@ as its argument. The entire input from the stdin
+-- is lazily passed to this function as its argument, and the
+-- resulting 'Bitstream' is output on the stdout.
 interact ∷ G.Bitstream (Packet d) ⇒ (Bitstream d → Bitstream d) → IO ()
+{-# INLINE interact #-}
 interact = LS.interact ∘ lift'
     where
       {-# INLINE lift' #-}
       lift' f = toByteString ∘ f ∘ fromByteString
 
-{-# INLINE readFile #-}
+-- | /O(n)/ Read an entire file lazily into a 'Bitstream'.
 readFile ∷ G.Bitstream (Packet d) ⇒ FilePath → IO (Bitstream d)
+{-# INLINE readFile #-}
 readFile = fmap fromByteString ∘ LS.readFile
 
-{-# INLINE writeFile #-}
+-- | /O(n)/ Write a 'Bitstream' to a file.
 writeFile ∷ G.Bitstream (Packet d) ⇒ FilePath → Bitstream d → IO ()
+{-# INLINE writeFile #-}
 writeFile = (∘ toByteString) ∘ LS.writeFile
 
-{-# INLINE appendFile #-}
+-- | /O(n)/ Append a 'Bitstream' to a file.
 appendFile ∷ G.Bitstream (Packet d) ⇒ FilePath → Bitstream d → IO ()
+{-# INLINE appendFile #-}
 appendFile = (∘ toByteString) ∘ LS.appendFile
 
-{-# INLINE hGetContents #-}
+-- | /O(n)/ Read entire handle contents /lazily/ into a
+-- 'Bitstream'. Chunks are read on demand, using the default chunk
+-- size.
+--
+-- Once EOF is encountered, the 'Handle' is closed.
 hGetContents ∷ G.Bitstream (Packet d) ⇒ Handle → IO (Bitstream d)
+{-# INLINE hGetContents #-}
 hGetContents = fmap fromByteString ∘ LS.hGetContents
 
 -- |@'hGet' h n@ reads a 'Bitstream' directly from the specified
@@ -609,10 +670,14 @@ hGetContents = fmap fromByteString ∘ LS.hGetContents
 hGet ∷ G.Bitstream (Packet d) ⇒ Handle → Int → IO (Bitstream d)
 hGet = (fmap fromByteString ∘) ∘ LS.hGet
 
+-- | /O(n)/ 'hGetNonBlocking' is similar to 'hGet', except that it
+-- will never block waiting for data to become available, instead it
+-- returns only whatever data is available.
 {-# INLINE hGetNonBlocking #-}
 hGetNonBlocking ∷ G.Bitstream (Packet d) ⇒ Handle → Int → IO (Bitstream d)
 hGetNonBlocking = (fmap fromByteString ∘) ∘ LS.hGetNonBlocking
 
-{-# INLINE hPut #-}
+-- | /O(n)/ Write a 'Bitstream' to the given 'Handle'.
 hPut ∷ G.Bitstream (Packet d) ⇒ Handle → Bitstream d → IO ()
+{-# INLINE hPut #-}
 hPut = (∘ toByteString) ∘ LS.hPut

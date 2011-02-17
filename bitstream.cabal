@@ -6,6 +6,10 @@ Description:
         fusion. This is like @bytestring@ but stores bits instead of
         bytes.
 
+        NOTE: GHC 7.0.1 fails to fuse almost every cases of bitstream
+        fusion, producing very large and not-so-fast object code. See:
+        <http://hackage.haskell.org/trac/ghc/ticket/4397>
+
 Version: 0.1
 License: PublicDomain
 License-File: COPYING
@@ -15,7 +19,7 @@ Stability: experimental
 Homepage: http://cielonegro.org/Bitstream.html
 Category: Data
 Tested-With: GHC == 7.0.1
-Cabal-Version: >= 1.9.2
+Cabal-Version: >= 1.10
 Build-Type: Simple
 Extra-Source-Files:
     COPYING
@@ -42,10 +46,13 @@ Library
     Other-Modules:
         Data.Bitstream.Internal
 
+    Default-Language:
+         Haskell2010
+
     GHC-Options:
         -Wall
 
-Test-Suite test-strict-bitstream-O0
+Test-Suite test-strict-bitstream
     Type:    exitcode-stdio-1.0
     Main-Is: Test/Bitstream.hs
     Other-Modules:
@@ -56,24 +63,11 @@ Test-Suite test-strict-bitstream-O0
         base-unicode-symbols == 0.2.*,
         bytestring           == 0.9.*,
         vector               == 0.7.*
+    Default-Language: Haskell2010
     GHC-Options:
-        -Wall -fhpc -fno-warn-orphans -O0
+        -Wall -fno-warn-orphans
 
-Test-Suite test-strict-bitstream-O2
-    Type:    exitcode-stdio-1.0
-    Main-Is: Test/Bitstream.hs
-    Other-Modules:
-        Test.Bitstream.Utils
-    Build-Depends:
-        QuickCheck           == 2.4.*,
-        base                 == 4.*,
-        base-unicode-symbols == 0.2.*,
-        bytestring           == 0.9.*,
-        vector               == 0.7.*
-    GHC-Options:
-        -Wall -fhpc -fno-warn-orphans -O2
-
-Test-Suite test-lazy-bitstream-O0
+Test-Suite test-lazy-bitstream
     Type:    exitcode-stdio-1.0
     Main-Is: Test/Bitstream/Lazy.hs
     Other-Modules:
@@ -84,19 +78,6 @@ Test-Suite test-lazy-bitstream-O0
         base-unicode-symbols == 0.2.*,
         bytestring           == 0.9.*,
         vector               == 0.7.*
+    Default-Language: Haskell2010
     GHC-Options:
-        -Wall -fhpc -fno-warn-orphans -O0
-
-Test-Suite test-lazy-bitstream-O2
-    Type:    exitcode-stdio-1.0
-    Main-Is: Test/Bitstream/Lazy.hs
-    Other-Modules:
-        Test.Bitstream.Utils
-    Build-Depends:
-        QuickCheck           == 2.4.*,
-        base                 == 4.*,
-        base-unicode-symbols == 0.2.*,
-        bytestring           == 0.9.*,
-        vector               == 0.7.*
-    GHC-Options:
-        -Wall -fhpc -fno-warn-orphans -O2
+        -Wall -fno-warn-orphans

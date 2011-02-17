@@ -94,10 +94,6 @@ infixl 9 !!
 -- THINKME: consider using numeric-prelude's non-negative numbers
 -- instead of Integral n.
 
--- NOTE: GHC 7.0.1 fails to fuse almost every cases of bitstream
--- fusion, producing very large and slow object code. See:
--- http://hackage.haskell.org/trac/ghc/ticket/4397
-
 {- Notes about inlining / rewriting phase control:
 
    1. We want "*/unstream fusion" rules always fire.

@@ -7,6 +7,7 @@
   , UnboxedTuples
   , UnicodeSyntax
   #-}
+-- | For internal use only.
 module Data.Bitstream.Packet
     ( Left
     , Right
@@ -55,6 +56,7 @@ data Left
 --
 data Right
 
+-- | 'Packet's are strict 'Bitstream's having at most 8 bits.
 data Packet d = Packet {-# UNPACK #-} !Int
                        {-# UNPACK #-} !Word8
     deriving (Eq)
@@ -427,17 +429,22 @@ packetOverflow = error "Data.Bitstream.Packet: packet size overflow"
 indexOutOfRange ∷ Integral n ⇒ n → α
 indexOutOfRange n = error ("Data.Bitstream.Packet: index out of range: " L.++ show n)
 
-{-# INLINE full #-}
+-- | /O(1)/ @'full' p == 'True'@ iff @'length' p == 8@, otherwise it
+-- returns 'False'.
 full ∷ Packet d → Bool
+{-# INLINE full #-}
 full (Packet 8 _) = True
 full _            = False
 
-{-# INLINE fromOctet #-}
+-- | /O(1)/ Convert an octet to 'Packet'.
 fromOctet ∷ Word8 → Packet d
+{-# INLINE fromOctet #-}
 fromOctet = Packet 8
 
-{-# INLINE toOctet #-}
+-- | /O(1)/ 'toOctet' @p@ converts a 'Packet' @p@ to an octet, padding
+-- with zeroes if @'length' p < 8@.
 toOctet ∷ Packet d → Word8
+{-# INLINE toOctet #-}
 toOctet (Packet _ o) = o
 
 {-# INLINE unsafeConsL #-}
@@ -460,12 +467,18 @@ unsafeSnocR ∷ Packet Right → Bool → Packet Right
 unsafeSnocR (Packet n o) True  = Packet (n+1) (o `setBit` (7-n))
 unsafeSnocR (Packet n o) False = Packet (n+1)  o
 
-{-# INLINE packetLToR #-}
+-- | /O(1)/ Change the direction of 'Packet' from 'Left' to
+-- 'Right'. Bit directions only affect octet-based operations such as
+-- 'toOctet'.
 packetLToR ∷ Packet Left → Packet Right
+{-# INLINE packetLToR #-}
 packetLToR (Packet n o) = Packet n (reverseBits o)
 
-{-# INLINE packetRToL #-}
+-- | /O(1)/ Change the direction of 'Packet' from 'Right' to
+-- 'Left'. Bit directions only affect octet-based operations such as
+-- 'toOctet'.
 packetRToL ∷ Packet Right → Packet Left
+{-# INLINE packetRToL #-}
 packetRToL (Packet n o) = Packet n (reverseBits o)
 
 {-# INLINE reverseBits #-}

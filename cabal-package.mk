@@ -89,12 +89,15 @@ sdist: setup-config
 test: build
 	$(RM_RF) dist/test
 	./Setup test
-	$(HPC) sum --output="merged.tix" --union --exclude=Main *.tix
-	$(HPC) markup --destdir="dist/hpc" --fun-entry-count "merged.tix"
+	if ls *.tix >/dev/null 2>&1; then \
+		$(HPC) sum --output="merged.tix" --union --exclude=Main *.tix; \
+		$(HPC) markup --destdir="dist/hpc" --fun-entry-count "merged.tix"; \
+	fi
 
 lint:
-	$(HLINT) . --report \
-		--ignore="Use string literal" \
-		--ignore="Use concatMap"
+	$(HLINT) . --report
+#	$(HLINT) . --report \
+#		--ignore="Use string literal" \
+#		--ignore="Use concatMap"
 
 .PHONY: build build-hook setup-config setup-config-hook run clean clean-hook install doc sdist test lint
