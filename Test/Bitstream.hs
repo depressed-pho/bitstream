@@ -86,10 +86,10 @@ tests = [ -- ∅
 
           -- stream/unstream
         , property $ \bl → B.unstream (S.fromList bl) ≡ (B.pack bl ∷ BitL)
-        , property $ \bs → S.toList   (B.stream bs)   ≡ (B.unpack (bs ∷ BitL))
+        , property $ \bs → S.toList   (B.stream bs)   ≡ B.unpack (bs ∷ BitL)
 
         , property $ \bl → B.unstream (S.fromList bl) ≡ (B.pack bl ∷ BitR)
-        , property $ \bs → S.toList   (B.stream bs)   ≡ (B.unpack (bs ∷ BitR))
+        , property $ \bs → S.toList   (B.stream bs)   ≡ B.unpack (bs ∷ BitR)
 
           -- direction
         , conjoin
@@ -127,16 +127,16 @@ tests = [ -- ∅
           , property $ ((M.∅) ∷ BitR) ≡ B.pack (M.∅)
           ]
 
-        , property $ \(bl1, bl2) → (B.pack bl1 ∷ BitL) M.⊕ (B.pack bl2) ≡ B.pack (bl1 M.⊕ bl2)
+        , property $ \(bl1, bl2) → (B.pack bl1 ∷ BitL) M.⊕ B.pack bl2 ≡ B.pack (bl1 M.⊕ bl2)
         , property $ \bls → M.mconcat (map B.pack bls ∷ [BitL]) ≡ B.pack (M.mconcat bls)
 
-        , property $ \(bl1, bl2) → (B.pack bl1 ∷ BitR) M.⊕ (B.pack bl2) ≡ B.pack (bl1 M.⊕ bl2)
+        , property $ \(bl1, bl2) → (B.pack bl1 ∷ BitR) M.⊕ B.pack bl2 ≡ B.pack (bl1 M.⊕ bl2)
         , property $ \bls → M.mconcat (map B.pack bls ∷ [BitR]) ≡ B.pack (M.mconcat bls)
 
           -- basic interface
         , property $ \(b, bl) → B.cons b (B.pack bl ∷ BitL) ≡ B.pack (b:bl)
         , property $ \(bl, b) → B.snoc (B.pack bl ∷ BitL) b ≡ B.pack (bl ⧺ [b])
-        , property $ \(x, y) → (B.pack x ∷ BitL) B.⧺ (B.pack y) ≡ B.pack (x ⧺ y)
+        , property $ \(x, y) → (B.pack x ∷ BitL) B.⧺ B.pack y ≡ B.pack (x ⧺ y)
         , property $ \bl → (¬) (null bl) ⟹ B.head (B.pack bl ∷ BitL) ≡ head bl
         , property $ \bl → (¬) (null bl) ⟹ B.last (B.pack bl ∷ BitL) ≡ last bl
         , property $ \bl → (¬) (null bl) ⟹ B.tail (B.pack bl ∷ BitL) ≡ B.pack (tail bl)
@@ -149,7 +149,7 @@ tests = [ -- ∅
 
         , property $ \(b, bl) → B.cons b (B.pack bl ∷ BitR) ≡ B.pack (b:bl)
         , property $ \(bl, b) → B.snoc (B.pack bl ∷ BitR) b ≡ B.pack (bl ⧺ [b])
-        , property $ \(x, y) → (B.pack x ∷ BitR) B.⧺ (B.pack y) ≡ B.pack (x ⧺ y)
+        , property $ \(x, y) → (B.pack x ∷ BitR) B.⧺ B.pack y ≡ B.pack (x ⧺ y)
         , property $ \bl → (¬) (null bl) ⟹ B.head (B.pack bl ∷ BitR) ≡ head bl
         , property $ \bl → (¬) (null bl) ⟹ B.last (B.pack bl ∷ BitR) ≡ last bl
         , property $ \bl → (¬) (null bl) ⟹ B.tail (B.pack bl ∷ BitR) ≡ B.pack (tail bl)

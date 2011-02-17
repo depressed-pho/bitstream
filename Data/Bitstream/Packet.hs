@@ -4,7 +4,6 @@
   , FlexibleContexts
   , FlexibleInstances
   , RankNTypes
-  , UnboxedTuples
   , UnicodeSyntax
   #-}
 -- | For internal use only.
@@ -26,6 +25,7 @@ module Data.Bitstream.Packet
 import Data.Bitstream.Generic
 import Data.Bits
 import qualified Data.List as L
+import Data.Ord
 import qualified Data.Vector.Fusion.Stream as S
 import Data.Vector.Fusion.Stream.Monadic (Stream(..), Step(..))
 import Data.Vector.Fusion.Stream.Size
@@ -110,7 +110,7 @@ instance Show (Packet Right) where
 instance Ord (Packet Left) where
     {-# INLINE compare #-}
     px `compare` py
-        = packetLToR px `compare` packetLToR py
+        = comparing packetLToR px py
 
 instance Ord (Packet Right) where
     {-# INLINE compare #-}

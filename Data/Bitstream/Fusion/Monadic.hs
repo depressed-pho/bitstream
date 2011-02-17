@@ -25,7 +25,7 @@ import Prelude.Unicode
 
 genericLength ∷ (Monad m, Num n) ⇒ Stream m α → m n
 {-# INLINE genericLength #-}
-genericLength s = foldl' (\n _ → n+1) 0 s
+genericLength = foldl' (\n _ → n+1) 0
 
 genericTake ∷ (Monad m, Integral n) ⇒ n → Stream m α → Stream m α
 {-# INLINE [0] genericTake #-}
@@ -55,7 +55,7 @@ genericDrop n0 (Stream step s0 sz) = Stream step' (s0, Just n0) (toMax sz)
                    case r of
                      Yield _ s' → return $ Skip (s', Just (n-1))
                      Skip    s' → return $ Skip (s', Just n)
-                     Done       → return $ Done
+                     Done       → return Done
           | otherwise
               = return $ Skip (s, Nothing)
 
@@ -143,4 +143,4 @@ genericIndexed (Stream step s0 sz) = Stream step' (s0, 0) sz
                case r of
                  Yield α s' → return $ Yield (i, α) (s', i+1)
                  Skip    s' → return $ Skip         (s', i  )
-                 Done       → return $ Done
+                 Done       → return Done
