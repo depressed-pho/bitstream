@@ -17,6 +17,7 @@ Author: PHO <pho at cielonegro dot org>
 Maintainer: PHO <pho at cielonegro dot org>
 Stability: experimental
 Homepage: http://cielonegro.org/Bitstream.html
+Bug-Reports: http://static.cielonegro.org/ditz/bitstream/
 Category: Data
 Tested-With: GHC == 7.0.1
 Cabal-Version: >= 1.10
