@@ -1,0 +1,18 @@
+--- !ditz.rubyforge.org,2008-03-06/issue 
+title: Strict Bitstream should keep bit-length maintained
+desc: Let the order of Data.Bitstream.length be O(1) by having bit-length with type Int.
+type: :task
+component: bitstream
+release: 
+reporter: PHO <pho@cielonegro.org>
+status: :unstarted
+disposition: 
+creation_time: 2011-02-21 14:59:06.159023 Z
+references: []
+
+id: 5fd8edd5fcbfd181873bad7220b0464f54d82cd4
+log_events: 
+- - 2011-02-21 14:59:09.921573 Z
+  - PHO <pho@cielonegro.org>
+  - created
+  - ""
