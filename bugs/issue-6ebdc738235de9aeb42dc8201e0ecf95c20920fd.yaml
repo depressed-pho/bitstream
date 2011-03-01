@@ -1,0 +1,18 @@
+--- !ditz.rubyforge.org,2008-03-06/issue 
+title: Make Bitstreams instances of Num
+desc: The Prelude's Num class is mathematically stupid but it's necessary for Bitstreams to be instances of Integral...
+type: :task
+component: bitstream
+release: 
+reporter: PHO <pho@cielonegro.org>
+status: :unstarted
+disposition: 
+creation_time: 2011-03-01 15:50:51.422613 Z
+references: []
+
+id: 6ebdc738235de9aeb42dc8201e0ecf95c20920fd
+log_events: 
+- - 2011-03-01 15:50:52.226358 Z
+  - PHO <pho@cielonegro.org>
+  - created
+  - ""
