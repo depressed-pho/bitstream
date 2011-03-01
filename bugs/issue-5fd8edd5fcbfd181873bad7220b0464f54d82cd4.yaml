@@ -5,8 +5,8 @@ type: :task
 component: bitstream
 release: 
 reporter: PHO <pho@cielonegro.org>
-status: :unstarted
-disposition: 
+status: :closed
+disposition: :fixed
 creation_time: 2011-02-21 14:59:06.159023 Z
 references: []
 
@@ -15,4 +15,12 @@ log_events:
 - - 2011-02-21 14:59:09.921573 Z
   - PHO <pho@cielonegro.org>
   - created
+  - ""
+- - 2011-03-01 15:57:51.746706 Z
+  - PHO <pho@cielonegro.org>
+  - changed status from unstarted to in_progress
+  - ""
+- - 2011-03-01 18:21:18.280704 Z
+  - PHO <pho@cielonegro.org>
+  - closed with disposition fixed
   - ""

@@ -357,7 +357,8 @@ null ∷ Bitstream α ⇒ α → Bool
 {-# INLINE [1] null #-}
 null = S.null ∘ stream
 
--- | /O(n)/ Retern the length of a finite 'Bitstream'.
+-- | /strict: O(1), lazy: O(n)/ Return the length of a finite
+-- 'Bitstream'.
 length ∷ Bitstream α ⇒ Num n ⇒ α → n
 {-# RULES "Bitstream length/unstream fusion"
     ∀s. length (unstream s) = genericLength s

@@ -495,7 +495,7 @@ unstreamChunks (Stream step s0 _) = go s0
   #-}
 
 -- Awful implementation to gain speed...
-packChunks ∷ ∀m d. Monad m
+packChunks ∷ ∀d m. (G.Bitstream (Packet d), Monad m)
            ⇒ Stream m (Packet d)
            → Stream m (SB.Bitstream d)
 {-# INLINE packChunks #-}
@@ -507,7 +507,8 @@ packChunks (Stream step s0 sz)
       emptyChunk
           = New.create (MVector.new chunkSize)
 
-      newChunk ∷ New.New SV.Vector (Packet d)
+      newChunk ∷ G.Bitstream (Packet d)
+               ⇒ New.New SV.Vector (Packet d)
                → Int
                → SB.Bitstream d
       {-# INLINE newChunk #-}
