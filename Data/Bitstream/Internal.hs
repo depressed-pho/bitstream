@@ -3,17 +3,29 @@
   , UnicodeSyntax
   #-}
 module Data.Bitstream.Internal
-    ( packPackets
+    ( Bitstream(..)
+    , packPackets
     )
     where
-import Data.Bitstream.Generic
+import Data.Bitstream.Generic hiding (Bitstream)
+import qualified Data.Bitstream.Generic as G
 import Data.Bitstream.Packet
 import Data.Vector.Fusion.Stream.Monadic (Stream(..), Step(..))
 import Data.Vector.Fusion.Stream.Size
+import qualified Data.Vector.Storable as SV
 import Prelude hiding (null)
 import Prelude.Unicode
 
-packPackets ∷ (Bitstream (Packet d), Monad m) ⇒ Stream m Bool → Stream m (Packet d)
+-- | A space-efficient representation of a 'Bool' vector, supporting
+-- many efficient operations. 'Bitstream's have an idea of
+-- /directions/ controlling how octets are interpreted as bits. There
+-- are two types of concrete 'Bitstream's: @'Bitstream' 'Left'@ and
+-- @'Bitstream' 'Right'@.
+data Bitstream d
+    = Bitstream {-# UNPACK #-} !Int -- bit length
+                {-# UNPACK #-} !(SV.Vector (Packet d))
+
+packPackets ∷ (G.Bitstream (Packet d), Monad m) ⇒ Stream m Bool → Stream m (Packet d)
 {-# INLINE packPackets #-}
 packPackets (Stream step s0 sz) = Stream step' ((∅), Just s0) sz'
     where
