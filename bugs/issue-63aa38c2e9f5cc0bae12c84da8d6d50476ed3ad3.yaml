@@ -1,0 +1,19 @@
+--- !ditz.rubyforge.org,2008-03-06/issue 
+title: Strict bitstrems should use unstreamPackets instead of hand-written unfoldr-based unstreamers.
+desc: We'd better eliminate uses of countBits as much as possible. It's very slow.
+type: :task
+component: bitstream
+release: 
+reporter: PHO <pho@cielonegro.org>
+status: :unstarted
+disposition: 
+creation_time: 2011-03-03 03:17:04.310417 Z
+references: []
+
+id: 63aa38c2e9f5cc0bae12c84da8d6d50476ed3ad3
+log_events: 
+- - 2011-03-03 03:17:06.401278 Z
+  - PHO <pho@cielonegro.org>
+  - created
+  - ""
+git_branch: 
