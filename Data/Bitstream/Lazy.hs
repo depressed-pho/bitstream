@@ -513,6 +513,8 @@ packChunks (Stream step s0 sz)
                → SB.Bitstream d
       {-# INLINE newChunk #-}
       newChunk ch len
+          -- THINKME: we'd better count the number of bits here and
+          -- don't let SB.fromPackets do it itself.
           = SB.fromPackets
             $ GV.new
             $ New.apply (MVector.take len) ch
@@ -542,7 +544,7 @@ packChunks (Stream step s0 sz)
                                             (emptyChunk, 0, Just s')
                      | otherwise
                            → return $ Skip  (writePacket ch len p, len+1, Just s')
-                 Skip s'   → return $ Skip  (ch             , len  , Just s')
+                 Skip s'   → return $ Skip  (ch                  , len  , Just s')
                  Done
                      | len ≡ 0
                            → return Done

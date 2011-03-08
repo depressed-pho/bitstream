@@ -38,6 +38,8 @@ module Data.Bitstream
       -- ** Converting from\/to 'S.Stream's
     , stream
     , unstream
+    , streamPackets
+    , unstreamPackets
 
       -- * Changing bit order in octets
     , directionLToR
@@ -238,14 +240,9 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
           Exact l
 
     {-# INLINE [0] unstream #-}
-    unstream s@(Stream _ _ sz)
+    unstream
         = {-# CORE "Bitstream unstream" #-}
-          let !v = GV.unstream (packPackets s)
-              !l = case sz of
-                     Exact n → n
-                     _       → countBits v
-          in
-            Bitstream l v
+          unstreamPackets ∘ packPackets
 
     {-# INLINEABLE [2] cons #-}
     cons b (Bitstream 0 _) = Bitstream 1 (SV.singleton (singleton b))
@@ -367,12 +364,9 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
                             | otherwise → (# l - length p + length p'
                                            , p' `SV.cons` SV.tail v #)
 
-    {-# INLINEABLE [2] takeWhile #-}
-    takeWhile f (Bitstream _ v0)
-        = let !v = GV.unstream (takeWhilePS (GV.stream v0))
-              !l = countBits v
-          in
-            Bitstream l v
+    {-# INLINE [2] takeWhile #-}
+    takeWhile f
+        = unstreamPackets ∘ takeWhilePS ∘ streamPackets
         where
           {-# INLINE takeWhilePS #-}
           takeWhilePS (Stream step s0 sz) = Stream step' (Just s0) (toMax sz)
@@ -407,11 +401,8 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
                                          , p' `SV.cons` SV.tail v #)
 
     {-# INLINEABLE [2] filter #-}
-    filter f (Bitstream _ v0)
-        = let !v = GV.unstream (filterPS (GV.stream v0))
-              !l = countBits v
-          in
-            Bitstream l v
+    filter f
+        = unstreamPackets ∘ filterPS ∘ streamPackets
         where
           {-# INLINE filterPS #-}
           filterPS (Stream step s0 sz) = Stream step' s0 (toMax sz)
@@ -542,6 +533,30 @@ fromPackets v = Bitstream (countBits v) v
 toPackets ∷ Bitstream d → SV.Vector (Packet d)
 {-# INLINE toPackets #-}
 toPackets (Bitstream _ d) = d
+
+-- | /O(1)/ Convert a 'Bitstream' into a 'S.Stream' of 'Packet's.
+streamPackets ∷ Bitstream d → S.Stream (Packet d)
+{-# INLINE [0] streamPackets #-}
+streamPackets (Bitstream _ v) = GV.stream v
+
+-- | /O(n)/ Convert a 'S.Stream' of 'Packet's into 'Bitstream'.
+unstreamPackets ∷ G.Bitstream (Packet d) ⇒ S.Stream (Packet d) → Bitstream d
+{-# INLINEABLE [0] unstreamPackets #-}
+unstreamPackets s@(Stream _ _ sz)
+    = let !v = GV.unstream s
+          !l = case sz of
+                 Exact n → n
+                 _       → countBits v
+      in
+        Bitstream l v
+
+{-# RULES
+"Strict Bitstream streamPackets/unstreamPackets fusion"
+    ∀s. streamPackets (unstreamPackets s) = s
+
+"Strict Bitstream unstreamPackets/streamPackets fusion"
+    ∀v. unstreamPackets (streamPackets v) = v
+  #-}
 
 -- | /O(n)/ Convert a @'Bitstream' 'Left'@ into a @'Bitstream'
 -- 'Right'@. Bit directions only affect octet-based operations such as
