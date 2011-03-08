@@ -159,7 +159,7 @@ module Data.Bitstream.Lazy
 import qualified Data.Bitstream as SB
 import Data.Bitstream.Generic hiding (Bitstream)
 import qualified Data.Bitstream.Generic as G
-import qualified Data.Bitstream.Internal as SB
+import Data.Bitstream.Internal
 import Data.Bitstream.Packet
 import qualified Data.ByteString.Lazy as LS
 import qualified Data.List as L
@@ -245,7 +245,7 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
     {-# INLINE [0] unstream #-}
     unstream
         = {-# CORE "Lazy Bitstream unstream" #-}
-          unId ∘ unstreamChunks ∘ packChunks ∘ SB.packPackets
+          unId ∘ unstreamChunks ∘ packChunks ∘ packPackets
 
     {-# INLINE [2] cons #-}
     cons b = Chunk (singleton b)
@@ -500,7 +500,7 @@ packChunks ∷ ∀d m. (G.Bitstream (Packet d), Monad m)
            → Stream m (SB.Bitstream d)
 {-# INLINE packChunks #-}
 packChunks (Stream step s0 sz)
-    = Stream step' (emptyChunk, 0, 0, Just s0) sz'
+    = Stream step' (emptyChunk, 0, Just s0) sz'
     where
       emptyChunk ∷ New.New SV.Vector (Packet d)
       {-# INLINE emptyChunk #-}
@@ -510,13 +510,12 @@ packChunks (Stream step s0 sz)
       newChunk ∷ G.Bitstream (Packet d)
                ⇒ New.New SV.Vector (Packet d)
                → Int
-               → Int
                → SB.Bitstream d
       {-# INLINE newChunk #-}
-      newChunk ch nb np
-          = SB.Bitstream nb
+      newChunk ch len
+          = SB.fromPackets
             $ GV.new
-            $ New.apply (MVector.take np) ch
+            $ New.apply (MVector.take len) ch
 
       writePacket ∷ New.New SV.Vector (Packet d)
                   → Int
@@ -534,22 +533,23 @@ packChunks (Stream step s0 sz)
               Unknown → Unknown
 
       {-# INLINE step' #-}
-      step' (ch, nb, np, Just s)
-          | np ≡ chunkSize
-              = return $ Yield (newChunk ch nb np)
-                               (emptyChunk, 0, 0, Just s)
-          | otherwise
-              = do r ← step s
-                   case r of
-                     Yield p s'       → let !ch' = writePacket ch np p
-                                            !nb' = nb + length p
-                                            !np' = np + 1
-                                        in return $ Skip (ch', nb', np', Just s')
-                     Skip s'          → return $ Skip (ch, nb, np, Just s')
-                     Done | np ≡ 0    → return Done
-                          | otherwise → return $ Yield (newChunk ch nb np)
-                                                       ((⊥), (⊥), (⊥), Nothing)
-      step' (_, _, _, Nothing)
+      step' (ch, len, Just s)
+          = do r ← step s
+               case r of
+                 Yield p s'
+                     | len ≡ chunkSize
+                           → return $ Yield (newChunk ch len)
+                                            (emptyChunk, 0, Just s')
+                     | otherwise
+                           → return $ Skip  (writePacket ch len p, len+1, Just s')
+                 Skip s'   → return $ Skip  (ch             , len  , Just s')
+                 Done
+                     | len ≡ 0
+                           → return Done
+                     | otherwise
+                           → return $ Yield (newChunk ch len)
+                                            ((⊥), (⊥), Nothing)
+      step' (_, _, Nothing)
           = return Done
 
 -- | /O(n)/ Convert a @'Bitstream' 'Left'@ into a @'Bitstream'
@@ -591,7 +591,7 @@ iterate ∷ G.Bitstream (Packet d) ⇒ (Bool → Bool) → Bool → Bitstream d
 iterate f b = xs
     where
       xs = Chunk x xs
-      x  = SB.Bitstream chunkBits (SV.replicate chunkSize p)
+      x  = SB.fromPackets (SV.replicate chunkSize p)
       p  = pack (L.take 8 (L.iterate f b))
 
 -- | /O(n)/ 'repeat' @x@ is an infinite 'Bitstream', with @x@ the

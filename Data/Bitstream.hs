@@ -176,6 +176,15 @@ import Prelude ( Bool(..), Eq(..), Int, Integral, Maybe(..), Monad(..), Num(..)
 import Prelude.Unicode hiding ((⧺), (∈), (∉))
 import System.IO (FilePath, Handle, IO)
 
+-- | A space-efficient representation of a 'Bool' vector, supporting
+-- many efficient operations. 'Bitstream's have an idea of
+-- /directions/ controlling how octets are interpreted as bits. There
+-- are two types of concrete 'Bitstream's: @'Bitstream' 'Left'@ and
+-- @'Bitstream' 'Right'@.
+data Bitstream d
+    = Bitstream {-# UNPACK #-} !Int -- bit length
+                {-# UNPACK #-} !(SV.Vector (Packet d))
+
 instance Show (Packet d) ⇒ Show (Bitstream d) where
     {-# INLINEABLE show #-}
     show (Bitstream _ v0)
@@ -361,7 +370,7 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
     {-# INLINEABLE [2] takeWhile #-}
     takeWhile f (Bitstream _ v0)
         = let !v = GV.unstream (takeWhilePS (GV.stream v0))
-              !l = countBits v -- NOTE: countBits is slow
+              !l = countBits v
           in
             Bitstream l v
         where
@@ -400,7 +409,7 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
     {-# INLINEABLE [2] filter #-}
     filter f (Bitstream _ v0)
         = let !v = GV.unstream (filterPS (GV.stream v0))
-              !l = countBits v -- NOTE: countBits is slow
+              !l = countBits v
           in
             Bitstream l v
         where
