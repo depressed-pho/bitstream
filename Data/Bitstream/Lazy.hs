@@ -514,7 +514,9 @@ packChunks (Stream step s0 sz)
       {-# INLINE newChunk #-}
       newChunk ch len
           -- THINKME: we'd better count the number of bits here and
-          -- don't let SB.fromPackets do it itself.
+          -- don't let SB.fromPackets do it itself. Ideally we should
+          -- provide mutable vectors that can be destructively
+          -- modified in an ST monad, but that's rather tiring.
           = SB.fromPackets
             $ GV.new
             $ New.apply (MVector.take len) ch
