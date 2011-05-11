@@ -232,19 +232,19 @@ instance G.Bitstream (Packet d) ⇒ Monoid (Bitstream d) where
     mconcat = concat
 
 instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
-    {-# INLINE [0] stream #-}
+    {-# NOINLINE stream #-}
     stream (Bitstream l v)
         = {-# CORE "Bitstream stream" #-}
           S.concatMap stream (GV.stream v)
           `S.sized`
           Exact l
 
-    {-# INLINE [0] unstream #-}
+    {-# NOINLINE unstream #-}
     unstream
         = {-# CORE "Bitstream unstream" #-}
           unstreamPackets ∘ packPackets
 
-    {-# INLINEABLE [2] cons #-}
+    {-# INLINEABLE [1] cons #-}
     cons b (Bitstream 0 _) = Bitstream 1 (SV.singleton (singleton b))
     cons b (Bitstream l v)
         = case SV.head v of
@@ -253,7 +253,7 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
               | otherwise
                     → Bitstream (l+1) (singleton b `SV.cons` v)
 
-    {-# INLINEABLE [2] snoc #-}
+    {-# INLINEABLE [1] snoc #-}
     snoc (Bitstream 0 _) b = Bitstream 1 (SV.singleton (singleton b))
     snoc (Bitstream l v) b
         = case SV.last v of
@@ -262,44 +262,44 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
               | otherwise
                     → Bitstream (l+1) (v `SV.snoc` singleton b)
 
-    {-# INLINE [2] append #-}
+    {-# INLINE [1] append #-}
     append (Bitstream lx x) (Bitstream ly y)
         = Bitstream (lx + ly) (x SV.++ y)
 
-    {-# INLINEABLE [2] tail #-}
+    {-# INLINEABLE [1] tail #-}
     tail (Bitstream 0 _) = emptyStream
     tail (Bitstream l v)
         = case tail (SV.head v) of
             p' | null p'   → Bitstream (l-1) (SV.tail v)
                | otherwise → Bitstream (l-1) (p' `SV.cons` SV.tail v)
 
-    {-# INLINEABLE [2] init #-}
+    {-# INLINEABLE [1] init #-}
     init (Bitstream 0 _) = emptyStream
     init (Bitstream l v)
         = case init (SV.last v) of
             p' | null p'   → Bitstream (l-1) (SV.init v)
                | otherwise → Bitstream (l-1) (SV.init v `SV.snoc` p')
 
-    {-# INLINE [2] map #-}
+    {-# INLINE [1] map #-}
     map f (Bitstream l v)
         = Bitstream l (SV.map (map f) v)
 
-    {-# INLINE [2] reverse #-}
+    {-# INLINE [1] reverse #-}
     reverse (Bitstream l v)
         = Bitstream l (SV.reverse (SV.map reverse v))
 
-    {-# INLINE [1] scanl #-}
+    {-# INLINE scanl #-}
     scanl f b
         = unstream ∘ S.scanl f b ∘ stream
 
-    {-# INLINE [2] concat #-}
+    {-# INLINE [1] concat #-}
     concat xs
         = let (!l, !vs) = L.mapAccumL (\n x → (n + length x, toPackets x)) 0 xs
               !v        = SV.concat vs
           in
             Bitstream l v
 
-    {-# INLINEABLE replicate #-}
+    {-# INLINEABLE [1] replicate #-}
     replicate n0 b
         | n0 ≤ 0         = (∅)
         | n0 `mod` 8 ≡ 0 = Bitstream (fromIntegral n0) anterior
@@ -321,7 +321,7 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
                 {-# INLINE n #-}
                 n = fromIntegral (n0 `mod` 8)
 
-    {-# INLINEABLE [2] take #-}
+    {-# INLINEABLE [1] take #-}
     take n0 (Bitstream l0 v0)
         | l0 ≡ 0    = (∅)
         | n0 ≤ 0    = (∅)
@@ -348,7 +348,7 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
                             in
                               go n' v' l' np' mv'
 
-    {-# INLINEABLE [2] drop #-}
+    {-# INLINEABLE [1] drop #-}
     drop n0 (Bitstream l0 v0)
         | n0 ≤ 0    = Bitstream l0 v0
         | otherwise = case go n0 l0 v0 of
@@ -364,7 +364,7 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
                             | otherwise → (# l - length p + length p'
                                            , p' `SV.cons` SV.tail v #)
 
-    {-# INLINE [2] takeWhile #-}
+    {-# INLINE [1] takeWhile #-}
     takeWhile f
         = unstreamPackets ∘ takeWhilePS ∘ streamPackets
         where
@@ -385,7 +385,7 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
                            Done
                                → return Done
 
-    {-# INLINEABLE [2] dropWhile #-}
+    {-# INLINEABLE [1] dropWhile #-}
     dropWhile _ (Bitstream 0  v0) = Bitstream 0 v0
     dropWhile f (Bitstream l0 v0) = case go l0 v0 of
                                       (# l, v #) → Bitstream l v
@@ -400,7 +400,7 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
                           | otherwise → (# l - pLen + length p'
                                          , p' `SV.cons` SV.tail v #)
 
-    {-# INLINEABLE [2] filter #-}
+    {-# INLINEABLE [1] filter #-}
     filter f
         = unstreamPackets ∘ filterPS ∘ streamPackets
         where
@@ -418,32 +418,32 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
                            Done       → return Done
 
 strictHead ∷ G.Bitstream (Packet d) ⇒ Bitstream d → Bool
-{-# RULES "head → strictHead" [2]
+{-# RULES "head → strictHead" [1]
     ∀(v ∷ G.Bitstream (Packet d) ⇒ Bitstream d).
     head v = strictHead v #-}
 {-# INLINE strictHead #-}
 strictHead (Bitstream _ v) = head (SV.head v)
 
 strictLast ∷ G.Bitstream (Packet d) ⇒ Bitstream d → Bool
-{-# RULES "last → strictLast" [2]
+{-# RULES "last → strictLast" [1]
     ∀(v ∷ G.Bitstream (Packet d) ⇒ Bitstream d).
     last v = strictLast v #-}
 {-# INLINE strictLast #-}
 strictLast (Bitstream _ v) = last (SV.last v)
 
 strictNull ∷ Bitstream d → Bool
-{-# RULES "null → strictNull" [2] null = strictNull #-}
+{-# RULES "null → strictNull" [1] null = strictNull #-}
 {-# INLINE strictNull #-}
 strictNull (Bitstream 0 _) = True
 strictNull _               = False
 
 strictLength ∷ Num n ⇒ Bitstream d → n
-{-# RULES "length → strictLength" [2] length = strictLength #-}
+{-# RULES "length → strictLength" [1] length = strictLength #-}
 {-# INLINE strictLength #-}
 strictLength (Bitstream len _) = fromIntegral len
 
 strictAnd ∷ G.Bitstream (Packet d) ⇒ Bitstream d → Bool
-{-# RULES "and → strictAnd" [2]
+{-# RULES "and → strictAnd" [1]
     ∀(v ∷ G.Bitstream (Packet d) ⇒ Bitstream d).
     and v = strictAnd v #-}
 {-# INLINE strictAnd #-}
@@ -451,7 +451,7 @@ strictAnd (Bitstream _ v)
     = SV.all and v
 
 strictOr ∷ G.Bitstream (Packet d) ⇒ Bitstream d → Bool
-{-# RULES "or → strictOr" [2]
+{-# RULES "or → strictOr" [1]
     ∀(v ∷ G.Bitstream (Packet d) ⇒ Bitstream d).
     or v = strictOr v #-}
 {-# INLINE strictOr #-}
@@ -459,7 +459,7 @@ strictOr (Bitstream _ v)
     = SV.any or v
 
 strictIndex ∷ (G.Bitstream (Packet d), Integral n) ⇒ Bitstream d → n → Bool
-{-# RULES "(!!) → strictIndex" [2]
+{-# RULES "(!!) → strictIndex" [1]
     ∀(v ∷ G.Bitstream (Packet d) ⇒ Bitstream d) n.
     v !! n = strictIndex v n #-}
 {-# INLINEABLE strictIndex #-}
@@ -536,12 +536,12 @@ toPackets (Bitstream _ d) = d
 
 -- | /O(1)/ Convert a 'Bitstream' into a 'S.Stream' of 'Packet's.
 streamPackets ∷ Bitstream d → S.Stream (Packet d)
-{-# INLINE [0] streamPackets #-}
+{-# NOINLINE streamPackets #-}
 streamPackets (Bitstream _ v) = GV.stream v
 
 -- | /O(n)/ Convert a 'S.Stream' of 'Packet's into 'Bitstream'.
 unstreamPackets ∷ G.Bitstream (Packet d) ⇒ S.Stream (Packet d) → Bitstream d
-{-# INLINEABLE [0] unstreamPackets #-}
+{-# NOINLINE unstreamPackets #-}
 unstreamPackets s@(Stream _ _ sz)
     = let !v = GV.unstream s
           !l = case sz of

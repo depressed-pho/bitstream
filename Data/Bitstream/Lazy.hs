@@ -237,20 +237,20 @@ instance G.Bitstream (Packet d) ⇒ Monoid (Bitstream d) where
     mconcat = concat
 
 instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
-    {-# INLINE [0] stream #-}
+    {-# NOINLINE stream #-}
     stream
         = {-# CORE "Lazy Bitstream stream" #-}
           S.concatMap stream ∘ streamChunks
 
-    {-# INLINE [0] unstream #-}
+    {-# NOINLINE unstream #-}
     unstream
         = {-# CORE "Lazy Bitstream unstream" #-}
           unId ∘ unstreamChunks ∘ packChunks ∘ packPackets
 
-    {-# INLINE [2] cons #-}
+    {-# INLINE [1] cons #-}
     cons b = Chunk (singleton b)
 
-    {-# INLINEABLE [2] cons' #-}
+    {-# INLINEABLE [1] cons' #-}
     cons' b Empty
         = Chunk (SB.singleton b) Empty
     cons' b (Chunk x xs)
@@ -259,7 +259,7 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
         | otherwise
             = Chunk (singleton b) (Chunk x xs)
 
-    {-# INLINEABLE [2] snoc #-}
+    {-# INLINEABLE [1] snoc #-}
     snoc Empty b
         = Chunk (SB.singleton b) Empty
     snoc (Chunk x Empty) b
@@ -270,35 +270,35 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
     snoc (Chunk x xs) b
         = Chunk x (xs `snoc` b)
 
-    {-# INLINE [2] append #-}
+    {-# INLINE [1] append #-}
     append Empty ch        = ch
     append (Chunk x xs) ch = Chunk x (append xs ch)
 
-    {-# INLINEABLE [2] tail #-}
+    {-# INLINEABLE [1] tail #-}
     tail Empty        = emptyStream
     tail (Chunk x xs) = case tail x of
                           x' | null x'   → xs
                              | otherwise → Chunk x' xs
 
-    {-# INLINEABLE [2] init #-}
+    {-# INLINEABLE [1] init #-}
     init Empty           = emptyStream
     init (Chunk x Empty) = case init x of
                              x' | null x'   → Empty
                                 | otherwise → Chunk x' Empty
     init (Chunk x xs   ) = Chunk x (init xs)
 
-    {-# INLINE [2] map #-}
+    {-# INLINE [1] map #-}
     map _ Empty        = Empty
     map f (Chunk x xs) = Chunk (map f x) (map f xs)
 
-    {-# INLINEABLE [2] reverse #-}
+    {-# INLINEABLE [1] reverse #-}
     reverse ch0 = go ch0 Empty
         where
           {-# INLINE go #-}
           go Empty        ch = ch
           go (Chunk x xs) ch = go xs (Chunk (reverse x) ch)
 
-    {-# INLINE [2] scanl #-}
+    {-# INLINE [1] scanl #-}
     scanl f b ch
         = Chunk (singleton b)
                 (case ch of
@@ -313,10 +313,10 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
                                   then xs'
                                   else Chunk x'' xs')
 
-    {-# INLINE [2] concat #-}
+    {-# INLINE [1] concat #-}
     concat = fromChunks ∘ L.concatMap toChunks
 
-    {-# INLINEABLE replicate #-}
+    {-# INLINEABLE [1] replicate #-}
     replicate n b
         | n ≤ 0         = Empty
         | n < chunkBits = Chunk (replicate n b) Empty
@@ -324,40 +324,40 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
         where
           x = replicate (chunkBits ∷ Int) b
 
-    {-# INLINEABLE [2] take #-}
+    {-# INLINEABLE [1] take #-}
     take _ Empty        = Empty
     take n (Chunk x xs)
         | n ≤ 0         = Empty
         | n ≥ length x  = Chunk x (take (n - length x) xs)
         | otherwise     = Chunk (take n x) Empty
 
-    {-# INLINEABLE [2] drop #-}
+    {-# INLINEABLE [1] drop #-}
     drop _ Empty       = Empty
     drop n (Chunk x xs)
         | n ≤ 0        = Chunk x xs
         | n ≥ length x = drop (n - length x) xs
         | otherwise    = Chunk (drop n x) xs
 
-    {-# INLINEABLE [2] takeWhile #-}
+    {-# INLINEABLE [1] takeWhile #-}
     takeWhile _ Empty        = Empty
     takeWhile f (Chunk x xs) = case takeWhile f x of
                                  x' | x ≡ x'    → Chunk x' (takeWhile f xs)
                                     | otherwise → Chunk x' Empty
 
-    {-# INLINEABLE [2] dropWhile #-}
+    {-# INLINEABLE [1] dropWhile #-}
     dropWhile _ Empty        = Empty
     dropWhile f (Chunk x xs) = case dropWhile f x of
                                  x' | null x'   → dropWhile f xs
                                     | otherwise → Chunk x' xs
 
-    {-# INLINEABLE [2] filter #-}
+    {-# INLINEABLE [1] filter #-}
     filter _ Empty        = Empty
     filter f (Chunk x xs) = case filter f x of
                               x' | null x'   → filter f xs
                                  | otherwise → Chunk x' (filter f xs)
 
 lazyHead ∷ G.Bitstream (Packet d) ⇒ Bitstream d → Bool
-{-# RULES "head → lazyHead" [2]
+{-# RULES "head → lazyHead" [1]
     ∀(v ∷ G.Bitstream (Packet d) ⇒ Bitstream d).
     head v = lazyHead v #-}
 {-# INLINE lazyHead #-}
@@ -365,7 +365,7 @@ lazyHead Empty       = emptyStream
 lazyHead (Chunk x _) = head x
 
 lazyLast ∷ G.Bitstream (Packet d) ⇒ Bitstream d → Bool
-{-# RULES "last → lazyLast" [2]
+{-# RULES "last → lazyLast" [1]
     ∀(v ∷ G.Bitstream (Packet d) ⇒ Bitstream d).
     last v = lazyLast v #-}
 {-# INLINE lazyLast #-}
@@ -374,13 +374,13 @@ lazyLast (Chunk x Empty) = last x
 lazyLast (Chunk _ xs   ) = lazyLast xs
 
 lazyNull ∷ Bitstream d → Bool
-{-# RULES "null → lazyNull" [2] null = lazyNull #-}
+{-# RULES "null → lazyNull" [1] null = lazyNull #-}
 {-# INLINE lazyNull #-}
 lazyNull Empty = True
 lazyNull _     = False
 
 lazyLength ∷ (G.Bitstream (Packet d), Num n) ⇒ Bitstream d → n
-{-# RULES "length → lazyLength" [2]
+{-# RULES "length → lazyLength" [1]
     ∀(v ∷ G.Bitstream (Packet d) ⇒ Bitstream d).
     length v = lazyLength v #-}
 {-# INLINE lazyLength #-}
@@ -391,7 +391,7 @@ lazyLength = go 0
       go !soFar (Chunk x xs) = go (soFar + length x) xs
 
 lazyAnd ∷ G.Bitstream (Packet d) ⇒ Bitstream d → Bool
-{-# RULES "and → lazyAnd" [2]
+{-# RULES "and → lazyAnd" [1]
     ∀(v ∷ G.Bitstream (Packet d) ⇒ Bitstream d).
     and v = lazyAnd v #-}
 {-# INLINEABLE lazyAnd #-}
@@ -401,7 +401,7 @@ lazyAnd (Chunk x xs)
     | otherwise      = False
 
 lazyOr ∷ G.Bitstream (Packet d) ⇒ Bitstream d → Bool
-{-# RULES "or → lazyOr" [2]
+{-# RULES "or → lazyOr" [1]
     ∀(v ∷ G.Bitstream (Packet d) ⇒ Bitstream d).
     or v = lazyOr v #-}
 {-# INLINEABLE lazyOr #-}
@@ -411,7 +411,7 @@ lazyOr (Chunk x xs)
     | otherwise     = lazyOr xs
 
 lazyIndex ∷ (G.Bitstream (Packet d), Integral n) ⇒ Bitstream d → n → Bool
-{-# RULES "(!!) → lazyIndex" [2]
+{-# RULES "(!!) → lazyIndex" [1]
     ∀(v ∷ G.Bitstream (Packet d) ⇒ Bitstream d) n.
     v !! n = lazyIndex v n #-}
 {-# INLINEABLE lazyIndex #-}
@@ -463,7 +463,7 @@ toByteString ∷ G.Bitstream (Packet d) ⇒ Bitstream d → LS.ByteString
 toByteString = LS.fromChunks ∘ L.map SB.toByteString ∘ toChunks
 
 streamChunks ∷ Monad m ⇒ Bitstream d → Stream m (SB.Bitstream d)
-{-# INLINE [0] streamChunks #-}
+{-# NOINLINE streamChunks #-}
 streamChunks ch0 = Stream step ch0 Unknown
     where
       {-# INLINE step #-}
@@ -473,7 +473,7 @@ streamChunks ch0 = Stream step ch0 Unknown
 unstreamChunks ∷ (G.Bitstream (Packet d), Monad m)
                ⇒ Stream m (SB.Bitstream d)
                → m (Bitstream d)
-{-# INLINE [0] unstreamChunks #-}
+{-# NOINLINE unstreamChunks #-}
 unstreamChunks (Stream step s0 _) = go s0
     where
       {-# INLINE go #-}

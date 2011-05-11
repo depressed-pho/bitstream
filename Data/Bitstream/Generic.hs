@@ -94,9 +94,10 @@ infixl 9 !!
 {- Notes about inlining / rewriting phase control:
 
    1. We want "*/unstream fusion" rules always fire.
-   2. Unfused form specialisations should occur at phase 2 and later.
-   3. Fusible form inlinings should occur at phase 1 and later.
-   4. stream / unstream inlinings should occur last i.e. phase 0.
+   2. Fusible producer inlinings should always occur.
+   3. Unfused form specialisations should occur at phase 1 and later.
+   4. Fusible consumer inlinings should occur last i.e. phase 0.
+   5. stream / unstream inlinings should never occur.
  -}
 
 -- | Class of diverse types of 'Bitstream'.
@@ -309,7 +310,7 @@ class Bitstream α where
 {-# INLINE (∌) #-}
 
 -- | /O(n)/ Convert a ['Bool'] into a 'Bitstream'.
-{-# INLINE [1] pack #-}
+{-# INLINE pack #-}
 pack ∷ Bitstream α ⇒ [Bool] → α
 pack = unstream ∘ S.fromList
 
@@ -318,17 +319,17 @@ unpack ∷ Bitstream α ⇒ α → [Bool]
 {-# RULES "Bitstream unpack/unstream fusion"
     ∀s. unpack (unstream s) = S.toList s
   #-}
-{-# INLINE [1] unpack #-}
+{-# INLINE [0] unpack #-}
 unpack = S.toList ∘ stream
 
 -- | /O(1)/ The empty 'Bitstream'.
 empty ∷ Bitstream α ⇒ α
-{-# INLINE [1] empty #-}
+{-# INLINE empty #-}
 empty = unstream S.empty
 
 -- | /O(1)/ Convert a 'Bool' into a 'Bitstream'.
 singleton ∷ Bitstream α ⇒ Bool → α
-{-# INLINE [1] singleton #-}
+{-# INLINE singleton #-}
 singleton = unstream ∘ S.singleton
 
 -- | /O(1)/ Extract the first bit of a non-empty 'Bitstream'. An
@@ -337,7 +338,7 @@ head ∷ Bitstream α ⇒ α → Bool
 {-# RULES "Bitstream head/unstream fusion"
     ∀s. head (unstream s) = S.head s
   #-}
-{-# INLINE [1] head #-}
+{-# INLINE [0] head #-}
 head = S.head ∘ stream
 
 -- | /strict: O(1), lazy: O(n)/ Extract the last bit of a finite
@@ -346,7 +347,7 @@ last ∷ Bitstream α ⇒ α → Bool
 {-# RULES "Bitstream last/unstream fusion"
     ∀s. last (unstream s) = S.last s
   #-}
-{-# INLINE [1] last #-}
+{-# INLINE [0] last #-}
 last = S.last ∘ stream
 
 -- | /O(1)/ Test whether a 'Bitstream' is empty.
@@ -354,7 +355,7 @@ null ∷ Bitstream α ⇒ α → Bool
 {-# RULES "Bitstream null/unstream fusion"
     ∀s. null (unstream s) = S.null s
   #-}
-{-# INLINE [1] null #-}
+{-# INLINE [0] null #-}
 null = S.null ∘ stream
 
 -- | /strict: O(1), lazy: O(n)/ Return the length of a finite
@@ -363,7 +364,7 @@ length ∷ Bitstream α ⇒ Num n ⇒ α → n
 {-# RULES "Bitstream length/unstream fusion"
     ∀s. length (unstream s) = genericLength s
   #-}
-{-# INLINE [1] length #-}
+{-# INLINE [0] length #-}
 length = genericLength ∘ stream
 
 -- | Map a function over a 'Bitstream' and concatenate the results.
@@ -371,7 +372,7 @@ concatMap ∷ Bitstream α ⇒ (Bool → α) → α → α
 {-# RULES "Bitstream concatMap/unstream fusion"
     ∀f s. concatMap f (unstream s) = unstream (S.concatMap f s)
   #-}
-{-# INLINE [1] concatMap #-}
+{-# INLINE [0] concatMap #-}
 concatMap f = concat ∘ L.map f ∘ unpack
 
 -- | /O(n)/ 'and' returns the conjunction of a 'Bool' list. For the
@@ -383,7 +384,7 @@ and ∷ Bitstream α ⇒ α → Bool
 {-# RULES "Bitstream and/unstream fusion"
     ∀s. and (unstream s) = S.and s
   #-}
-{-# INLINE [1] and #-}
+{-# INLINE [0] and #-}
 and = S.and ∘ stream
 
 -- | /O(n)/ 'or' returns the disjunction of a 'Bool' list. For the
@@ -395,7 +396,7 @@ or ∷ Bitstream α ⇒ α → Bool
 {-# RULES "Bitstream or/unstream fusion"
     ∀s. or (unstream s) = S.or s
   #-}
-{-# INLINE [1] or #-}
+{-# INLINE [0] or #-}
 or = S.or ∘ stream
 
 -- | /O(n)/ Applied to a predicate and a 'Bitstream', 'any' determines
@@ -407,7 +408,7 @@ any ∷ Bitstream α ⇒ (Bool → Bool) → α → Bool
 {-# RULES "Bitstream any/unstream fusion"
     ∀f s. any f (unstream s) = S.or (S.map f s)
   #-}
-{-# INLINE [1] any #-}
+{-# INLINE [0] any #-}
 any f = S.or ∘ S.map f ∘ stream
 
 -- | /O(n)/ Applied to a predicate and a 'Bitstream', 'all' determines
@@ -419,7 +420,7 @@ all ∷ Bitstream α ⇒ (Bool → Bool) → α → Bool
 {-# RULES "Bitstream all/unstream fusion"
     ∀f s. all f (unstream s) = S.and (S.map f s)
   #-}
-{-# INLINE [1] all #-}
+{-# INLINE [0] all #-}
 all f = S.and ∘ S.map f ∘ stream
 
 -- | /O(n)/ 'scanl1' is a variant of 'scanl' that has no starting
@@ -432,7 +433,7 @@ scanl1 ∷ Bitstream α ⇒ (Bool → Bool → Bool) → α → α
 {-# RULES "Bitstream scanl1/unstream fusion"
     ∀f s. scanl1 f (unstream s) = S.scanl1 f s
   #-}
-{-# INLINE [1] scanl1 #-}
+{-# INLINE [0] scanl1 #-}
 scanl1 f α
     | null α    = α
     | otherwise = scanl f (head α) (tail α)
@@ -443,13 +444,13 @@ scanl1 f α
 -- 'head' ('scanr' f z xs) == 'foldr' f z xs
 -- @
 scanr ∷ Bitstream α ⇒ (Bool → Bool → Bool) → Bool → α → α
-{-# INLINE [1] scanr #-}
+{-# INLINE [0] scanr #-}
 scanr f b = reverse ∘ scanl (flip f) b ∘ reverse
 
 -- | /O(n)/ 'scanr1' is a variant of 'scanr' that has no starting
 -- value argument.
 scanr1 ∷ Bitstream α ⇒ (Bool → Bool → Bool) → α → α
-{-# INLINE [1] scanr1 #-}
+{-# INLINE [0] scanr1 #-}
 scanr1 f = reverse ∘ scanl1 (flip f) ∘ reverse
 
 -- | /O(n)/ 'foldl', applied to a binary operator, a starting value
@@ -466,7 +467,7 @@ foldl ∷ Bitstream α ⇒ (β → Bool → β) → β → α → β
 {-# RULES "Bitstream foldl/unstream fusion"
     ∀f β s. foldl f β (unstream s) = S.foldl f β s
   #-}
-{-# INLINE [1] foldl #-}
+{-# INLINE [0] foldl #-}
 foldl f β = S.foldl f β ∘ stream
 
 -- | /O(n)/ 'foldl'' is a variant of 'foldl' that is strict on the
@@ -475,7 +476,7 @@ foldl' ∷ Bitstream α ⇒ (β → Bool → β) → β → α → β
 {-# RULES "Bitstream foldl'/unstream fusion"
     ∀f β s. foldl' f β (unstream s) = S.foldl' f β s
   #-}
-{-# INLINE [1] foldl' #-}
+{-# INLINE [0] foldl' #-}
 foldl' f β = S.foldl' f β ∘ stream
 
 -- | /O(n)/ 'foldl1' is a variant of 'foldl' that has no starting
@@ -484,7 +485,7 @@ foldl1 ∷ Bitstream α ⇒ (Bool → Bool → Bool) → α → Bool
 {-# RULES "Bitstream foldl1/unstream fusion"
     ∀f s. foldl1 f (unstream s) = S.foldl1 f s
   #-}
-{-# INLINE [1] foldl1 #-}
+{-# INLINE [0] foldl1 #-}
 foldl1 f = S.foldl1 f ∘ stream
 
 -- | /O(n)/ A strict version of 'foldl1'.
@@ -492,7 +493,7 @@ foldl1' ∷ Bitstream α ⇒ (Bool → Bool → Bool) → α → Bool
 {-# RULES "Bitstream foldl1'/unstream fusion"
     ∀f s. foldl1' f (unstream s) = S.foldl1' f s
   #-}
-{-# INLINE [1] foldl1' #-}
+{-# INLINE [0] foldl1' #-}
 foldl1' f = S.foldl1' f ∘ stream
 
 -- | /O(n)/ 'foldr', applied to a binary operator, a starting value
@@ -507,7 +508,7 @@ foldr ∷ Bitstream α ⇒ (Bool → β → β) → β → α → β
 {-# RULES "Bitstream foldr/unstream fusion"
     ∀f β s. foldr f β (unstream s) = S.foldr f β s
   #-}
-{-# INLINE [1] foldr #-}
+{-# INLINE [0] foldr #-}
 foldr f β = S.foldr f β ∘ stream
 
 -- | /O(n)/ 'foldr1' is a variant of 'foldr' that has no starting
@@ -516,7 +517,7 @@ foldr1 ∷ Bitstream α ⇒ (Bool → Bool → Bool) → α → Bool
 {-# RULES "Bitstream foldr1/unstream fusion"
     ∀f s. foldr1 f (unstream s) = S.foldr1 f s
   #-}
-{-# INLINE [1] foldr1 #-}
+{-# INLINE [0] foldr1 #-}
 foldr1 f = S.foldr1 f ∘ stream
 
 -- | /O(n)/ The 'unfoldr' function is a \`dual\' to 'foldr': while
@@ -527,13 +528,13 @@ foldr1 f = S.foldr1 f ∘ stream
 -- 'Bitstream' and @b@ is used as the next element in a recursive
 -- call.
 unfoldr ∷ Bitstream α ⇒ (β → Maybe (Bool, β)) → β → α
-{-# INLINE [1] unfoldr #-}
+{-# INLINE unfoldr #-}
 unfoldr f = unstream ∘ S.unfoldr f
 
 -- | /O(n)/ 'unfoldrN' is a variant of 'unfoldr' but constructs a
 -- 'Bitstream' with at most @n@ bits.
 unfoldrN ∷ (Bitstream α, Integral n) ⇒ n → (β → Maybe (Bool, β)) → β → α
-{-# INLINE [1] unfoldrN #-}
+{-# INLINE unfoldrN #-}
 unfoldrN n f = unstream ∘ genericUnfoldrN n f
 
 -- | /O(n)/ 'Bitstream' index (subscript) operator, starting from 0.
@@ -541,7 +542,7 @@ unfoldrN n f = unstream ∘ genericUnfoldrN n f
 {-# RULES "Bitstream (!!)/unstream fusion"
     ∀s n. (unstream s) !! n = genericIndex s n
   #-}
-{-# INLINE [1] (!!) #-}
+{-# INLINE [0] (!!) #-}
 α !! n = genericIndex (stream α) n
 
 -- | /O(n)/ 'span', applied to a predicate @p@ and a 'Bitstream' @xs@,
@@ -552,7 +553,7 @@ unfoldrN n f = unstream ∘ genericUnfoldrN n f
 -- 'span' @p xs@ is equivalent to @('takeWhile' p xs, 'dropWhile' p
 -- xs)@
 span ∷ Bitstream α ⇒ (Bool → Bool) → α → (α, α)
-{-# INLINE [1] span #-}
+{-# INLINE span #-}
 span f α
     = let hd = takeWhile f α
           tl = drop (length hd ∷ Integer) α
@@ -566,7 +567,7 @@ span f α
 --
 -- 'break' @p@ is equivalent to @'span' ('not' . p)@.
 break ∷ Bitstream α ⇒ (Bool → Bool) → α → (α, α)
-{-# INLINE [1] break #-}
+{-# INLINE break #-}
 break f = span ((¬) ∘ f)
 
 -- | /O(n)/ 'elem' is the 'Bitstream' membership predicate, usually
@@ -578,7 +579,7 @@ elem ∷ Bitstream α ⇒ Bool → α → Bool
 {-# RULES "Bitstream elem/unstream fusion"
     ∀b s. elem b (unstream s) = S.elem b s
   #-}
-{-# INLINE [1] elem #-}
+{-# INLINE [0] elem #-}
 elem True  = or
 elem False = (¬) ∘ and
 
@@ -587,7 +588,7 @@ notElem ∷ Bitstream α ⇒ Bool → α → Bool
 {-# RULES "Bitstream notElem/unstream fusion"
     ∀b s. notElem b (unstream s) = S.notElem b s
   #-}
-{-# INLINE [1] notElem #-}
+{-# INLINE [0] notElem #-}
 notElem = ((¬) ∘) ∘ (∈)
 
 -- | /O(n)/ The 'find' function takes a predicate and a 'Bitstream'
@@ -597,7 +598,7 @@ find ∷ Bitstream α ⇒ (Bool → Bool) → α → Maybe Bool
 {-# RULES "Bitstream find/unstream fusion"
     ∀f s. find f (unstream s) = S.find f s
   #-}
-{-# INLINE [1] find #-}
+{-# INLINE [0] find #-}
 find f = S.find f ∘ stream
 
 -- | /O(n)/ The 'elemIndex' function returns the index of the first
@@ -607,7 +608,7 @@ elemIndex ∷ (Bitstream α, Integral n) ⇒ Bool → α → Maybe n
 {-# RULES "Bitstream elemIndex/unstream fusion"
     ∀b s. elemIndex b (unstream s) = genericFindIndex (≡ b) s
   #-}
-{-# INLINE [1] elemIndex #-}
+{-# INLINE [0] elemIndex #-}
 elemIndex = findIndex ∘ (≡)
 
 -- | /O(n)/ The 'elemIndices' function extends 'elemIndex', by
@@ -621,7 +622,7 @@ elemIndices ∷ (Bitstream α, Integral n) ⇒ Bool → α → [n]
               $ S.filter ((≡ b) ∘ snd)
               $ genericIndexed s
   #-}
-{-# INLINE [1] elemIndices #-}
+{-# INLINE [0] elemIndices #-}
 elemIndices = findIndices ∘ (≡)
 
 -- | /O(n)/ The 'findIndex' function takes a predicate and a
@@ -632,7 +633,7 @@ findIndex ∷ (Bitstream α, Integral n) ⇒ (Bool → Bool) → α → Maybe n
 {-# RULES "Bitstream findIndex/unstream fusion"
     ∀f s. findIndex f (unstream s) = genericFindIndex f s
   #-}
-{-# INLINE [1] findIndex #-}
+{-# INLINE [0] findIndex #-}
 findIndex f = genericFindIndex f ∘ stream
 
 -- | /O(n)/ The 'findIndices' function extends 'findIndex', by
@@ -646,7 +647,7 @@ findIndices ∷ (Bitstream α, Integral n) ⇒ (Bool → Bool) → α → [n]
               $ S.filter (f ∘ snd)
               $ genericIndexed s
   #-}
-{-# INLINE [1] findIndices #-}
+{-# INLINE [0] findIndices #-}
 findIndices f
     = S.toList
     ∘ S.map fst
@@ -662,7 +663,7 @@ zip ∷ Bitstream α ⇒ α → α → [(Bool, Bool)]
     zip (unstream s1) (unstream s2)
         = S.toList (S.zip s1 s2)
   #-}
-{-# INLINE [1] zip #-}
+{-# INLINE [0] zip #-}
 zip = zipWith (,)
 
 -- | The 'zip3' function takes three 'Bitstream's and returns a list
@@ -672,7 +673,7 @@ zip3 ∷ Bitstream α ⇒ α → α → α → [(Bool, Bool, Bool)]
     zip3 (unstream s1) (unstream s2) (unstream s3)
         = S.toList (S.zip3 s1 s2 s3)
   #-}
-{-# INLINE [1] zip3 #-}
+{-# INLINE [0] zip3 #-}
 zip3 = zipWith3 (,,)
 
 -- | The 'zip4' function takes four lists and returns a list of
@@ -682,7 +683,7 @@ zip4 ∷ Bitstream α ⇒ α → α → α → α → [(Bool, Bool, Bool, Bool)]
     zip4 (unstream s1) (unstream s2) (unstream s3) (unstream s4)
         = S.toList (S.zip4 s1 s2 s3 s4)
   #-}
-{-# INLINE [1] zip4 #-}
+{-# INLINE [0] zip4 #-}
 zip4 = zipWith4 (,,,)
 
 -- | The 'zip5' function takes five 'Bitstream's and returns a list of
@@ -692,7 +693,7 @@ zip5 ∷ Bitstream α ⇒ α → α → α → α → α → [(Bool, Bool, Bool,
     zip5 (unstream s1) (unstream s2) (unstream s3) (unstream s4) (unstream s5)
         = S.toList (S.zip5 s1 s2 s3 s4 s5)
   #-}
-{-# INLINE [1] zip5 #-}
+{-# INLINE [0] zip5 #-}
 zip5 = zipWith5 (,,,,)
 
 -- | The 'zip6' function takes six 'Bitstream's and returns a list of
@@ -702,7 +703,7 @@ zip6 ∷ Bitstream α ⇒ α → α → α → α → α → α → [(Bool, Bool
     zip6 (unstream s1) (unstream s2) (unstream s3) (unstream s4) (unstream s5) (unstream s6)
         = S.toList (S.zip6 s1 s2 s3 s4 s5 s6)
   #-}
-{-# INLINE [1] zip6 #-}
+{-# INLINE [0] zip6 #-}
 zip6 = zipWith6 (,,,,,)
 
 -- | /O(min(m, n))/ 'zipWith' generalises 'zip' by zipping with the
@@ -713,7 +714,7 @@ zipWith ∷ Bitstream α ⇒ (Bool → Bool → β) → α → α → [β]
     zipWith f (unstream s1) (unstream s2)
         = S.toList (S.zipWith f s1 s2)
   #-}
-{-# INLINEABLE [1] zipWith #-}
+{-# INLINEABLE [0] zipWith #-}
 zipWith f α β = S.toList $
                 S.zipWith f
                      (stream α)
@@ -727,7 +728,7 @@ zipWith3 ∷ Bitstream α ⇒ (Bool → Bool → Bool → β) → α → α → 
     zipWith3 f (unstream s1) (unstream s2) (unstream s3)
         = S.toList (S.zipWith3 f s1 s2 s3)
   #-}
-{-# INLINEABLE [1] zipWith3 #-}
+{-# INLINEABLE [0] zipWith3 #-}
 zipWith3 f α β γ = S.toList $
                    S.zipWith3 f
                         (stream α)
@@ -742,7 +743,7 @@ zipWith4 ∷ Bitstream α ⇒ (Bool → Bool → Bool → Bool → β) → α �
     zipWith4 f (unstream s1) (unstream s2) (unstream s3) (unstream s4)
         = S.toList (S.zipWith4 f s1 s2 s3 s4)
   #-}
-{-# INLINEABLE [1] zipWith4 #-}
+{-# INLINEABLE [0] zipWith4 #-}
 zipWith4 f α β γ δ = S.toList $
                      S.zipWith4 f
                           (stream α)
@@ -758,7 +759,7 @@ zipWith5 ∷ Bitstream α ⇒ (Bool → Bool → Bool → Bool → Bool → β) 
     zipWith5 f (unstream s1) (unstream s2) (unstream s3) (unstream s4) (unstream s5)
         = S.toList (S.zipWith5 f s1 s2 s3 s4 s5)
   #-}
-{-# INLINEABLE [1] zipWith5 #-}
+{-# INLINEABLE [0] zipWith5 #-}
 zipWith5 f α β γ δ ε = S.toList $
                        S.zipWith5 f
                             (stream α)
@@ -775,7 +776,7 @@ zipWith6 ∷ Bitstream α ⇒ (Bool → Bool → Bool → Bool → Bool → Bool
     zipWith6 f (unstream s1) (unstream s2) (unstream s3) (unstream s4) (unstream s5) (unstream s6)
         = S.toList (S.zipWith6 f s1 s2 s3 s4 s5 s6)
   #-}
-{-# INLINEABLE [1] zipWith6 #-}
+{-# INLINEABLE [0] zipWith6 #-}
 zipWith6 f α β γ δ ε ζ = S.toList $
                          S.zipWith6 f
                               (stream α)
@@ -789,14 +790,14 @@ zipWith6 f α β γ δ ε ζ = S.toList $
 -- 'Bitstream' of first components and a 'Bitstream' of second
 -- components.
 unzip ∷ Bitstream α ⇒ [(Bool, Bool)] → (α, α)
-{-# INLINEABLE [1] unzip #-}
+{-# INLINEABLE unzip #-}
 unzip xs = ( unstream $ S.map fst $ S.fromList xs
            , unstream $ S.map snd $ S.fromList xs )
 
 -- | The 'unzip3' function takes a list of triples and returns three
 -- 'Bitstream's, analogous to 'unzip'.
 unzip3 ∷ Bitstream α ⇒ [(Bool, Bool, Bool)] → (α, α, α)
-{-# INLINEABLE [1] unzip3 #-}
+{-# INLINEABLE unzip3 #-}
 unzip3 xs = ( unstream $ S.map (\(α, _, _) → α) $ S.fromList xs
             , unstream $ S.map (\(_, β, _) → β) $ S.fromList xs
             , unstream $ S.map (\(_, _, γ) → γ) $ S.fromList xs )
@@ -804,7 +805,7 @@ unzip3 xs = ( unstream $ S.map (\(α, _, _) → α) $ S.fromList xs
 -- | The 'unzip4' function takes a list of quadruples and returns
 -- four 'Bitstream's, analogous to 'unzip'.
 unzip4 ∷ Bitstream α ⇒ [(Bool, Bool, Bool, Bool)] → (α, α, α, α)
-{-# INLINEABLE [1] unzip4 #-}
+{-# INLINEABLE unzip4 #-}
 unzip4 xs = ( unstream $ S.map (\(α, _, _, _) → α) $ S.fromList xs
             , unstream $ S.map (\(_, β, _, _) → β) $ S.fromList xs
             , unstream $ S.map (\(_, _, γ, _) → γ) $ S.fromList xs
@@ -813,7 +814,7 @@ unzip4 xs = ( unstream $ S.map (\(α, _, _, _) → α) $ S.fromList xs
 -- | The 'unzip5' function takes a list of five-tuples and returns
 -- five 'Bitstream's, analogous to 'unzip'.
 unzip5 ∷ Bitstream α ⇒ [(Bool, Bool, Bool, Bool, Bool)] → (α, α, α, α, α)
-{-# INLINEABLE [1] unzip5 #-}
+{-# INLINEABLE unzip5 #-}
 unzip5 xs = ( unstream $ S.map (\(α, _, _, _, _) → α) $ S.fromList xs
             , unstream $ S.map (\(_, β, _, _, _) → β) $ S.fromList xs
             , unstream $ S.map (\(_, _, γ, _, _) → γ) $ S.fromList xs
@@ -823,7 +824,7 @@ unzip5 xs = ( unstream $ S.map (\(α, _, _, _, _) → α) $ S.fromList xs
 -- | The 'unzip6' function takes a list of six-tuples and returns six
 -- 'Bitstream's, analogous to 'unzip'.
 unzip6 ∷ Bitstream α ⇒ [(Bool, Bool, Bool, Bool, Bool, Bool)] → (α, α, α, α, α, α)
-{-# INLINEABLE [1] unzip6 #-}
+{-# INLINEABLE unzip6 #-}
 unzip6 xs = ( unstream $ S.map (\(α, _, _, _, _, _) → α) $ S.fromList xs
             , unstream $ S.map (\(_, β, _, _, _, _) → β) $ S.fromList xs
             , unstream $ S.map (\(_, _, γ, _, _, _) → γ) $ S.fromList xs
