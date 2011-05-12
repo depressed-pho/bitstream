@@ -247,32 +247,32 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
         = {-# CORE "Lazy Bitstream unstream" #-}
           unId ∘ unstreamChunks ∘ packChunks ∘ packPackets
 
-    {-# INLINE [1] cons #-}
-    cons b = Chunk (singleton b)
+    {-# INLINE basicCons #-}
+    basicCons b = Chunk (singleton b)
 
-    {-# INLINEABLE [1] cons' #-}
-    cons' b Empty
+    {-# INLINEABLE basicCons' #-}
+    basicCons' b Empty
         = Chunk (SB.singleton b) Empty
-    cons' b (Chunk x xs)
+    basicCons' b (Chunk x xs)
         | length x < (chunkBits ∷ Int)
             = Chunk (b `cons` x) xs
         | otherwise
             = Chunk (singleton b) (Chunk x xs)
 
-    {-# INLINEABLE [1] snoc #-}
-    snoc Empty b
+    {-# INLINEABLE basicSnoc #-}
+    basicSnoc Empty b
         = Chunk (SB.singleton b) Empty
-    snoc (Chunk x Empty) b
+    basicSnoc (Chunk x Empty) b
         | length x < (chunkBits ∷ Int)
             = Chunk (x `snoc` b) Empty
         | otherwise
             = Chunk x (Chunk (singleton b) Empty)
-    snoc (Chunk x xs) b
+    basicSnoc (Chunk x xs) b
         = Chunk x (xs `snoc` b)
 
-    {-# INLINE [1] append #-}
-    append Empty ch        = ch
-    append (Chunk x xs) ch = Chunk x (append xs ch)
+    {-# INLINE basicAppend #-}
+    basicAppend Empty ch        = ch
+    basicAppend (Chunk x xs) ch = Chunk x (append xs ch)
 
     {-# INLINEABLE [1] tail #-}
     tail Empty        = emptyStream

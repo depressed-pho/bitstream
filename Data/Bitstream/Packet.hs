@@ -159,18 +159,18 @@ instance Bitstream (Packet Left) where
                      Skip    s'      → safeConsume s' i o
                      Done            → return $! Packet i o
 
-    {-# INLINE [1] cons #-}
-    cons b p
+    {-# INLINE basicCons #-}
+    basicCons b p
         | full p    = packetOverflow
         | otherwise = b `unsafeConsL` p
 
-    {-# INLINE [1] snoc #-}
-    snoc p b
+    {-# INLINE basicSnoc #-}
+    basicSnoc p b
         | full p    = packetOverflow
         | otherwise = p `unsafeSnocL` b
 
-    {-# INLINE [1] append #-}
-    append (Packet nx ox) (Packet ny oy)
+    {-# INLINE basicAppend #-}
+    basicAppend (Packet nx ox) (Packet ny oy)
         | nx + ny > 8 = packetOverflow
         | otherwise   = Packet (nx + ny) (ox .|. (oy `shiftL` nx))
 
@@ -272,18 +272,18 @@ instance Bitstream (Packet Right) where
                      Skip    s'      → safeConsume s' i o
                      Done            → return $! Packet i o
 
-    {-# INLINE [1] cons #-}
-    cons b p
+    {-# INLINE basicCons #-}
+    basicCons b p
         | full p    = packetOverflow
         | otherwise = b `unsafeConsR` p
 
-    {-# INLINE [1] snoc #-}
-    snoc p b
+    {-# INLINE basicSnoc #-}
+    basicSnoc p b
         | full p    = packetOverflow
         | otherwise = p `unsafeSnocR` b
 
-    {-# INLINE [1] append #-}
-    append (Packet nx ox) (Packet ny oy)
+    {-# INLINE basicAppend #-}
+    basicAppend (Packet nx ox) (Packet ny oy)
         | nx + ny > 8 = packetOverflow
         | otherwise   = Packet (nx + ny) (ox .|. (oy `shiftR` nx))
 

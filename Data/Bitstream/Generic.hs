@@ -21,6 +21,7 @@ module Data.Bitstream.Generic
 
     -- * Basic interface
     , cons
+    , cons'
     , snoc
     , append
     , (⧺)
@@ -136,7 +137,7 @@ infixl 9 !!
 
 -- | Class of diverse types of 'Bitstream'.
 --
--- Methods of this class are functions of 'Bitstream's that is either
+-- Methods of this class are functions of 'Bitstream's that are either
 -- basic functions to implement other ones, or have to preserve their
 -- packet/chunk structure for efficiency and strictness behaviour.
 --
@@ -146,27 +147,12 @@ class Bitstream α where
     basicStream   ∷ α → Stream Bool
     basicUnstream ∷ Stream Bool → α
 
-    -- | /strict: O(n), lazy: O(1)/ 'cons' is an analogous to (':')
-    -- for lists.
-    cons ∷ Bool → α → α
-
-    -- | /O(n)/ For strict 'Bitstream's, 'cons'' is exactly the same
-    -- as 'cons'.
-    --
-    -- For lazy ones, 'cons'' is strict in the 'Bitstream' we are
-    -- consing onto. More precisely, it forces the first chunk to be
-    -- evaluated. It does this because, for space efficiency, it may
-    -- coalesce the new bit onto the first chunk rather than starting
-    -- a new chunk.
-    cons' ∷ Bool → α → α
-    {-# INLINE cons' #-}
-    cons' = cons
-
-    -- | /O(n)/ Append a bit to the end of a 'Bitstream'.
-    snoc ∷ α → Bool → α
-
-    -- | /O(n)/ Append two 'Bitstream's.
-    append ∷ α → α → α
+    basicCons   ∷ Bool → α → α
+    basicCons'  ∷ Bool → α → α
+    {-# INLINE basicCons' #-}
+    basicCons'  = basicCons
+    basicSnoc   ∷ α → Bool → α
+    basicAppend ∷ α → α → α
 
     -- | /O(1)/ Extract the bits after the 'head' of a non-empty
     -- 'Bitstream'. An exception will be thrown if empty.
@@ -344,14 +330,55 @@ unstream = basicUnstream
     ∀v. unstream (stream v) = v
   #-}
 
+-- | /strict: O(n), lazy: O(1)/ 'cons' is an analogous to (':') for
+-- lists.
+cons ∷ Bitstream α ⇒ Bool → α → α
+{-# RULES
+"Bitstream cons/unstream fusion"
+    ∀b s. cons b (unstream s) = unstream (S.cons b s)
+  #-}
+{-# INLINE [0] cons #-}
+cons = basicCons
 
+-- | /O(n)/ For strict 'Bitstream's, 'cons'' is exactly the same as
+-- 'cons'.
+--
+-- For lazy ones, 'cons'' is strict in the 'Bitstream' we are consing
+-- onto. More precisely, it forces the first chunk to be evaluated. It
+-- does this because, for space efficiency, it may coalesce the new
+-- bit onto the first chunk rather than starting a new chunk.
+cons' ∷ Bitstream α ⇒ Bool → α → α
+{-# RULES
+"Bitstream cons'/unstream fusion"
+    ∀b s. cons' b (unstream s) = unstream (S.cons b s)
+  #-}
+{-# INLINE [0] cons' #-}
+cons' = basicCons'
+
+-- | /O(n)/ Append a bit to the end of a 'Bitstream'.
+snoc ∷ Bitstream α ⇒ α → Bool → α
+{-# RULES
+"Bitstream snoc/unstream fusion"
+    ∀s b. snoc (unstream s) b = unstream (S.snoc s b)
+  #-}
+{-# INLINE [0] snoc #-}
+snoc = basicSnoc
+
+-- | /O(n)/ Append two 'Bitstream's.
+append ∷ Bitstream α ⇒ α → α → α
+{-# RULES
+"Bitstream append/unstream fusion"
+    ∀s1 s2. append (unstream s1) (unstream s2) = unstream (s1 S.++ s2)
+  #-}
+{-# INLINE [0] append #-}
+append = basicAppend
 
 -- | (&#x29FA;) = 'append'
 --
 -- U+29FA, DOUBLE PLUS
 (⧺) ∷ Bitstream α ⇒ α → α → α
-(⧺) = append
 {-# INLINE (⧺) #-}
+(⧺) = append
 
 -- | (&#x2208;) = 'elem'
 --
@@ -882,18 +909,6 @@ unzip6 xs = ( unstream $ S.map (\(α, _, _, _, _, _) → α) $ S.fromList xs
             , unstream $ S.map (\(_, _, _, _, _, ζ) → ζ) $ S.fromList xs )
 
 {-# RULES
-"Bitstream cons/unstream fusion"
-    ∀b s. cons b (unstream s) = unstream (S.cons b s)
-
-"Bitstream cons'/unstream fusion"
-    ∀b s. cons' b (unstream s) = unstream (S.cons b s)
-
-"Bitstream snoc/unstream fusion"
-    ∀s b. snoc (unstream s) b = unstream (S.snoc s b)
-
-"Bitstream append/unstream fusion"
-    ∀s1 s2. append (unstream s1) (unstream s2) = unstream (s1 S.++ s2)
-
 "Bitstream tail/unstream fusion"
     ∀s. tail (unstream s) = unstream (S.tail s)
 

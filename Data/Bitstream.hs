@@ -244,26 +244,26 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
         = {-# CORE "Bitstream unstream" #-}
           unstreamPackets ∘ packPackets
 
-    {-# INLINEABLE [1] cons #-}
-    cons b (Bitstream 0 _) = Bitstream 1 (SV.singleton (singleton b))
-    cons b (Bitstream l v)
+    {-# INLINEABLE basicCons #-}
+    basicCons b (Bitstream 0 _) = Bitstream 1 (SV.singleton (singleton b))
+    basicCons b (Bitstream l v)
         = case SV.head v of
             p | length p < (8 ∷ Int)
                     → Bitstream (l+1) ((b `cons` p) `SV.cons` SV.tail v)
               | otherwise
                     → Bitstream (l+1) (singleton b `SV.cons` v)
 
-    {-# INLINEABLE [1] snoc #-}
-    snoc (Bitstream 0 _) b = Bitstream 1 (SV.singleton (singleton b))
-    snoc (Bitstream l v) b
+    {-# INLINEABLE basicSnoc #-}
+    basicSnoc (Bitstream 0 _) b = Bitstream 1 (SV.singleton (singleton b))
+    basicSnoc (Bitstream l v) b
         = case SV.last v of
             p | length p < (8 ∷ Int)
                     → Bitstream (l+1) (SV.init v `SV.snoc` (p `snoc` b))
               | otherwise
                     → Bitstream (l+1) (v `SV.snoc` singleton b)
 
-    {-# INLINE [1] append #-}
-    append (Bitstream lx x) (Bitstream ly y)
+    {-# INLINE basicAppend #-}
+    basicAppend (Bitstream lx x) (Bitstream ly y)
         = Bitstream (lx + ly) (x SV.++ y)
 
     {-# INLINEABLE [1] tail #-}
