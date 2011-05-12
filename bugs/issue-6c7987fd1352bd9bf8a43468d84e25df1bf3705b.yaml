@@ -7,7 +7,7 @@ desc: |-
   functions to force them getting fused.
 type: :bugfix
 component: bitstream
-release: 
+release: bitstream-0.2
 reporter: PHO <pho@cielonegro.org>
 status: :unstarted
 disposition: 
@@ -19,5 +19,9 @@ log_events:
 - - 2011-05-12 04:12:41.649532 Z
   - PHO <pho@cielonegro.org>
   - created
+  - ""
+- - 2011-05-12 04:49:00.371397 Z
+  - PHO <pho@cielonegro.org>
+  - assigned to release bitstream-0.2 from unassigned
   - ""
 git_branch: 

@@ -18,3 +18,14 @@ releases:
     - PHO <pho@cielonegro.org>
     - released
     - I think it's now ready for distribution.
+- !ditz.rubyforge.org,2008-03-06/release 
+  name: bitstream-0.2
+  status: :unreleased
+  release_time: 
+  log_events: 
+  - - 2011-05-12 04:48:10.840483 Z
+    - PHO <pho@cielonegro.org>
+    - created
+    - |-
+      Let stream fusion actually work! Without this the entire package makes
+      little sense.
