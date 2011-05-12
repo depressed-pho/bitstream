@@ -16,7 +16,7 @@
 -- Lazy 'Bitstream's are made of possibly infinite list of strict
 -- 'SB.Bitstream's as chunks, and each chunks have at least 1 bit.
 module Data.Bitstream.Lazy
-    ( -- * Types
+    ( -- * Data types
       Bitstream
     , Left
     , Right
@@ -237,13 +237,13 @@ instance G.Bitstream (Packet d) ⇒ Monoid (Bitstream d) where
     mconcat = concat
 
 instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
-    {-# NOINLINE stream #-}
-    stream
+    {-# INLINE basicStream #-}
+    basicStream
         = {-# CORE "Lazy Bitstream stream" #-}
           S.concatMap stream ∘ streamChunks
 
-    {-# NOINLINE unstream #-}
-    unstream
+    {-# INLINE basicUnstream #-}
+    basicUnstream
         = {-# CORE "Lazy Bitstream unstream" #-}
           unId ∘ unstreamChunks ∘ packChunks ∘ packPackets
 

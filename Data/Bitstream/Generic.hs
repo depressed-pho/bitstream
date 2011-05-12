@@ -5,21 +5,37 @@
   #-}
 -- | Generic interface to diverse types of 'Bitstream'.
 module Data.Bitstream.Generic
-    ( Bitstream(..)
+    ( -- * The type class
+      Bitstream(..)
 
+    -- * Introducing and eliminating 'Bitstream's
+    , empty
+    , (∅)
+    , singleton
     , pack
     , unpack
 
-    , empty
-    , singleton
+    -- ** Converting from\/to 'S.Stream's
+    , stream
+    , unstream
 
+    -- * Basic interface
+    , cons
+    , snoc
+    , append
+    , (⧺)
     , head
     , last
+    , tail
+    , init
     , null
     , length
 
-    , concatMap
+    -- * Transforming 'Bitstream's
+    , map
+    , reverse
 
+    -- * Reducing 'Bitstream's
     , foldl
     , foldl'
     , foldl1
@@ -27,32 +43,57 @@ module Data.Bitstream.Generic
     , foldr
     , foldr1
 
+    -- ** Special folds
+    , concat
+    , concatMap
     , and
     , or
     , any
     , all
 
-    , unfoldr
-    , unfoldrN
-
+    -- * Building 'Bitstream's
+    -- ** scans
+    , scanl
     , scanl1
     , scanr
     , scanr1
 
+    -- ** Replication
+    , replicate
+
+    -- ** Unfolding
+    , unfoldr
+    , unfoldrN
+
+    -- * Substreams
+    , take
+    , drop
+    , takeWhile
+    , dropWhile
     , span
     , break
 
+    -- * Searching streams
     , elem
+    , (∈)
+    , (∋)
     , notElem
+    , (∉)
+    , (∌)
 
+    -- ** Searching with a predicate
     , find
+    , filter
+    , partition
 
+    -- ** Indexing streams
     , (!!)
     , elemIndex
     , elemIndices
     , findIndex
     , findIndices
 
+    -- * Zipping and unzipping streams
     , zip
     , zip3
     , zip4
@@ -68,13 +109,6 @@ module Data.Bitstream.Generic
     , unzip4
     , unzip5
     , unzip6
-
-    , (∅)
-    , (⧺)
-    , (∈)
-    , (∋)
-    , (∉)
-    , (∌)
     )
     where
 import qualified Data.List as L
@@ -96,8 +130,8 @@ infixl 9 !!
    1. We want "*/unstream fusion" rules always fire.
    2. Fusible producer inlinings should always occur.
    3. Unfused form specialisations should occur at phase 1 and later.
-   4. Fusible consumer inlinings should occur last i.e. phase 0.
-   5. stream / unstream inlinings should never occur.
+   4. Fusible consumer/filter inlinings should occur last i.e. phase 0.
+   5. stream/unstream inlinings should never occur.
  -}
 
 -- | Class of diverse types of 'Bitstream'.
@@ -109,71 +143,8 @@ infixl 9 !!
 -- Minimum complete implementation: /All but/ 'cons'', 'concat',
 -- 'replicate' and 'partition'.
 class Bitstream α where
-    -- | /O(n)/ Explicitly convert a 'Bitstream' into a 'Stream' of
-    -- 'Bool'.
-    --
-    -- 'Bitstream' operations are automatically fused whenever it's
-    -- possible, safe, and effective to do so, but sometimes you may
-    -- find the rules are too conservative. These two functions
-    -- 'stream' and 'unstream' provide a means for coercive stream
-    -- fusion.
-    --
-    -- You should be careful when you use 'stream'. Most functions in
-    -- this package are optimised to minimise frequency of memory
-    -- allocations and copyings, but getting 'Bitstream's back from
-    -- @'Stream' 'Bool'@ requires the whole 'Bitstream' to be
-    -- constructed from scratch. Moreover, for lazy 'Bitstream's this
-    -- leads to be an incorrect strictness behaviour because lazy
-    -- 'Bitstream's are represented as lists of strict 'Bitstream'
-    -- chunks but 'stream' can't preserve the original chunk
-    -- structure. Let's say you have a lazy 'Bitstream' with the
-    -- following chunks:
-    --
-    -- @
-    -- bs = [chunk1, chunk2, chunk3, ...]
-    -- @
-    --
-    -- and you want to drop the first bit of such stream. Our 'tail'
-    -- is only strict on the @chunk1@ and will produce the following
-    -- chunks:
-    --
-    -- @
-    -- 'tail' bs = [chunk0, chunk1', chunk2, chunk3, ...]
-    -- @
-    --
-    -- where @chunk0@ is a singleton vector of the first packet of
-    -- @chunk1@ whose first bit is dropped, and @chunk1'@ is a vector
-    -- of remaining packets of the @chunk1@. Neither @chunk2@ nor
-    -- @chunk3@ have to be evaluated here as you might expect.
-    --
-    -- But think about the following expression:
-    --
-    -- @
-    -- import qualified Data.Vector.Fusion.Stream as Stream
-    -- 'unstream' $ Stream.tail $ 'stream' bs
-    -- @
-    --
-    -- the resulting chunk structure will be:
-    --
-    -- @
-    -- [chunk1', chunk2', chunk3', ...]
-    -- @
-    --
-    -- where each and every chunks are slightly different from the
-    -- original chunks, and this time @chunk1'@ has the same length as
-    -- @chunk1@ but the last bit of @chunk1'@ is from the first bit of
-    -- @chunk2@. This means when you next time apply some functions
-    -- strict on the first chunk, you end up fully evaluating @chunk2@
-    -- as well as @chunk1@ and this can be a serious misbehaviour for
-    -- lazy 'Bitstream's.
-    --
-    -- The automatic fusion rules are carefully designed to fire only
-    -- when there aren't any reason to preserve the original packet /
-    -- chunk structure.
-    stream ∷ α → Stream Bool
-
-    -- | /O(n)/ Convert a 'S.Stream' of 'Bool' into a 'Bitstream'.
-    unstream ∷ Stream Bool → α
+    basicStream   ∷ α → Stream Bool
+    basicUnstream ∷ Stream Bool → α
 
     -- | /strict: O(n), lazy: O(1)/ 'cons' is an analogous to (':')
     -- for lists.
@@ -267,12 +238,113 @@ class Bitstream α where
     {-# INLINEABLE partition #-}
     partition f α = (filter f α, filter ((¬) ∘ f) α)
 
+
+-- | /O(1)/ The empty 'Bitstream'.
+empty ∷ Bitstream α ⇒ α
+{-# INLINE empty #-}
+empty = unstream S.empty
+
 -- | (&#x2205;) = 'empty'
 --
 -- U+2205, EMPTY SET
 {-# INLINE (∅) #-}
 (∅) ∷ Bitstream α ⇒ α
 (∅) = empty
+
+-- | /O(1)/ Convert a 'Bool' into a 'Bitstream'.
+singleton ∷ Bitstream α ⇒ Bool → α
+{-# INLINE singleton #-}
+singleton = unstream ∘ S.singleton
+
+-- | /O(n)/ Convert a ['Bool'] into a 'Bitstream'.
+{-# INLINE pack #-}
+pack ∷ Bitstream α ⇒ [Bool] → α
+pack = unstream ∘ S.fromList
+
+-- | /O(n)/ Convert a 'Bitstream' into a ['Bool'].
+unpack ∷ Bitstream α ⇒ α → [Bool]
+{-# RULES "Bitstream unpack/unstream fusion"
+    ∀s. unpack (unstream s) = S.toList s
+  #-}
+{-# INLINE [0] unpack #-}
+unpack = S.toList ∘ stream
+
+-- | /O(n)/ Explicitly convert a 'Bitstream' into a 'Stream' of
+-- 'Bool'.
+--
+-- 'Bitstream' operations are automatically fused whenever it's
+-- possible, safe, and effective to do so, but sometimes you may find
+-- the rules are too conservative. These two functions 'stream' and
+-- 'unstream' provide a means for coercive stream fusion.
+--
+-- You should be careful when you use 'stream'. Most functions in this
+-- package are optimised to minimise frequency of memory allocations
+-- and copyings, but getting 'Bitstream's back from @'Stream' 'Bool'@
+-- requires the whole 'Bitstream' to be constructed from
+-- scratch. Moreover, for lazy 'Bitstream's this leads to be an
+-- incorrect strictness behaviour because lazy 'Bitstream's are
+-- represented as lists of strict 'Bitstream' chunks but 'stream'
+-- can't preserve the original chunk structure. Let's say you have a
+-- lazy 'Bitstream' with the following chunks:
+--
+-- @
+-- bs = [chunk1, chunk2, chunk3, ...]
+-- @
+--
+-- and you want to drop the first bit of such stream. Our 'tail' is
+-- only strict on the @chunk1@ and will produce the following chunks:
+--
+-- @
+-- 'tail' bs = [chunk0, chunk1', chunk2, chunk3, ...]
+-- @
+--
+-- where @chunk0@ is a singleton vector of the first packet of
+-- @chunk1@ whose first bit is dropped, and @chunk1'@ is a vector of
+-- remaining packets of the @chunk1@. Neither @chunk2@ nor @chunk3@
+-- have to be evaluated here as you might expect.
+--
+-- But think about the following expression:
+--
+-- @
+-- import qualified Data.Vector.Fusion.Stream as Stream
+-- 'unstream' $ Stream.tail $ 'stream' bs
+-- @
+--
+-- the resulting chunk structure will be:
+--
+-- @
+-- [chunk1', chunk2', chunk3', ...]
+-- @
+--
+-- where each and every chunks are slightly different from the
+-- original chunks, and this time @chunk1'@ has the same length as
+-- @chunk1@ but the last bit of @chunk1'@ is from the first bit of
+-- @chunk2@. This means when you next time apply some functions strict
+-- on the first chunk, you end up fully evaluating @chunk2@ as well as
+-- @chunk1@ and this can be a serious misbehaviour for lazy
+-- 'Bitstream's.
+--
+-- The automatic fusion rules are carefully designed to fire only when
+-- there aren't any reason to preserve the original packet / chunk
+-- structure.
+stream ∷ Bitstream α ⇒ α → Stream Bool
+{-# NOINLINE stream #-}
+stream = basicStream
+
+-- | /O(n)/ Convert a 'S.Stream' of 'Bool' into a 'Bitstream'.
+unstream ∷ Bitstream α ⇒ Stream Bool → α
+{-# NOINLINE unstream #-}
+unstream = basicUnstream
+
+{-# RULES
+"Bitstream stream/unstream fusion"
+    ∀s. stream (unstream s) = s
+
+"Bitstream unstream/stream fusion"
+    ∀v. unstream (stream v) = v
+  #-}
+
+
 
 -- | (&#x29FA;) = 'append'
 --
@@ -308,29 +380,6 @@ class Bitstream α where
 (∌) ∷ Bitstream α ⇒ α → Bool → Bool
 (∌) = flip notElem
 {-# INLINE (∌) #-}
-
--- | /O(n)/ Convert a ['Bool'] into a 'Bitstream'.
-{-# INLINE pack #-}
-pack ∷ Bitstream α ⇒ [Bool] → α
-pack = unstream ∘ S.fromList
-
--- | /O(n)/ Convert a 'Bitstream' into a ['Bool'].
-unpack ∷ Bitstream α ⇒ α → [Bool]
-{-# RULES "Bitstream unpack/unstream fusion"
-    ∀s. unpack (unstream s) = S.toList s
-  #-}
-{-# INLINE [0] unpack #-}
-unpack = S.toList ∘ stream
-
--- | /O(1)/ The empty 'Bitstream'.
-empty ∷ Bitstream α ⇒ α
-{-# INLINE empty #-}
-empty = unstream S.empty
-
--- | /O(1)/ Convert a 'Bool' into a 'Bitstream'.
-singleton ∷ Bitstream α ⇒ Bool → α
-{-# INLINE singleton #-}
-singleton = unstream ∘ S.singleton
 
 -- | /O(1)/ Extract the first bit of a non-empty 'Bitstream'. An
 -- exception will be thrown if empty.
@@ -831,14 +880,6 @@ unzip6 xs = ( unstream $ S.map (\(α, _, _, _, _, _) → α) $ S.fromList xs
             , unstream $ S.map (\(_, _, _, δ, _, _) → δ) $ S.fromList xs
             , unstream $ S.map (\(_, _, _, _, ε, _) → ε) $ S.fromList xs
             , unstream $ S.map (\(_, _, _, _, _, ζ) → ζ) $ S.fromList xs )
-
-{-# RULES
-"Bitstream stream/unstream fusion"
-    ∀s. stream (unstream s) = s
-
-"Bitstream unstream/stream fusion"
-    ∀v. unstream (stream v) = v
-  #-}
 
 {-# RULES
 "Bitstream cons/unstream fusion"

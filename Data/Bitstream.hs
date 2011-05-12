@@ -17,7 +17,7 @@
 -- Strict 'Bitstream's are made of strict 'SV.Vector' of 'Packet's,
 -- and each 'Packet's have at least 1 bit.
 module Data.Bitstream
-    ( -- * Types
+    ( -- * Data types
       Bitstream
     , Left
     , Right
@@ -232,15 +232,15 @@ instance G.Bitstream (Packet d) ⇒ Monoid (Bitstream d) where
     mconcat = concat
 
 instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
-    {-# NOINLINE stream #-}
-    stream (Bitstream l v)
+    {-# INLINE basicStream #-}
+    basicStream (Bitstream l v)
         = {-# CORE "Bitstream stream" #-}
           S.concatMap stream (GV.stream v)
           `S.sized`
           Exact l
 
-    {-# NOINLINE unstream #-}
-    unstream
+    {-# INLINE basicUnstream #-}
+    basicUnstream
         = {-# CORE "Bitstream unstream" #-}
           unstreamPackets ∘ packPackets
 

@@ -120,17 +120,18 @@ instance Ord (Packet Right) where
           (oy `shiftR` (8-ny))
 
 instance Bitstream (Packet Left) where
-    {-# NOINLINE stream #-}
-    stream (Packet n o) = {-# CORE "Packet Left stream" #-}
-                          Stream step 0 (Exact n)
+    {-# INLINE basicStream #-}
+    basicStream (Packet n o)
+        = {-# CORE "Packet Left stream" #-}
+          Stream step 0 (Exact n)
         where
           {-# INLINE step #-}
           step !i
               | i ≥ n     = return Done
               | otherwise = return $! Yield (o `testBit` i) (i+1)
 
-    {-# NOINLINE unstream #-}
-    unstream (Stream step s0 sz)
+    {-# INLINE basicUnstream #-}
+    basicUnstream (Stream step s0 sz)
         = {-# CORE "Packet Left unstream" #-}
           case upperBound sz of
             Just n
@@ -232,17 +233,18 @@ instance Bitstream (Packet Left) where
     filter = filterPacket
 
 instance Bitstream (Packet Right) where
-    {-# NOINLINE stream #-}
-    stream (Packet n o) = {-# CORE "Packet Right stream" #-}
-                          Stream step 0 (Exact n)
+    {-# INLINE basicStream #-}
+    basicStream (Packet n o)
+        = {-# CORE "Packet Right stream" #-}
+          Stream step 0 (Exact n)
         where
           {-# INLINE step #-}
           step !i
               | i ≥ n     = return Done
               | otherwise = return $! Yield (o `testBit` (7-i)) (i+1)
 
-    {-# NOINLINE unstream #-}
-    unstream (Stream step s0 sz)
+    {-# INLINE basicUnstream #-}
+    basicUnstream (Stream step s0 sz)
         = {-# CORE "Packet Right unstream" #-}
           case upperBound sz of
             Just n
