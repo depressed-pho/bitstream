@@ -3,7 +3,7 @@ title: Strict bitstrems should use unstreamPackets instead of hand-written unfol
 desc: We'd better eliminate uses of countBits as much as possible. It's very slow.
 type: :task
 component: bitstream
-release: 
+release: bitstream-0.2
 reporter: PHO <pho@cielonegro.org>
 status: :closed
 disposition: :fixed
@@ -20,4 +20,8 @@ log_events:
   - PHO <pho@cielonegro.org>
   - closed with disposition fixed
   - done.
+- - 2011-05-12 05:19:02.024248 Z
+  - PHO <pho@cielonegro.org>
+  - assigned to release bitstream-0.2 from unassigned
+  - ""
 git_branch: 

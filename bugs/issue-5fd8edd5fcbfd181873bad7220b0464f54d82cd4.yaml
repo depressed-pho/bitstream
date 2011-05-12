@@ -3,7 +3,7 @@ title: Strict Bitstream should keep bit-length maintained
 desc: Let the order of Data.Bitstream.length be O(1) by having bit-length with type Int.
 type: :task
 component: bitstream
-release: 
+release: bitstream-0.2
 reporter: PHO <pho@cielonegro.org>
 status: :closed
 disposition: :fixed
@@ -24,3 +24,8 @@ log_events:
   - PHO <pho@cielonegro.org>
   - closed with disposition fixed
   - ""
+- - 2011-05-12 05:17:55.479711 Z
+  - PHO <pho@cielonegro.org>
+  - assigned to release bitstream-0.2 from unassigned
+  - ""
+git_branch: 

@@ -8,10 +8,14 @@ RUN_COMMAND = time ./dist/build/test-strict-bitstream/test-strict-bitstream
 
 include cabal-package.mk
 
-update-web-pages: doc ditz
+update-web: update-web-doc update-web-ditz
+
+update-web-doc: doc
 	rsync -av --delete \
 		dist/doc/html/bitstream/ \
 		www@nem.cielonegro.org:static.cielonegro.org/htdocs/doc/bitstream
+
+update-web-ditz: ditz
 	rsync -av --delete \
 		dist/ditz/ \
 		www@nem.cielonegro.org:static.cielonegro.org/htdocs/ditz/bitstream
