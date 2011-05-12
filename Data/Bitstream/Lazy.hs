@@ -287,12 +287,12 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
                                      | otherwise → Chunk x' Empty
     basicInit (Chunk x xs   ) = Chunk x (init xs)
 
-    {-# INLINE [1] map #-}
-    map _ Empty        = Empty
-    map f (Chunk x xs) = Chunk (map f x) (map f xs)
+    {-# INLINE basicMap #-}
+    basicMap _ Empty        = Empty
+    basicMap f (Chunk x xs) = Chunk (map f x) (map f xs)
 
-    {-# INLINEABLE [1] reverse #-}
-    reverse ch0 = go ch0 Empty
+    {-# INLINEABLE basicReverse #-}
+    basicReverse ch0 = go ch0 Empty
         where
           {-# INLINE go #-}
           go Empty        ch = ch

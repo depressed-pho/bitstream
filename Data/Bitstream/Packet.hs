@@ -182,8 +182,8 @@ instance Bitstream (Packet Left) where
     basicInit (Packet 0 _) = emptyNotAllowed
     basicInit (Packet n o) = Packet (n-1) o
 
-    {-# INLINE [1] map #-}
-    map f (Packet n o0) = Packet n (go 0 o0)
+    {-# INLINE basicMap #-}
+    basicMap f (Packet n o0) = Packet n (go 0 o0)
         where
           {-# INLINE go #-}
           go i o
@@ -191,8 +191,8 @@ instance Bitstream (Packet Left) where
               | f (o `testBit` i) = go (i+1) (o `setBit`   i)
               | otherwise         = go (i+1) (o `clearBit` i)
 
-    {-# INLINE [1] reverse #-}
-    reverse (Packet n o)
+    {-# INLINE basicReverse #-}
+    basicReverse (Packet n o)
         = Packet n (reverseBits o `shiftR` (8-n))
 
     {-# INLINE [1] scanl #-}
@@ -295,8 +295,8 @@ instance Bitstream (Packet Right) where
     basicInit (Packet 0 _) = emptyNotAllowed
     basicInit (Packet n o) = Packet (n-1) o
 
-    {-# INLINE [1] map #-}
-    map f (Packet n o0) = Packet n (go 0 o0)
+    {-# INLINE basicMap #-}
+    basicMap f (Packet n o0) = Packet n (go 0 o0)
         where
           {-# INLINE go #-}
           go i o
@@ -304,8 +304,8 @@ instance Bitstream (Packet Right) where
               | f (o `testBit` (7-i)) = go (i+1) (o `setBit`   (7-i))
               | otherwise             = go (i+1) (o `clearBit` (7-i))
 
-    {-# INLINE [1] reverse #-}
-    reverse (Packet n o)
+    {-# INLINE basicReverse #-}
+    basicReverse (Packet n o)
         = Packet n (reverseBits o `shiftL` (8-n))
 
     {-# INLINE [1] scanl #-}

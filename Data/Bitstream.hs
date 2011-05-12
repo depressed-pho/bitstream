@@ -280,12 +280,12 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
             p' | null p'   → Bitstream (l-1) (SV.init v)
                | otherwise → Bitstream (l-1) (SV.init v `SV.snoc` p')
 
-    {-# INLINE [1] map #-}
-    map f (Bitstream l v)
+    {-# INLINE basicMap #-}
+    basicMap f (Bitstream l v)
         = Bitstream l (SV.map (map f) v)
 
-    {-# INLINE [1] reverse #-}
-    reverse (Bitstream l v)
+    {-# INLINE basicReverse #-}
+    basicReverse (Bitstream l v)
         = Bitstream l (SV.reverse (SV.map reverse v))
 
     {-# INLINE scanl #-}

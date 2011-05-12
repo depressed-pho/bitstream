@@ -156,11 +156,8 @@ class Bitstream α where
     basicTail   ∷ α → α
     basicInit   ∷ α → α
 
-    -- | /O(n)/ Map a function over a 'Bitstream'.
-    map ∷ (Bool → Bool) → α → α
-
-    -- | /O(n)/ Reverse a 'Bitstream'.
-    reverse ∷ α → α
+    basicMap     ∷ (Bool → Bool) → α → α
+    basicReverse ∷ α → α
 
     -- | /O(n)/ Concatenate all 'Bitstream's in the list.
     concat ∷ [α] → α
@@ -412,34 +409,6 @@ init ∷ Bitstream α ⇒ α → α
 {-# INLINE [0] init #-}
 init = basicInit
 
--- | (&#x2208;) = 'elem'
---
--- U+2208, ELEMENT OF
-(∈) ∷ Bitstream α ⇒ Bool → α → Bool
-{-# INLINE (∈) #-}
-(∈) = elem
-
--- | (&#x220B;) = 'flip' (&#x2208;)
---
--- U+220B, CONTAINS AS MEMBER
-(∋) ∷ Bitstream α ⇒ α → Bool → Bool
-(∋) = flip elem
-{-# INLINE (∋) #-}
-
--- | (&#x2209;) = 'notElem'
---
--- U+2209, NOT AN ELEMENT OF
-(∉) ∷ Bitstream α ⇒ Bool → α → Bool
-(∉) = notElem
-{-# INLINE (∉) #-}
-
--- | (&#x220C;) = 'flip' (&#x2209;)
---
--- U+220C, DOES NOT CONTAIN AS MEMBER
-(∌) ∷ Bitstream α ⇒ α → Bool → Bool
-(∌) = flip notElem
-{-# INLINE (∌) #-}
-
 -- | /O(1)/ Test whether a 'Bitstream' is empty.
 null ∷ Bitstream α ⇒ α → Bool
 {-# RULES "Bitstream null/unstream fusion"
@@ -457,91 +426,19 @@ length ∷ Bitstream α ⇒ Num n ⇒ α → n
 {-# INLINE [0] length #-}
 length = genericLength ∘ stream
 
--- | Map a function over a 'Bitstream' and concatenate the results.
-concatMap ∷ Bitstream α ⇒ (Bool → α) → α → α
-{-# RULES "Bitstream concatMap/unstream fusion"
-    ∀f s. concatMap f (unstream s) = unstream (S.concatMap f s)
+-- | /O(n)/ Map a function over a 'Bitstream'.
+map ∷ Bitstream α ⇒ (Bool → Bool) → α → α
+{-# RULES
+"Bitstream map/unstream fusion"
+    ∀f s. map f (unstream s) = unstream (S.map f s)
   #-}
-{-# INLINE [0] concatMap #-}
-concatMap f = concat ∘ L.map f ∘ unpack
+{-# INLINE [0] map #-}
+map = basicMap
 
--- | /O(n)/ 'and' returns the conjunction of a 'Bool' list. For the
--- result to be 'True', the 'Bitstream' must be finite; 'False',
--- however, results from a 'False' value at a finite index of a finite
--- or infinite 'Bitstream'. Note that strict 'Bitstream's are always
--- finite.
-and ∷ Bitstream α ⇒ α → Bool
-{-# RULES "Bitstream and/unstream fusion"
-    ∀s. and (unstream s) = S.and s
-  #-}
-{-# INLINE [0] and #-}
-and = S.and ∘ stream
-
--- | /O(n)/ 'or' returns the disjunction of a 'Bool' list. For the
--- result to be 'False', the 'Bitstream' must be finite; 'True',
--- however, results from a 'True' value at a finite index of a finite
--- or infinite 'Bitstream'. Note that strict 'Bitstream's are always
--- finite.
-or ∷ Bitstream α ⇒ α → Bool
-{-# RULES "Bitstream or/unstream fusion"
-    ∀s. or (unstream s) = S.or s
-  #-}
-{-# INLINE [0] or #-}
-or = S.or ∘ stream
-
--- | /O(n)/ Applied to a predicate and a 'Bitstream', 'any' determines
--- if any bit of the 'Bitstream' satisfies the predicate. For the
--- result to be 'False', the 'Bitstream' must be finite; 'True',
--- however, results from a 'True' value for the predicate applied to a
--- bit at a finite index of a finite or infinite 'Bitstream'.
-any ∷ Bitstream α ⇒ (Bool → Bool) → α → Bool
-{-# RULES "Bitstream any/unstream fusion"
-    ∀f s. any f (unstream s) = S.or (S.map f s)
-  #-}
-{-# INLINE [0] any #-}
-any f = S.or ∘ S.map f ∘ stream
-
--- | /O(n)/ Applied to a predicate and a 'Bitstream', 'all' determines
--- if all bits of the 'Bitstream' satisfy the predicate. For the
--- result to be 'True', the 'Bitstream' must be finite; 'False',
--- however, results from a 'False' value for the predicate applied to
--- a bit at a finite index of a finite or infinite 'Bitstream'.
-all ∷ Bitstream α ⇒ (Bool → Bool) → α → Bool
-{-# RULES "Bitstream all/unstream fusion"
-    ∀f s. all f (unstream s) = S.and (S.map f s)
-  #-}
-{-# INLINE [0] all #-}
-all f = S.and ∘ S.map f ∘ stream
-
--- | /O(n)/ 'scanl1' is a variant of 'scanl' that has no starting
--- value argument:
---
--- @
--- 'scanl1' f [x1, x2, ...] == [x1, x1 `f` x2, ...]
--- @
-scanl1 ∷ Bitstream α ⇒ (Bool → Bool → Bool) → α → α
-{-# RULES "Bitstream scanl1/unstream fusion"
-    ∀f s. scanl1 f (unstream s) = S.scanl1 f s
-  #-}
-{-# INLINE [0] scanl1 #-}
-scanl1 f α
-    | null α    = α
-    | otherwise = scanl f (head α) (tail α)
-
--- | /O(n)/ 'scanr' is the right-to-left dual of 'scanl'.  Note that
---
--- @
--- 'head' ('scanr' f z xs) == 'foldr' f z xs
--- @
-scanr ∷ Bitstream α ⇒ (Bool → Bool → Bool) → Bool → α → α
-{-# INLINE [0] scanr #-}
-scanr f b = reverse ∘ scanl (flip f) b ∘ reverse
-
--- | /O(n)/ 'scanr1' is a variant of 'scanr' that has no starting
--- value argument.
-scanr1 ∷ Bitstream α ⇒ (Bool → Bool → Bool) → α → α
-{-# INLINE [0] scanr1 #-}
-scanr1 f = reverse ∘ scanl1 (flip f) ∘ reverse
+-- | /O(n)/ Reverse a 'Bitstream'.
+reverse ∷ Bitstream α ⇒ α → α
+{-# INLINE [0] reverse #-}
+reverse = basicReverse
 
 -- | /O(n)/ 'foldl', applied to a binary operator, a starting value
 -- (typically the left-identity of the operator), and a 'Bitstream',
@@ -609,6 +506,117 @@ foldr1 ∷ Bitstream α ⇒ (Bool → Bool → Bool) → α → Bool
   #-}
 {-# INLINE [0] foldr1 #-}
 foldr1 f = S.foldr1 f ∘ stream
+
+-- | (&#x2208;) = 'elem'
+--
+-- U+2208, ELEMENT OF
+(∈) ∷ Bitstream α ⇒ Bool → α → Bool
+{-# INLINE (∈) #-}
+(∈) = elem
+
+-- | (&#x220B;) = 'flip' (&#x2208;)
+--
+-- U+220B, CONTAINS AS MEMBER
+(∋) ∷ Bitstream α ⇒ α → Bool → Bool
+(∋) = flip elem
+{-# INLINE (∋) #-}
+
+-- | (&#x2209;) = 'notElem'
+--
+-- U+2209, NOT AN ELEMENT OF
+(∉) ∷ Bitstream α ⇒ Bool → α → Bool
+(∉) = notElem
+{-# INLINE (∉) #-}
+
+-- | (&#x220C;) = 'flip' (&#x2209;)
+--
+-- U+220C, DOES NOT CONTAIN AS MEMBER
+(∌) ∷ Bitstream α ⇒ α → Bool → Bool
+(∌) = flip notElem
+{-# INLINE (∌) #-}
+
+-- | Map a function over a 'Bitstream' and concatenate the results.
+concatMap ∷ Bitstream α ⇒ (Bool → α) → α → α
+{-# RULES "Bitstream concatMap/unstream fusion"
+    ∀f s. concatMap f (unstream s) = unstream (S.concatMap f s)
+  #-}
+{-# INLINE [0] concatMap #-}
+concatMap f = concat ∘ L.map f ∘ unpack
+
+-- | /O(n)/ 'and' returns the conjunction of a 'Bool' list. For the
+-- result to be 'True', the 'Bitstream' must be finite; 'False',
+-- however, results from a 'False' value at a finite index of a finite
+-- or infinite 'Bitstream'. Note that strict 'Bitstream's are always
+-- finite.
+and ∷ Bitstream α ⇒ α → Bool
+{-# RULES "Bitstream and/unstream fusion"
+    ∀s. and (unstream s) = S.and s
+  #-}
+{-# INLINE [0] and #-}
+and = S.and ∘ stream
+
+-- | /O(n)/ 'or' returns the disjunction of a 'Bool' list. For the
+-- result to be 'False', the 'Bitstream' must be finite; 'True',
+-- however, results from a 'True' value at a finite index of a finite
+-- or infinite 'Bitstream'. Note that strict 'Bitstream's are always
+-- finite.
+or ∷ Bitstream α ⇒ α → Bool
+{-# RULES "Bitstream or/unstream fusion"
+    ∀s. or (unstream s) = S.or s
+  #-}
+{-# INLINE [0] or #-}
+or = S.or ∘ stream
+
+-- | /O(n)/ Applied to a predicate and a 'Bitstream', 'any' determines
+-- if any bit of the 'Bitstream' satisfies the predicate. For the
+-- result to be 'False', the 'Bitstream' must be finite; 'True',
+-- however, results from a 'True' value for the predicate applied to a
+-- bit at a finite index of a finite or infinite 'Bitstream'.
+any ∷ Bitstream α ⇒ (Bool → Bool) → α → Bool
+{-# RULES "Bitstream any/unstream fusion"
+    ∀f s. any f (unstream s) = S.or (S.map f s)
+  #-}
+{-# INLINE [0] any #-}
+any f = S.or ∘ S.map f ∘ stream
+
+-- | /O(n)/ Applied to a predicate and a 'Bitstream', 'all' determines
+-- if all bits of the 'Bitstream' satisfy the predicate. For the
+-- result to be 'True', the 'Bitstream' must be finite; 'False',
+-- however, results from a 'False' value for the predicate applied to
+-- a bit at a finite index of a finite or infinite 'Bitstream'.
+all ∷ Bitstream α ⇒ (Bool → Bool) → α → Bool
+{-# RULES "Bitstream all/unstream fusion"
+    ∀f s. all f (unstream s) = S.and (S.map f s)
+  #-}
+{-# INLINE [0] all #-}
+all f = S.and ∘ S.map f ∘ stream
+
+-- | /O(n)/ 'scanl1' is a variant of 'scanl' that has no starting
+-- value argument:
+--
+-- @
+-- 'scanl1' f [x1, x2, ...] == [x1, x1 `f` x2, ...]
+-- @
+scanl1 ∷ Bitstream α ⇒ (Bool → Bool → Bool) → α → α
+{-# INLINE [0] scanl1 #-}
+scanl1 f α
+    | null α    = α
+    | otherwise = scanl f (head α) (tail α)
+
+-- | /O(n)/ 'scanr' is the right-to-left dual of 'scanl'.  Note that
+--
+-- @
+-- 'head' ('scanr' f z xs) == 'foldr' f z xs
+-- @
+scanr ∷ Bitstream α ⇒ (Bool → Bool → Bool) → Bool → α → α
+{-# INLINE [0] scanr #-}
+scanr f b = reverse ∘ scanl (flip f) b ∘ reverse
+
+-- | /O(n)/ 'scanr1' is a variant of 'scanr' that has no starting
+-- value argument.
+scanr1 ∷ Bitstream α ⇒ (Bool → Bool → Bool) → α → α
+{-# INLINE [0] scanr1 #-}
+scanr1 f = reverse ∘ scanl1 (flip f) ∘ reverse
 
 -- | /O(n)/ The 'unfoldr' function is a \`dual\' to 'foldr': while
 -- 'foldr' reduces a 'Bitstream' to a summary value, 'unfoldr' builds
@@ -923,14 +931,8 @@ unzip6 xs = ( unstream $ S.map (\(α, _, _, _, _, _) → α) $ S.fromList xs
             , unstream $ S.map (\(_, _, _, _, _, ζ) → ζ) $ S.fromList xs )
 
 {-# RULES
-"Bitstream map/unstream fusion"
-    ∀f s. map f (unstream s) = unstream (S.map f s)
-
 "Bitstream scanl/unstream fusion"
     ∀f b s. scanl f b (unstream s) = unstream (S.scanl f b s)
-
-"Bitstream scanl1/unstream fusion"
-    ∀f s. scanl1 f (unstream s) = unstream (S.scanl1 f s)
 
 "Bitstream take/unstream fusion"
     ∀n s. take n (unstream s) = unstream (genericTake n s)
