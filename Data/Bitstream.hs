@@ -266,16 +266,16 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
     basicAppend (Bitstream lx x) (Bitstream ly y)
         = Bitstream (lx + ly) (x SV.++ y)
 
-    {-# INLINEABLE [1] tail #-}
-    tail (Bitstream 0 _) = emptyStream
-    tail (Bitstream l v)
+    {-# INLINEABLE basicTail #-}
+    basicTail (Bitstream 0 _) = emptyStream
+    basicTail (Bitstream l v)
         = case tail (SV.head v) of
             p' | null p'   → Bitstream (l-1) (SV.tail v)
                | otherwise → Bitstream (l-1) (p' `SV.cons` SV.tail v)
 
-    {-# INLINEABLE [1] init #-}
-    init (Bitstream 0 _) = emptyStream
-    init (Bitstream l v)
+    {-# INLINEABLE basicInit #-}
+    basicInit (Bitstream 0 _) = emptyStream
+    basicInit (Bitstream l v)
         = case init (SV.last v) of
             p' | null p'   → Bitstream (l-1) (SV.init v)
                | otherwise → Bitstream (l-1) (SV.init v `SV.snoc` p')

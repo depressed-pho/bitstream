@@ -153,14 +153,8 @@ class Bitstream α where
     basicCons'  = basicCons
     basicSnoc   ∷ α → Bool → α
     basicAppend ∷ α → α → α
-
-    -- | /O(1)/ Extract the bits after the 'head' of a non-empty
-    -- 'Bitstream'. An exception will be thrown if empty.
-    tail ∷ α → α
-
-    -- | /O(n)/ Return all the bits of a 'Bitstream' except the last
-    -- one. An exception will be thrown if empty.
-    init ∷ α → α
+    basicTail   ∷ α → α
+    basicInit   ∷ α → α
 
     -- | /O(n)/ Map a function over a 'Bitstream'.
     map ∷ (Bool → Bool) → α → α
@@ -380,6 +374,44 @@ append = basicAppend
 {-# INLINE (⧺) #-}
 (⧺) = append
 
+-- | /O(1)/ Extract the first bit of a non-empty 'Bitstream'. An
+-- exception will be thrown if empty.
+head ∷ Bitstream α ⇒ α → Bool
+{-# RULES "Bitstream head/unstream fusion"
+    ∀s. head (unstream s) = S.head s
+  #-}
+{-# INLINE [0] head #-}
+head = S.head ∘ stream
+
+-- | /strict: O(1), lazy: O(n)/ Extract the last bit of a finite
+-- 'Bitstream'. An exception will be thrown if empty.
+last ∷ Bitstream α ⇒ α → Bool
+{-# RULES "Bitstream last/unstream fusion"
+    ∀s. last (unstream s) = S.last s
+  #-}
+{-# INLINE [0] last #-}
+last = S.last ∘ stream
+
+-- | /O(1)/ Extract the bits after the 'head' of a non-empty
+-- 'Bitstream'. An exception will be thrown if empty.
+tail ∷ Bitstream α ⇒ α → α
+{-# RULES
+"Bitstream tail/unstream fusion"
+    ∀s. tail (unstream s) = unstream (S.tail s)
+  #-}
+{-# INLINE [0] tail #-}
+tail = basicTail
+
+-- | /O(n)/ Return all the bits of a 'Bitstream' except the last
+-- one. An exception will be thrown if empty.
+init ∷ Bitstream α ⇒ α → α
+{-# RULES
+"Bitstream init/unstream fusion"
+    ∀s. init (unstream s) = unstream (S.init s)
+  #-}
+{-# INLINE [0] init #-}
+init = basicInit
+
 -- | (&#x2208;) = 'elem'
 --
 -- U+2208, ELEMENT OF
@@ -407,24 +439,6 @@ append = basicAppend
 (∌) ∷ Bitstream α ⇒ α → Bool → Bool
 (∌) = flip notElem
 {-# INLINE (∌) #-}
-
--- | /O(1)/ Extract the first bit of a non-empty 'Bitstream'. An
--- exception will be thrown if empty.
-head ∷ Bitstream α ⇒ α → Bool
-{-# RULES "Bitstream head/unstream fusion"
-    ∀s. head (unstream s) = S.head s
-  #-}
-{-# INLINE [0] head #-}
-head = S.head ∘ stream
-
--- | /strict: O(1), lazy: O(n)/ Extract the last bit of a finite
--- 'Bitstream'. An exception will be thrown if empty.
-last ∷ Bitstream α ⇒ α → Bool
-{-# RULES "Bitstream last/unstream fusion"
-    ∀s. last (unstream s) = S.last s
-  #-}
-{-# INLINE [0] last #-}
-last = S.last ∘ stream
 
 -- | /O(1)/ Test whether a 'Bitstream' is empty.
 null ∷ Bitstream α ⇒ α → Bool
@@ -909,12 +923,6 @@ unzip6 xs = ( unstream $ S.map (\(α, _, _, _, _, _) → α) $ S.fromList xs
             , unstream $ S.map (\(_, _, _, _, _, ζ) → ζ) $ S.fromList xs )
 
 {-# RULES
-"Bitstream tail/unstream fusion"
-    ∀s. tail (unstream s) = unstream (S.tail s)
-
-"Bitstream init/unstream fusion"
-    ∀s. init (unstream s) = unstream (S.init s)
-
 "Bitstream map/unstream fusion"
     ∀f s. map f (unstream s) = unstream (S.map f s)
 

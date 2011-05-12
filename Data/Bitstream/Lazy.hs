@@ -274,18 +274,18 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
     basicAppend Empty ch        = ch
     basicAppend (Chunk x xs) ch = Chunk x (append xs ch)
 
-    {-# INLINEABLE [1] tail #-}
-    tail Empty        = emptyStream
-    tail (Chunk x xs) = case tail x of
-                          x' | null x'   → xs
-                             | otherwise → Chunk x' xs
+    {-# INLINEABLE basicTail #-}
+    basicTail Empty        = emptyStream
+    basicTail (Chunk x xs) = case tail x of
+                               x' | null x'   → xs
+                                  | otherwise → Chunk x' xs
 
-    {-# INLINEABLE [1] init #-}
-    init Empty           = emptyStream
-    init (Chunk x Empty) = case init x of
-                             x' | null x'   → Empty
-                                | otherwise → Chunk x' Empty
-    init (Chunk x xs   ) = Chunk x (init xs)
+    {-# INLINEABLE basicInit #-}
+    basicInit Empty           = emptyStream
+    basicInit (Chunk x Empty) = case init x of
+                                  x' | null x'   → Empty
+                                     | otherwise → Chunk x' Empty
+    basicInit (Chunk x xs   ) = Chunk x (init xs)
 
     {-# INLINE [1] map #-}
     map _ Empty        = Empty

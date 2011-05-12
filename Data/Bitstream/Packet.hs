@@ -174,13 +174,13 @@ instance Bitstream (Packet Left) where
         | nx + ny > 8 = packetOverflow
         | otherwise   = Packet (nx + ny) (ox .|. (oy `shiftL` nx))
 
-    {-# INLINE [1] tail #-}
-    tail (Packet 0 _) = emptyNotAllowed
-    tail (Packet n o) = Packet (n-1) (o `shiftR` 1)
+    {-# INLINE basicTail #-}
+    basicTail (Packet 0 _) = emptyNotAllowed
+    basicTail (Packet n o) = Packet (n-1) (o `shiftR` 1)
 
-    {-# INLINE [1] init #-}
-    init (Packet 0 _) = emptyNotAllowed
-    init (Packet n o) = Packet (n-1) o
+    {-# INLINE basicInit #-}
+    basicInit (Packet 0 _) = emptyNotAllowed
+    basicInit (Packet n o) = Packet (n-1) o
 
     {-# INLINE [1] map #-}
     map f (Packet n o0) = Packet n (go 0 o0)
@@ -287,13 +287,13 @@ instance Bitstream (Packet Right) where
         | nx + ny > 8 = packetOverflow
         | otherwise   = Packet (nx + ny) (ox .|. (oy `shiftR` nx))
 
-    {-# INLINE [1] tail #-}
-    tail (Packet 0 _) = emptyNotAllowed
-    tail (Packet n o) = Packet (n-1) (o `shiftL` 1)
+    {-# INLINE basicTail #-}
+    basicTail (Packet 0 _) = emptyNotAllowed
+    basicTail (Packet n o) = Packet (n-1) (o `shiftL` 1)
 
-    {-# INLINE [1] init #-}
-    init (Packet 0 _) = emptyNotAllowed
-    init (Packet n o) = Packet (n-1) o
+    {-# INLINE basicInit #-}
+    basicInit (Packet 0 _) = emptyNotAllowed
+    basicInit (Packet n o) = Packet (n-1) o
 
     {-# INLINE [1] map #-}
     map f (Packet n o0) = Packet n (go 0 o0)
