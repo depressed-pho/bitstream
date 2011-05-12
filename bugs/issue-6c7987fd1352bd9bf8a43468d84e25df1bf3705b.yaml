@@ -1,0 +1,23 @@
+--- !ditz.rubyforge.org,2008-03-06/issue 
+title: Make stream fusion actually work
+desc: |-
+  I expected GHC 7.0.3 to solve the problem but it didn't. The source of
+  evil is the class op specialisation preventing our fusion rules from
+  firing. So I decided to wrap each and every class ops into plain
+  functions to force them getting fused.
+type: :bugfix
+component: bitstream
+release: 
+reporter: PHO <pho@cielonegro.org>
+status: :unstarted
+disposition: 
+creation_time: 2011-05-12 04:11:42.200267 Z
+references: []
+
+id: 6c7987fd1352bd9bf8a43468d84e25df1bf3705b
+log_events: 
+- - 2011-05-12 04:12:41.649532 Z
+  - PHO <pho@cielonegro.org>
+  - created
+  - ""
+git_branch: 
