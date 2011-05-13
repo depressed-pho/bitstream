@@ -172,8 +172,8 @@ import Data.Vector.Fusion.Stream.Monadic (Stream(..), Step(..))
 import Data.Vector.Fusion.Stream.Size
 import Data.Vector.Fusion.Util
 import Prelude ( Bool(..), Eq(..), Int, Integral, Maybe(..), Monad(..), Num(..)
-               , Ord(..), Show(..), ($), div, error, fmap
-               , fromIntegral, fst, mod, otherwise
+               , Ord(..), Show(..), ($), error, fmap, fromIntegral, fst
+               , otherwise
                )
 import Prelude.Unicode hiding ((⧺), (∈), (∉))
 import System.IO (FilePath, Handle, IO)
@@ -299,30 +299,8 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
     basicScanl f b
         = unstream ∘ S.scanl f b ∘ stream
 
-    {-# INLINEABLE [1] replicate #-}
-    replicate n0 b
-        | n0 ≤ 0         = (∅)
-        | n0 `mod` 8 ≡ 0 = Bitstream (fromIntegral n0) anterior
-        | otherwise      = Bitstream (fromIntegral n0) (anterior `SV.snoc` posterior)
-        where
-          {-# INLINE anterior #-}
-          anterior = SV.replicate n p
-              where
-                n ∷ Int
-                {-# INLINE n #-}
-                n = fromIntegral (n0 `div` 8)
-                {-# INLINE p #-}
-                p = replicate (8 ∷ Int) b
-
-          {-# INLINE posterior #-}
-          posterior = replicate n b
-              where
-                n ∷ Int
-                {-# INLINE n #-}
-                n = fromIntegral (n0 `mod` 8)
-
-    {-# INLINEABLE [1] take #-}
-    take n0 (Bitstream l0 v0)
+    {-# INLINEABLE basicTake #-}
+    basicTake n0 (Bitstream l0 v0)
         | l0 ≡ 0    = (∅)
         | n0 ≤ 0    = (∅)
         | otherwise = let !e = New.create (MVector.new (SV.length v0))
@@ -348,8 +326,8 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
                             in
                               go n' v' l' np' mv'
 
-    {-# INLINEABLE [1] drop #-}
-    drop n0 (Bitstream l0 v0)
+    {-# INLINEABLE basicDrop #-}
+    basicDrop n0 (Bitstream l0 v0)
         | n0 ≤ 0    = Bitstream l0 v0
         | otherwise = case go n0 l0 v0 of
                         (# l, v #) → Bitstream l v

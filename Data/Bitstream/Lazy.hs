@@ -316,27 +316,19 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
                                   then xs'
                                   else Chunk x'' xs')
 
-    {-# INLINEABLE [1] replicate #-}
-    replicate n b
-        | n ≤ 0         = Empty
-        | n < chunkBits = Chunk (replicate n b) Empty
-        | otherwise     = Chunk x (replicate (n - chunkBits) b)
-        where
-          x = replicate (chunkBits ∷ Int) b
+    {-# INLINEABLE basicTake #-}
+    basicTake _ Empty        = Empty
+    basicTake n (Chunk x xs)
+        | n ≤ 0              = Empty
+        | n ≥ length x       = Chunk x (take (n - length x) xs)
+        | otherwise          = Chunk (take n x) Empty
 
-    {-# INLINEABLE [1] take #-}
-    take _ Empty        = Empty
-    take n (Chunk x xs)
-        | n ≤ 0         = Empty
-        | n ≥ length x  = Chunk x (take (n - length x) xs)
-        | otherwise     = Chunk (take n x) Empty
-
-    {-# INLINEABLE [1] drop #-}
-    drop _ Empty       = Empty
-    drop n (Chunk x xs)
-        | n ≤ 0        = Chunk x xs
-        | n ≥ length x = drop (n - length x) xs
-        | otherwise    = Chunk (drop n x) xs
+    {-# INLINEABLE basicDrop #-}
+    basicDrop _ Empty        = Empty
+    basicDrop n (Chunk x xs)
+        | n ≤ 0              = Chunk x xs
+        | n ≥ length x       = drop (n - length x) xs
+        | otherwise          = Chunk (drop n x) xs
 
     {-# INLINEABLE [1] takeWhile #-}
     takeWhile _ Empty        = Empty

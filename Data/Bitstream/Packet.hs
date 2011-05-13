@@ -198,14 +198,8 @@ instance Bitstream (Packet Left) where
     {-# INLINE basicScanl #-}
     basicScanl = scanlPacket
 
-    {-# INLINE [1] replicate #-}
-    replicate n b
-        | n > 8     = packetOverflow
-        | b         = Packet (fromIntegral n) (0xFF `shiftR` (8 - fromIntegral n))
-        | otherwise = Packet (fromIntegral n) 0
-
-    {-# INLINE [1] take #-}
-    take l (Packet n o)
+    {-# INLINE basicTake #-}
+    basicTake l (Packet n o)
         | l ≤ 0      = (∅)
         | otherwise
             = let n' = fromIntegral (min (fromIntegral n) l)
@@ -213,8 +207,8 @@ instance Bitstream (Packet Left) where
               in
                 Packet n' o'
 
-    {-# INLINE [1] drop #-}
-    drop l (Packet n o)
+    {-# INLINE basicDrop #-}
+    basicDrop l (Packet n o)
         | l ≤ 0      = Packet n o
         | otherwise
             = let d  = fromIntegral (min (fromIntegral n) l)
@@ -311,14 +305,8 @@ instance Bitstream (Packet Right) where
     {-# INLINE basicScanl #-}
     basicScanl = scanlPacket
 
-    {-# INLINE [1] replicate #-}
-    replicate n b
-        | n > 8     = packetOverflow
-        | b         = Packet (fromIntegral n) (0xFF `shiftL` (8 - fromIntegral n))
-        | otherwise = Packet (fromIntegral n) 0
-
-    {-# INLINE [1] take #-}
-    take l (Packet n o)
+    {-# INLINE basicTake #-}
+    basicTake l (Packet n o)
         | l ≤ 0      = (∅)
         | otherwise
             = let n' = fromIntegral (min (fromIntegral n) l)
@@ -326,8 +314,8 @@ instance Bitstream (Packet Right) where
               in
                 Packet n' o'
 
-    {-# INLINE [1] drop #-}
-    drop l (Packet n o)
+    {-# INLINE basicDrop #-}
+    basicDrop l (Packet n o)
         | l ≤ 0      = Packet n o
         | otherwise
             = let d  = fromIntegral (min (fromIntegral n) l)

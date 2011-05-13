@@ -166,20 +166,8 @@ class Bitstream α where
 
     basicScanl ∷ (Bool → Bool → Bool) → Bool → α → α
 
-    -- | /O(n)/ @'replicate' n x@ is a 'Bitstream' of length @n@ with
-    -- @x@ the value of every bit.
-    replicate ∷ Integral n ⇒ n → Bool → α
-    {-# INLINE replicate #-}
-    replicate n = unstream ∘ genericReplicate n
-
-    -- | /O(n)/ 'take' @n@, applied to a 'Bitstream' @xs@, returns the
-    -- prefix of @xs@ of length @n@, or @xs@ itself if @n > 'length'
-    -- xs@.
-    take ∷ Integral n ⇒ n → α → α
-
-    -- | /O(n)/ 'drop' @n xs@ returns the suffix of @xs@ after the
-    -- first @n@ bits, or 'empty' if @n > 'length' xs@.
-    drop ∷ Integral n ⇒ n → α → α
+    basicTake ∷ Integral n ⇒ n → α → α
+    basicDrop ∷ Integral n ⇒ n → α → α
 
     -- | /O(n)/ 'takeWhile', applied to a predicate @p@ and a
     -- 'Bitstream' @xs@, returns the longest prefix (possibly 'empty')
@@ -602,6 +590,49 @@ scanr1 ∷ Bitstream α ⇒ (Bool → Bool → Bool) → α → α
 {-# INLINE [0] scanr1 #-}
 scanr1 f = reverse ∘ scanl1 (flip f) ∘ reverse
 
+-- | /O(n)/ @'replicate' n x@ is a 'Bitstream' of length @n@ with @x@
+-- the value of every bit.
+replicate ∷ (Integral n, Bitstream α) ⇒ n → Bool → α
+{-# INLINE replicate #-}
+replicate n = unstream ∘ genericReplicate n
+
+-- | /O(n)/ The 'unfoldr' function is a \`dual\' to 'foldr': while
+-- 'foldr' reduces a 'Bitstream' to a summary value, 'unfoldr' builds
+-- a 'Bitstream' from a seed value. The function takes the element and
+-- returns 'Nothing' if it is done producing the 'Bitstream' or
+-- returns 'Just' @(a, b)@, in which case, @a@ is a prepended to the
+-- 'Bitstream' and @b@ is used as the next element in a recursive
+-- call.
+unfoldr ∷ Bitstream α ⇒ (β → Maybe (Bool, β)) → β → α
+{-# INLINE unfoldr #-}
+unfoldr f = unstream ∘ S.unfoldr f
+
+-- | /O(n)/ 'unfoldrN' is a variant of 'unfoldr' but constructs a
+-- 'Bitstream' with at most @n@ bits.
+unfoldrN ∷ (Integral n, Bitstream α) ⇒ n → (β → Maybe (Bool, β)) → β → α
+{-# INLINE unfoldrN #-}
+unfoldrN n f = unstream ∘ genericUnfoldrN n f
+
+-- | /O(n)/ 'take' @n@, applied to a 'Bitstream' @xs@, returns the
+-- prefix of @xs@ of length @n@, or @xs@ itself if @n > 'length' xs@.
+take ∷ (Integral n, Bitstream α) ⇒ n → α → α
+{-# RULES
+"Bitstream take/unstream fusion"
+    ∀n s. take n (unstream s) = unstream (genericTake n s)
+  #-}
+{-# INLINE [0] take #-}
+take = basicTake
+
+-- | /O(n)/ 'drop' @n xs@ returns the suffix of @xs@ after the first
+-- @n@ bits, or 'empty' if @n > 'length' xs@.
+drop ∷ (Integral n, Bitstream α) ⇒ n → α → α
+{-# RULES
+"Bitstream drop/unstream fusion"
+    ∀n s. drop n (unstream s) = unstream (genericDrop n s)
+  #-}
+{-# INLINE [0] drop #-}
+drop = basicDrop
+
 -- | (&#x2208;) = 'elem'
 --
 -- U+2208, ELEMENT OF
@@ -629,23 +660,6 @@ scanr1 f = reverse ∘ scanl1 (flip f) ∘ reverse
 (∌) ∷ Bitstream α ⇒ α → Bool → Bool
 (∌) = flip notElem
 {-# INLINE (∌) #-}
-
--- | /O(n)/ The 'unfoldr' function is a \`dual\' to 'foldr': while
--- 'foldr' reduces a 'Bitstream' to a summary value, 'unfoldr' builds
--- a 'Bitstream' from a seed value. The function takes the element and
--- returns 'Nothing' if it is done producing the 'Bitstream' or
--- returns 'Just' @(a, b)@, in which case, @a@ is a prepended to the
--- 'Bitstream' and @b@ is used as the next element in a recursive
--- call.
-unfoldr ∷ Bitstream α ⇒ (β → Maybe (Bool, β)) → β → α
-{-# INLINE unfoldr #-}
-unfoldr f = unstream ∘ S.unfoldr f
-
--- | /O(n)/ 'unfoldrN' is a variant of 'unfoldr' but constructs a
--- 'Bitstream' with at most @n@ bits.
-unfoldrN ∷ (Bitstream α, Integral n) ⇒ n → (β → Maybe (Bool, β)) → β → α
-{-# INLINE unfoldrN #-}
-unfoldrN n f = unstream ∘ genericUnfoldrN n f
 
 -- | /O(n)/ 'Bitstream' index (subscript) operator, starting from 0.
 (!!) ∷ (Bitstream α, Integral n) ⇒ α → n → Bool
@@ -943,12 +957,6 @@ unzip6 xs = ( unstream $ S.map (\(α, _, _, _, _, _) → α) $ S.fromList xs
             , unstream $ S.map (\(_, _, _, _, _, ζ) → ζ) $ S.fromList xs )
 
 {-# RULES
-"Bitstream take/unstream fusion"
-    ∀n s. take n (unstream s) = unstream (genericTake n s)
-
-"Bitstream drop/unstream fusion"
-    ∀n s. drop n (unstream s) = unstream (genericDrop n s)
-
 "Bitstream takeWhile/unstream fusion"
     ∀f s. takeWhile f (unstream s) = unstream (S.takeWhile f s)
 
