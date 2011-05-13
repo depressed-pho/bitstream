@@ -195,8 +195,8 @@ instance Bitstream (Packet Left) where
     basicReverse (Packet n o)
         = Packet n (reverseBits o `shiftR` (8-n))
 
-    {-# INLINE [1] scanl #-}
-    scanl = scanlPacket
+    {-# INLINE basicScanl #-}
+    basicScanl = scanlPacket
 
     {-# INLINE [1] replicate #-}
     replicate n b
@@ -308,8 +308,8 @@ instance Bitstream (Packet Right) where
     basicReverse (Packet n o)
         = Packet n (reverseBits o `shiftL` (8-n))
 
-    {-# INLINE [1] scanl #-}
-    scanl = scanlPacket
+    {-# INLINE basicScanl #-}
+    basicScanl = scanlPacket
 
     {-# INLINE [1] replicate #-}
     replicate n b

@@ -298,8 +298,11 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
           go Empty        ch = ch
           go (Chunk x xs) ch = go xs (Chunk (reverse x) ch)
 
-    {-# INLINE [1] scanl #-}
-    scanl f b ch
+    {-# INLINE basicConcat #-}
+    basicConcat = fromChunks ∘ L.concatMap toChunks
+
+    {-# INLINEABLE basicScanl #-}
+    basicScanl f b ch
         = Chunk (singleton b)
                 (case ch of
                    Empty      → Empty
@@ -312,9 +315,6 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
                                   if null x''
                                   then xs'
                                   else Chunk x'' xs')
-
-    {-# INLINE [1] concat #-}
-    concat = fromChunks ∘ L.concatMap toChunks
 
     {-# INLINEABLE [1] replicate #-}
     replicate n b

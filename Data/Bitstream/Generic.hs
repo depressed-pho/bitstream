@@ -159,25 +159,12 @@ class Bitstream α where
     basicMap     ∷ (Bool → Bool) → α → α
     basicReverse ∷ α → α
 
-    -- | /O(n)/ Concatenate all 'Bitstream's in the list.
-    concat ∷ [α] → α
-    {-# INLINE concat #-}
-    concat []     = (∅)
-    concat (α:αs) = α ⧺ concat αs
+    basicConcat ∷ [α] → α
+    {-# INLINE basicConcat #-}
+    basicConcat []     = (∅)
+    basicConcat (α:αs) = α ⧺ concat αs
 
-    -- | /O(n)/ 'scanl' is similar to 'foldl', but returns a
-    -- 'Bitstream' of successive reduced bits from the left:
-    --
-    -- @
-    -- 'scanl' f z [x1, x2, ...] == [z, z `f` x1, (z `f` x1) `f` x2, ...]
-    -- @
-    --
-    -- Note that
-    --
-    -- @
-    -- 'last' ('scanl' f z xs) == 'foldl' f z xs
-    -- @
-    scanl ∷ (Bool → Bool → Bool) → Bool → α → α
+    basicScanl ∷ (Bool → Bool → Bool) → Bool → α → α
 
     -- | /O(n)/ @'replicate' n x@ is a 'Bitstream' of length @n@ with
     -- @x@ the value of every bit.
@@ -507,33 +494,10 @@ foldr1 ∷ Bitstream α ⇒ (Bool → Bool → Bool) → α → Bool
 {-# INLINE [0] foldr1 #-}
 foldr1 f = S.foldr1 f ∘ stream
 
--- | (&#x2208;) = 'elem'
---
--- U+2208, ELEMENT OF
-(∈) ∷ Bitstream α ⇒ Bool → α → Bool
-{-# INLINE (∈) #-}
-(∈) = elem
-
--- | (&#x220B;) = 'flip' (&#x2208;)
---
--- U+220B, CONTAINS AS MEMBER
-(∋) ∷ Bitstream α ⇒ α → Bool → Bool
-(∋) = flip elem
-{-# INLINE (∋) #-}
-
--- | (&#x2209;) = 'notElem'
---
--- U+2209, NOT AN ELEMENT OF
-(∉) ∷ Bitstream α ⇒ Bool → α → Bool
-(∉) = notElem
-{-# INLINE (∉) #-}
-
--- | (&#x220C;) = 'flip' (&#x2209;)
---
--- U+220C, DOES NOT CONTAIN AS MEMBER
-(∌) ∷ Bitstream α ⇒ α → Bool → Bool
-(∌) = flip notElem
-{-# INLINE (∌) #-}
+-- | /O(n)/ Concatenate all 'Bitstream's in the list.
+concat ∷ Bitstream α ⇒ [α] → α
+{-# INLINE [0] concat #-}
+concat = basicConcat
 
 -- | Map a function over a 'Bitstream' and concatenate the results.
 concatMap ∷ Bitstream α ⇒ (Bool → α) → α → α
@@ -591,6 +555,26 @@ all ∷ Bitstream α ⇒ (Bool → Bool) → α → Bool
 {-# INLINE [0] all #-}
 all f = S.and ∘ S.map f ∘ stream
 
+-- | /O(n)/ 'scanl' is similar to 'foldl', but returns a 'Bitstream'
+-- of successive reduced bits from the left:
+--
+-- @
+-- 'scanl' f z [x1, x2, ...] == [z, z `f` x1, (z `f` x1) `f` x2, ...]
+-- @
+--
+-- Note that
+--
+-- @
+-- 'last' ('scanl' f z xs) == 'foldl' f z xs
+-- @
+scanl ∷ Bitstream α ⇒ (Bool → Bool → Bool) → Bool → α → α
+{-# RULES
+"Bitstream scanl/unstream fusion"
+    ∀f b s. scanl f b (unstream s) = unstream (S.scanl f b s)
+  #-}
+{-# INLINE [0] scanl #-}
+scanl = basicScanl
+
 -- | /O(n)/ 'scanl1' is a variant of 'scanl' that has no starting
 -- value argument:
 --
@@ -617,6 +601,34 @@ scanr f b = reverse ∘ scanl (flip f) b ∘ reverse
 scanr1 ∷ Bitstream α ⇒ (Bool → Bool → Bool) → α → α
 {-# INLINE [0] scanr1 #-}
 scanr1 f = reverse ∘ scanl1 (flip f) ∘ reverse
+
+-- | (&#x2208;) = 'elem'
+--
+-- U+2208, ELEMENT OF
+(∈) ∷ Bitstream α ⇒ Bool → α → Bool
+{-# INLINE (∈) #-}
+(∈) = elem
+
+-- | (&#x220B;) = 'flip' (&#x2208;)
+--
+-- U+220B, CONTAINS AS MEMBER
+(∋) ∷ Bitstream α ⇒ α → Bool → Bool
+(∋) = flip elem
+{-# INLINE (∋) #-}
+
+-- | (&#x2209;) = 'notElem'
+--
+-- U+2209, NOT AN ELEMENT OF
+(∉) ∷ Bitstream α ⇒ Bool → α → Bool
+(∉) = notElem
+{-# INLINE (∉) #-}
+
+-- | (&#x220C;) = 'flip' (&#x2209;)
+--
+-- U+220C, DOES NOT CONTAIN AS MEMBER
+(∌) ∷ Bitstream α ⇒ α → Bool → Bool
+(∌) = flip notElem
+{-# INLINE (∌) #-}
 
 -- | /O(n)/ The 'unfoldr' function is a \`dual\' to 'foldr': while
 -- 'foldr' reduces a 'Bitstream' to a summary value, 'unfoldr' builds
@@ -931,9 +943,6 @@ unzip6 xs = ( unstream $ S.map (\(α, _, _, _, _, _) → α) $ S.fromList xs
             , unstream $ S.map (\(_, _, _, _, _, ζ) → ζ) $ S.fromList xs )
 
 {-# RULES
-"Bitstream scanl/unstream fusion"
-    ∀f b s. scanl f b (unstream s) = unstream (S.scanl f b s)
-
 "Bitstream take/unstream fusion"
     ∀n s. take n (unstream s) = unstream (genericTake n s)
 

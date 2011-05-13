@@ -288,16 +288,16 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
     basicReverse (Bitstream l v)
         = Bitstream l (SV.reverse (SV.map reverse v))
 
-    {-# INLINE scanl #-}
-    scanl f b
-        = unstream ∘ S.scanl f b ∘ stream
-
-    {-# INLINE [1] concat #-}
-    concat xs
+    {-# INLINEABLE basicConcat #-}
+    basicConcat xs
         = let (!l, !vs) = L.mapAccumL (\n x → (n + length x, toPackets x)) 0 xs
               !v        = SV.concat vs
           in
             Bitstream l v
+
+    {-# INLINE basicScanl #-}
+    basicScanl f b
+        = unstream ∘ S.scanl f b ∘ stream
 
     {-# INLINEABLE [1] replicate #-}
     replicate n0 b
