@@ -166,29 +166,15 @@ class Bitstream α where
 
     basicScanl ∷ (Bool → Bool → Bool) → Bool → α → α
 
-    basicTake ∷ Integral n ⇒ n → α → α
-    basicDrop ∷ Integral n ⇒ n → α → α
+    basicTake      ∷ Integral n ⇒ n → α → α
+    basicDrop      ∷ Integral n ⇒ n → α → α
+    basicTakeWhile ∷ (Bool → Bool) → α → α
+    basicDropWhile ∷ (Bool → Bool) → α → α
 
-    -- | /O(n)/ 'takeWhile', applied to a predicate @p@ and a
-    -- 'Bitstream' @xs@, returns the longest prefix (possibly 'empty')
-    -- of @xs@ of bits that satisfy @p@.
-    takeWhile ∷ (Bool → Bool) → α → α
-
-    -- | /O(n)/ 'dropWhile' @p xs@ returns the suffix remaining after
-    -- 'takeWhile' @p xs@.
-    dropWhile ∷ (Bool → Bool) → α → α
-
-    -- | /O(n)/ 'filter', applied to a predicate and a 'Bitstream',
-    -- returns the 'Bitstream' of those bits that satisfy the
-    -- predicate.
-    filter ∷ (Bool → Bool) → α → α
-
-    -- | /O(n)/ The 'partition' function takes a predicate and a
-    -- 'Bitstream' and returns the pair of 'Bitstream's of bits which
-    -- do and do not satisfy the predicate, respectively.
-    partition ∷ (Bool → Bool) → α → (α, α)
-    {-# INLINEABLE partition #-}
-    partition f α = (filter f α, filter ((¬) ∘ f) α)
+    basicFilter    ∷ (Bool → Bool) → α → α
+    basicPartition ∷ (Bool → Bool) → α → (α, α)
+    {-# INLINE basicPartition #-}
+    basicPartition f α = (filter f α, filter ((¬) ∘ f) α)
 
 
 -- | /O(1)/ The empty 'Bitstream'.
@@ -633,41 +619,26 @@ drop ∷ (Integral n, Bitstream α) ⇒ n → α → α
 {-# INLINE [0] drop #-}
 drop = basicDrop
 
--- | (&#x2208;) = 'elem'
---
--- U+2208, ELEMENT OF
-(∈) ∷ Bitstream α ⇒ Bool → α → Bool
-{-# INLINE (∈) #-}
-(∈) = elem
-
--- | (&#x220B;) = 'flip' (&#x2208;)
---
--- U+220B, CONTAINS AS MEMBER
-(∋) ∷ Bitstream α ⇒ α → Bool → Bool
-(∋) = flip elem
-{-# INLINE (∋) #-}
-
--- | (&#x2209;) = 'notElem'
---
--- U+2209, NOT AN ELEMENT OF
-(∉) ∷ Bitstream α ⇒ Bool → α → Bool
-(∉) = notElem
-{-# INLINE (∉) #-}
-
--- | (&#x220C;) = 'flip' (&#x2209;)
---
--- U+220C, DOES NOT CONTAIN AS MEMBER
-(∌) ∷ Bitstream α ⇒ α → Bool → Bool
-(∌) = flip notElem
-{-# INLINE (∌) #-}
-
--- | /O(n)/ 'Bitstream' index (subscript) operator, starting from 0.
-(!!) ∷ (Bitstream α, Integral n) ⇒ α → n → Bool
-{-# RULES "Bitstream (!!)/unstream fusion"
-    ∀s n. (unstream s) !! n = genericIndex s n
+-- | /O(n)/ 'takeWhile', applied to a predicate @p@ and a 'Bitstream'
+-- @xs@, returns the longest prefix (possibly 'empty') of @xs@ of bits
+-- that satisfy @p@.
+takeWhile ∷ Bitstream α ⇒ (Bool → Bool) → α → α
+{-# RULES
+"Bitstream takeWhile/unstream fusion"
+    ∀f s. takeWhile f (unstream s) = unstream (S.takeWhile f s)
   #-}
-{-# INLINE [0] (!!) #-}
-α !! n = genericIndex (stream α) n
+{-# INLINE [0] takeWhile #-}
+takeWhile = basicTakeWhile
+
+-- | /O(n)/ 'dropWhile' @p xs@ returns the suffix remaining after
+-- 'takeWhile' @p xs@.
+dropWhile ∷ Bitstream α ⇒ (Bool → Bool) → α → α
+{-# RULES
+"Bitstream dropWhile/unstream fusion"
+    ∀f s. dropWhile f (unstream s) = unstream (S.dropWhile f s)
+  #-}
+{-# INLINE [0] dropWhile #-}
+dropWhile = basicDropWhile
 
 -- | /O(n)/ 'span', applied to a predicate @p@ and a 'Bitstream' @xs@,
 -- returns a tuple where first element is longest prefix (possibly
@@ -707,6 +678,20 @@ elem ∷ Bitstream α ⇒ Bool → α → Bool
 elem True  = or
 elem False = (¬) ∘ and
 
+-- | (&#x2208;) = 'elem'
+--
+-- U+2208, ELEMENT OF
+(∈) ∷ Bitstream α ⇒ Bool → α → Bool
+{-# INLINE (∈) #-}
+(∈) = elem
+
+-- | (&#x220B;) = 'flip' (&#x2208;)
+--
+-- U+220B, CONTAINS AS MEMBER
+(∋) ∷ Bitstream α ⇒ α → Bool → Bool
+{-# INLINE (∋) #-}
+(∋) = flip elem
+
 -- | /O(n)/ 'notElem' is the negation of 'elem'.
 notElem ∷ Bitstream α ⇒ Bool → α → Bool
 {-# RULES "Bitstream notElem/unstream fusion"
@@ -714,6 +699,20 @@ notElem ∷ Bitstream α ⇒ Bool → α → Bool
   #-}
 {-# INLINE [0] notElem #-}
 notElem = ((¬) ∘) ∘ (∈)
+
+-- | (&#x2209;) = 'notElem'
+--
+-- U+2209, NOT AN ELEMENT OF
+(∉) ∷ Bitstream α ⇒ Bool → α → Bool
+{-# INLINE (∉) #-}
+(∉) = notElem
+
+-- | (&#x220C;) = 'flip' (&#x2209;)
+--
+-- U+220C, DOES NOT CONTAIN AS MEMBER
+(∌) ∷ Bitstream α ⇒ α → Bool → Bool
+(∌) = flip notElem
+{-# INLINE (∌) #-}
 
 -- | /O(n)/ The 'find' function takes a predicate and a 'Bitstream'
 -- and returns the bit in the 'Bitstream' matching the predicate, or
@@ -724,6 +723,31 @@ find ∷ Bitstream α ⇒ (Bool → Bool) → α → Maybe Bool
   #-}
 {-# INLINE [0] find #-}
 find f = S.find f ∘ stream
+
+-- | /O(n)/ 'filter', applied to a predicate and a 'Bitstream',
+-- returns the 'Bitstream' of those bits that satisfy the predicate.
+filter ∷ Bitstream α ⇒ (Bool → Bool) → α → α
+{-# RULES
+"Bitstream filter/unstream fusion"
+    ∀f s. filter f (unstream s) = unstream (S.filter f s)
+  #-}
+{-# INLINE [0] filter #-}
+filter = basicFilter
+
+-- | /O(n)/ The 'partition' function takes a predicate and a
+-- 'Bitstream' and returns the pair of 'Bitstream's of bits which do
+-- and do not satisfy the predicate, respectively.
+partition ∷ Bitstream α ⇒ (Bool → Bool) → α → (α, α)
+{-# INLINE [0] partition #-}
+partition = basicPartition
+
+-- | /O(n)/ 'Bitstream' index (subscript) operator, starting from 0.
+(!!) ∷ (Bitstream α, Integral n) ⇒ α → n → Bool
+{-# RULES "Bitstream (!!)/unstream fusion"
+    ∀s n. (unstream s) !! n = genericIndex s n
+  #-}
+{-# INLINE [0] (!!) #-}
+α !! n = genericIndex (stream α) n
 
 -- | /O(n)/ The 'elemIndex' function returns the index of the first
 -- bit in the given 'Bitstream' which is equal to the query bit, or
@@ -955,14 +979,3 @@ unzip6 xs = ( unstream $ S.map (\(α, _, _, _, _, _) → α) $ S.fromList xs
             , unstream $ S.map (\(_, _, _, δ, _, _) → δ) $ S.fromList xs
             , unstream $ S.map (\(_, _, _, _, ε, _) → ε) $ S.fromList xs
             , unstream $ S.map (\(_, _, _, _, _, ζ) → ζ) $ S.fromList xs )
-
-{-# RULES
-"Bitstream takeWhile/unstream fusion"
-    ∀f s. takeWhile f (unstream s) = unstream (S.takeWhile f s)
-
-"Bitstream dropWhile/unstream fusion"
-    ∀f s. dropWhile f (unstream s) = unstream (S.dropWhile f s)
-
-"Bitstream filter/unstream fusion"
-    ∀f s. filter f (unstream s) = unstream (S.filter f s)
-  #-}

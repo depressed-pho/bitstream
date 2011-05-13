@@ -342,8 +342,8 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
                             | otherwise → (# l - length p + length p'
                                            , p' `SV.cons` SV.tail v #)
 
-    {-# INLINE [1] takeWhile #-}
-    takeWhile f
+    {-# INLINEABLE basicTakeWhile #-}
+    basicTakeWhile f
         = unstreamPackets ∘ takeWhilePS ∘ streamPackets
         where
           {-# INLINE takeWhilePS #-}
@@ -363,10 +363,10 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
                            Done
                                → return Done
 
-    {-# INLINEABLE [1] dropWhile #-}
-    dropWhile _ (Bitstream 0  v0) = Bitstream 0 v0
-    dropWhile f (Bitstream l0 v0) = case go l0 v0 of
-                                      (# l, v #) → Bitstream l v
+    {-# INLINEABLE basicDropWhile #-}
+    basicDropWhile _ (Bitstream 0  v0) = Bitstream 0 v0
+    basicDropWhile f (Bitstream l0 v0) = case go l0 v0 of
+                                           (# l, v #) → Bitstream l v
         where
           {-# INLINE go #-}
           go 0 v = (# 0, v #)
@@ -378,8 +378,8 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
                           | otherwise → (# l - pLen + length p'
                                          , p' `SV.cons` SV.tail v #)
 
-    {-# INLINEABLE [1] filter #-}
-    filter f
+    {-# INLINEABLE basicFilter #-}
+    basicFilter f
         = unstreamPackets ∘ filterPS ∘ streamPackets
         where
           {-# INLINE filterPS #-}

@@ -217,14 +217,14 @@ instance Bitstream (Packet Left) where
               in
                 Packet n' o'
 
-    {-# INLINE [1] takeWhile #-}
-    takeWhile = takeWhilePacket
+    {-# INLINE basicTakeWhile #-}
+    basicTakeWhile = takeWhilePacket
 
-    {-# INLINE [1] dropWhile #-}
-    dropWhile = dropWhilePacket
+    {-# INLINE basicDropWhile #-}
+    basicDropWhile = dropWhilePacket
 
-    {-# INLINE [1] filter #-}
-    filter = filterPacket
+    {-# INLINE basicFilter #-}
+    basicFilter = filterPacket
 
 instance Bitstream (Packet Right) where
     {-# INLINE basicStream #-}
@@ -324,14 +324,14 @@ instance Bitstream (Packet Right) where
               in
                 Packet n' o'
 
-    {-# INLINE [1] takeWhile #-}
-    takeWhile = takeWhilePacket
+    {-# INLINE basicTakeWhile #-}
+    basicTakeWhile = takeWhilePacket
 
-    {-# INLINE [1] dropWhile #-}
-    dropWhile = dropWhilePacket
+    {-# INLINE basicDropWhile #-}
+    basicDropWhile = dropWhilePacket
 
-    {-# INLINE [1] filter #-}
-    filter = filterPacket
+    {-# INLINE basicFilter #-}
+    basicFilter = filterPacket
 
 packetHeadL ∷ Packet Left → Bool
 {-# RULES "head → packetHeadL" [1] head = packetHeadL #-}

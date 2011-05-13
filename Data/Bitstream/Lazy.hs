@@ -330,23 +330,23 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
         | n ≥ length x       = drop (n - length x) xs
         | otherwise          = Chunk (drop n x) xs
 
-    {-# INLINEABLE [1] takeWhile #-}
-    takeWhile _ Empty        = Empty
-    takeWhile f (Chunk x xs) = case takeWhile f x of
-                                 x' | x ≡ x'    → Chunk x' (takeWhile f xs)
-                                    | otherwise → Chunk x' Empty
+    {-# INLINEABLE basicTakeWhile #-}
+    basicTakeWhile _ Empty        = Empty
+    basicTakeWhile f (Chunk x xs) = case takeWhile f x of
+                                      x' | x ≡ x'    → Chunk x' (takeWhile f xs)
+                                         | otherwise → Chunk x' Empty
 
-    {-# INLINEABLE [1] dropWhile #-}
-    dropWhile _ Empty        = Empty
-    dropWhile f (Chunk x xs) = case dropWhile f x of
-                                 x' | null x'   → dropWhile f xs
-                                    | otherwise → Chunk x' xs
+    {-# INLINEABLE basicDropWhile #-}
+    basicDropWhile _ Empty        = Empty
+    basicDropWhile f (Chunk x xs) = case dropWhile f x of
+                                      x' | null x'   → dropWhile f xs
+                                         | otherwise → Chunk x' xs
 
-    {-# INLINEABLE [1] filter #-}
-    filter _ Empty        = Empty
-    filter f (Chunk x xs) = case filter f x of
-                              x' | null x'   → filter f xs
-                                 | otherwise → Chunk x' (filter f xs)
+    {-# INLINEABLE basicFilter #-}
+    basicFilter _ Empty        = Empty
+    basicFilter f (Chunk x xs) = case filter f x of
+                                   x' | null x'   → filter f xs
+                                      | otherwise → Chunk x' (filter f xs)
 
 lazyHead ∷ G.Bitstream (Packet d) ⇒ Bitstream d → Bool
 {-# RULES "head → lazyHead" [1]
