@@ -597,7 +597,8 @@ repeat ∷ G.Bitstream (Packet d) ⇒ Bool → Bitstream d
 repeat b = xs
     where
       xs = Chunk x xs
-      x  = replicate (chunkBits ∷ Int) b
+      x  = SB.fromPackets (SV.replicate chunkSize p)
+      p  = pack (L.replicate 8 b)
 
 -- | /O(n)/ 'cycle' ties a finite 'Bitstream' into a circular one, or
 -- equivalently, the infinite repetition of the original 'Bitstream'.

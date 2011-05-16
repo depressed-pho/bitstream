@@ -3,7 +3,6 @@
   , EmptyDataDecls
   , FlexibleContexts
   , FlexibleInstances
-  , RankNTypes
   , UnicodeSyntax
   #-}
 -- | For internal use only.
