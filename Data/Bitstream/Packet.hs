@@ -119,6 +119,8 @@ instance Ord (Packet Right) where
           (ox `shiftR` (8-nx))
           (oy `shiftR` (8-ny))
 
+-- | 'Packet's are enumerated as octets so you might get surprising
+-- results from this instance.
 instance Enum (Packet d) where
     {-# INLINE toEnum #-}
     toEnum = fromOctet ∘ fromIntegral
