@@ -113,6 +113,7 @@ module Data.Bitstream.Generic
     )
     where
 import qualified Data.List as L
+import Data.Bits
 import Data.Bitstream.Fusion
 import Data.Maybe
 import Data.Vector.Fusion.Stream (Stream)
@@ -141,8 +142,9 @@ infixl 9 !!
 -- basic functions to implement other ones, or have to preserve their
 -- packet/chunk structure for efficiency and strictness behaviour.
 --
--- Minimum complete implementation: /All but/ 'cons'', 'concat',
--- 'replicate' and 'partition'.
+-- Minimum complete implementation: /All but/ 'basicCons'',
+-- 'basicConcat', 'basicReplicate', 'basicPartition' and
+-- 'basicFromBits'.
 class Bitstream α where
     basicStream   ∷ α → Stream Bool
     basicUnstream ∷ Stream Bool → α
@@ -175,6 +177,12 @@ class Bitstream α where
     basicPartition ∷ (Bool → Bool) → α → (α, α)
     {-# INLINE basicPartition #-}
     basicPartition f α = (filter f α, filter ((¬) ∘ f) α)
+
+    basicFromBits  ∷ (Integral β, Bits β) ⇒ β → α
+    {-# INLINE basicFromBits #-}
+    basicFromBits β = basicFromNBits (bitSize β) β
+    basicFromNBits ∷ (Integral n, Integral β, Bits β) ⇒ n → β → α
+    basicToBits    ∷ Bits β ⇒ α → β
 
 
 -- | /O(1)/ The empty 'Bitstream'.

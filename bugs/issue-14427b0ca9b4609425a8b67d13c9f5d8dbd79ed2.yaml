@@ -5,7 +5,7 @@ type: :feature
 component: bitstream
 release: bitstream-0.2
 reporter: PHO <pho@cielonegro.org>
-status: :unstarted
+status: :in_progress
 disposition: 
 creation_time: 2011-03-02 13:27:21.681312 Z
 references: []
@@ -19,5 +19,9 @@ log_events:
 - - 2011-05-16 14:25:46.789786 Z
   - PHO <pho@cielonegro.org>
   - assigned to release bitstream-0.2 from unassigned
+  - ""
+- - 2011-05-16 15:13:08.258842 Z
+  - PHO <pho@cielonegro.org>
+  - changed status from unstarted to in_progress
   - ""
 git_branch: 

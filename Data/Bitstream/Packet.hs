@@ -225,6 +225,22 @@ instance Bitstream (Packet Left) where
     {-# INLINE basicFilter #-}
     basicFilter = filterPacket
 
+    {-# INLINEABLE basicFromNBits #-}
+    basicFromNBits n β
+        | n < 0     = negativeNotAllowed
+        | n > 8     = packetOverflow
+        | n ≡ 8     = Packet (fromIntegral n) (fromIntegral β)
+        | otherwise = let n' ∷ Int
+                          n' = fromIntegral n
+                          o  ∷ Word8
+                          o  = fromIntegral (β .&. ((1 `shiftL` n') - 1))
+                      in
+                        Packet n' o
+
+    {-# INLINE basicToBits #-}
+    basicToBits = fromIntegral ∘ toOctet
+
+
 instance Bitstream (Packet Right) where
     {-# INLINE basicStream #-}
     basicStream (Packet n o)
@@ -409,6 +425,10 @@ packetOr (Packet _ o) = o ≢ 0
 {-# INLINE emptyNotAllowed #-}
 emptyNotAllowed ∷ α
 emptyNotAllowed = error "Data.Bitstream.Packet: packet is empty"
+
+{-# INLINE negativeNotAllowed #-}
+negativeNotAllowed ∷ α
+negativeNotAllowed = error "Data.Bitstream.Packet: packets can't represent negative numbers"
 
 {-# INLINE packetOverflow #-}
 packetOverflow ∷ α
