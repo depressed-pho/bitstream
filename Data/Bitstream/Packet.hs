@@ -32,7 +32,7 @@ import Data.Vector.Fusion.Stream.Size
 import Data.Vector.Fusion.Util
 import Data.Word
 import Foreign.Storable
-import Prelude ( Bool(..), Eq(..), Int, Integral, Ord(..), Maybe(..)
+import Prelude ( Bool(..), Enum(..), Eq(..), Int, Integral, Ord(..), Maybe(..)
                , Monad(..), Num(..), Show(..), ($!), error, fromIntegral
                , otherwise
                )
@@ -118,6 +118,12 @@ instance Ord (Packet Right) where
         = compare
           (ox `shiftR` (8-nx))
           (oy `shiftR` (8-ny))
+
+instance Enum (Packet d) where
+    {-# INLINE toEnum #-}
+    toEnum = fromOctet ∘ fromIntegral
+    {-# INLINE fromEnum #-}
+    fromEnum = fromIntegral ∘ toOctet
 
 instance Bitstream (Packet Left) where
     {-# INLINE basicStream #-}
