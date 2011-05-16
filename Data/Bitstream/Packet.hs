@@ -119,13 +119,30 @@ instance Ord (Packet Right) where
           (ox `shiftR` (8-nx))
           (oy `shiftR` (8-ny))
 
--- | 'Packet's are enumerated as octets so you might get surprising
--- results from this instance.
-instance Enum (Packet d) where
-    {-# INLINE toEnum #-}
-    toEnum = fromOctet ∘ fromIntegral
+instance Enum (Packet Left) where
+    {-# INLINEABLE toEnum #-}
+    toEnum n
+        | n < 0x00  = negativeNotAllowed
+        | n < 0x01  = Packet 0 0
+        | n < 0x02  = Packet 1 (fromIntegral n)
+        | n < 0x04  = Packet 2 (fromIntegral n)
+        | n < 0x08  = Packet 3 (fromIntegral n)
+        | n < 0x10  = Packet 4 (fromIntegral n)
+        | n < 0x20  = Packet 5 (fromIntegral n)
+        | n < 0x40  = Packet 6 (fromIntegral n)
+        | n < 0x80  = Packet 7 (fromIntegral n)
+        | n ≤ 0xFF  = Packet 8 (fromIntegral n)
+        | otherwise = packetOverflow
+
     {-# INLINE fromEnum #-}
-    fromEnum = fromIntegral ∘ toOctet
+    fromEnum (Packet _ o) = fromIntegral o
+
+instance Enum (Packet Right) where
+    {-# INLINE toEnum #-}
+    toEnum = packetLToR ∘ toEnum
+
+    {-# INLINE fromEnum #-}
+    fromEnum = fromEnum ∘ packetRToL
 
 instance Bitstream (Packet Left) where
     {-# INLINE basicStream #-}
@@ -418,6 +435,10 @@ packetOr (Packet _ o) = o ≢ 0
 {-# INLINE emptyNotAllowed #-}
 emptyNotAllowed ∷ α
 emptyNotAllowed = error "Data.Bitstream.Packet: packet is empty"
+
+{-# INLINE negativeNotAllowed #-}
+negativeNotAllowed ∷ α
+negativeNotAllowed = error "Data.Bitstream.Packet: packets can't represent a negative number"
 
 {-# INLINE packetOverflow #-}
 packetOverflow ∷ α
