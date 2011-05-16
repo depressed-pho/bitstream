@@ -31,7 +31,7 @@ import Data.Vector.Fusion.Stream.Size
 import Data.Vector.Fusion.Util
 import Data.Word
 import Foreign.Storable
-import Prelude ( Bool(..), Enum(..), Eq(..), Int, Integral, Ord(..), Maybe(..)
+import Prelude ( Bool(..), Eq(..), Int, Integral, Ord(..), Maybe(..)
                , Monad(..), Num(..), Show(..), ($!), error, fromIntegral
                , otherwise
                )
@@ -117,31 +117,6 @@ instance Ord (Packet Right) where
         = compare
           (ox `shiftR` (8-nx))
           (oy `shiftR` (8-ny))
-
-instance Enum (Packet Left) where
-    {-# INLINEABLE toEnum #-}
-    toEnum n
-        | n < 0x00  = negativeNotAllowed
-        | n < 0x01  = Packet 0 0
-        | n < 0x02  = Packet 1 (fromIntegral n)
-        | n < 0x04  = Packet 2 (fromIntegral n)
-        | n < 0x08  = Packet 3 (fromIntegral n)
-        | n < 0x10  = Packet 4 (fromIntegral n)
-        | n < 0x20  = Packet 5 (fromIntegral n)
-        | n < 0x40  = Packet 6 (fromIntegral n)
-        | n < 0x80  = Packet 7 (fromIntegral n)
-        | n ≤ 0xFF  = Packet 8 (fromIntegral n)
-        | otherwise = packetOverflow
-
-    {-# INLINE fromEnum #-}
-    fromEnum (Packet _ o) = fromIntegral o
-
-instance Enum (Packet Right) where
-    {-# INLINE toEnum #-}
-    toEnum = packetLToR ∘ toEnum
-
-    {-# INLINE fromEnum #-}
-    fromEnum = fromEnum ∘ packetRToL
 
 instance Bitstream (Packet Left) where
     {-# INLINE basicStream #-}
@@ -434,10 +409,6 @@ packetOr (Packet _ o) = o ≢ 0
 {-# INLINE emptyNotAllowed #-}
 emptyNotAllowed ∷ α
 emptyNotAllowed = error "Data.Bitstream.Packet: packet is empty"
-
-{-# INLINE negativeNotAllowed #-}
-negativeNotAllowed ∷ α
-negativeNotAllowed = error "Data.Bitstream.Packet: packets can't represent a negative number"
 
 {-# INLINE packetOverflow #-}
 packetOverflow ∷ α
