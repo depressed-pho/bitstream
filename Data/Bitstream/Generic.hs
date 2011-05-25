@@ -15,14 +15,14 @@ module Data.Bitstream.Generic
     , pack
     , unpack
 
-    -- ** Converting from\/to 'S.Stream's
-    , stream
-    , unstream
-
     -- ** Converting from\/to 'Bits''
     , fromBits
     , fromNBits
     , toBits
+
+    -- ** Converting from\/to 'S.Stream's
+    , stream
+    , unstream
 
     -- * Basic interface
     , cons
@@ -295,21 +295,21 @@ unstream = basicUnstream
     ∀v. unstream (stream v) = v
   #-}
 
--- | /O(1)/ Convert a 'Bits' into a 'Bitstream'. Note that this
+-- | /O(n)/ Convert a 'Bits' into a 'Bitstream'. Note that this
 -- function is undefined for instances of 'Bits' which have no fixed
 -- 'bitSize' (like 'Integer').
 fromBits ∷ (Integral β, Bits β, Bitstream α) ⇒ β → α
 {-# INLINE fromBits #-}
 fromBits = basicFromBits
 
--- | /O(1)/ Convert the lower 'n' bits of the given 'Bits'. In the
+-- | /O(n)/ Convert the lower 'n' bits of the given 'Bits'. In the
 -- case that more bits are requested than the 'Bits' provides, this
 -- acts as if the 'Bits' has an infinite number of leading 0 bits.
 fromNBits ∷ (Integral n, Integral β, Bits β, Bitstream α) ⇒ n → β → α
 {-# INLINE fromNBits #-}
 fromNBits = basicFromNBits
 
--- | /O(1)/ Convert a 'Bitstream' into a 'Bits'.
+-- | /O(n)/ Convert a 'Bitstream' into a 'Bits'.
 toBits ∷ (Bitstream α, Bits β) ⇒ α → β
 {-# INLINE [0] toBits #-}
 toBits = basicToBits

@@ -35,6 +35,11 @@ module Data.Bitstream
     , fromByteString
     , toByteString
 
+    -- ** Converting from\/to 'Bits''
+    , fromBits
+    , fromNBits
+    , toBits
+
       -- ** Converting from\/to 'S.Stream's
     , stream
     , unstream
@@ -233,60 +238,31 @@ instance G.Bitstream (Packet d) ⇒ Monoid (Bitstream d) where
 
 instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
     {-# INLINE basicStream #-}
-    basicStream (Bitstream l v)
-        = {-# CORE "Bitstream stream" #-}
-          S.concatMap stream (GV.stream v)
-          `S.sized`
-          Exact l
+    basicStream = strictStream
 
     {-# INLINE basicUnstream #-}
-    basicUnstream
-        = {-# CORE "Bitstream unstream" #-}
-          unstreamPackets ∘ packPackets
+    basicUnstream = strictUnstream
 
-    {-# INLINEABLE basicCons #-}
-    basicCons b (Bitstream 0 _) = Bitstream 1 (SV.singleton (singleton b))
-    basicCons b (Bitstream l v)
-        = case SV.head v of
-            p | length p < (8 ∷ Int)
-                    → Bitstream (l+1) ((b `cons` p) `SV.cons` SV.tail v)
-              | otherwise
-                    → Bitstream (l+1) (singleton b `SV.cons` v)
+    {-# INLINE basicCons #-}
+    basicCons = strictCons
 
-    {-# INLINEABLE basicSnoc #-}
-    basicSnoc (Bitstream 0 _) b = Bitstream 1 (SV.singleton (singleton b))
-    basicSnoc (Bitstream l v) b
-        = case SV.last v of
-            p | length p < (8 ∷ Int)
-                    → Bitstream (l+1) (SV.init v `SV.snoc` (p `snoc` b))
-              | otherwise
-                    → Bitstream (l+1) (v `SV.snoc` singleton b)
+    {-# INLINE basicSnoc #-}
+    basicSnoc = strictSnoc
 
     {-# INLINE basicAppend #-}
-    basicAppend (Bitstream lx x) (Bitstream ly y)
-        = Bitstream (lx + ly) (x SV.++ y)
+    basicAppend = strictAppend
 
-    {-# INLINEABLE basicTail #-}
-    basicTail (Bitstream 0 _) = emptyStream
-    basicTail (Bitstream l v)
-        = case tail (SV.head v) of
-            p' | null p'   → Bitstream (l-1) (SV.tail v)
-               | otherwise → Bitstream (l-1) (p' `SV.cons` SV.tail v)
+    {-# INLINE basicTail #-}
+    basicTail = strictTail
 
-    {-# INLINEABLE basicInit #-}
-    basicInit (Bitstream 0 _) = emptyStream
-    basicInit (Bitstream l v)
-        = case init (SV.last v) of
-            p' | null p'   → Bitstream (l-1) (SV.init v)
-               | otherwise → Bitstream (l-1) (SV.init v `SV.snoc` p')
+    {-# INLINE basicInit #-}
+    basicInit = strictInit
 
     {-# INLINE basicMap #-}
-    basicMap f (Bitstream l v)
-        = Bitstream l (SV.map (map f) v)
+    basicMap = strictMap
 
     {-# INLINE basicReverse #-}
-    basicReverse (Bitstream l v)
-        = Bitstream l (SV.reverse (SV.map reverse v))
+    basicReverse = strictReverse
 
     {-# INLINEABLE basicConcat #-}
     basicConcat xs
@@ -394,6 +370,71 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
                                               | otherwise → return $ Yield p' s'
                            Skip    s' → return $ Skip s'
                            Done       → return Done
+
+strictStream ∷ G.Bitstream (Packet d) ⇒ Bitstream d → S.Stream Bool
+{-# INLINE strictStream #-}
+strictStream (Bitstream l v)
+    = {-# CORE "Strict Bitstream stream" #-}
+      S.concatMap stream (GV.stream v)
+      `S.sized`
+      Exact l
+
+strictUnstream ∷ G.Bitstream (Packet d) ⇒ S.Stream Bool → Bitstream d
+{-# INLINE strictUnstream #-}
+strictUnstream
+    = {-# CORE "Strict Bitstream unstream" #-}
+      unstreamPackets ∘ packPackets
+
+strictCons ∷ G.Bitstream (Packet d) ⇒ Bool → Bitstream d → Bitstream d
+{-# INLINEABLE strictCons #-}
+strictCons b (Bitstream 0 _) = Bitstream 1 (SV.singleton (singleton b))
+strictCons b (Bitstream l v)
+    = case SV.head v of
+        p | length p < (8 ∷ Int)
+                → Bitstream (l+1) ((b `cons` p) `SV.cons` SV.tail v)
+          | otherwise
+                → Bitstream (l+1) (singleton b `SV.cons` v)
+
+strictSnoc ∷ G.Bitstream (Packet d) ⇒ Bitstream d → Bool → Bitstream d
+{-# INLINEABLE strictSnoc #-}
+strictSnoc (Bitstream 0 _) b = Bitstream 1 (SV.singleton (singleton b))
+strictSnoc (Bitstream l v) b
+    = case SV.last v of
+        p | length p < (8 ∷ Int)
+                → Bitstream (l+1) (SV.init v `SV.snoc` (p `snoc` b))
+          | otherwise
+                → Bitstream (l+1) (v `SV.snoc` singleton b)
+
+strictAppend ∷ G.Bitstream (Packet d) ⇒ Bitstream d → Bitstream d → Bitstream d
+{-# INLINE strictAppend #-}
+strictAppend (Bitstream lx x) (Bitstream ly y)
+    = Bitstream (lx + ly) (x SV.++ y)
+
+strictTail ∷ G.Bitstream (Packet d) ⇒ Bitstream d → Bitstream d
+{-# INLINEABLE strictTail #-}
+strictTail (Bitstream 0 _) = emptyStream
+strictTail (Bitstream l v)
+    = case tail (SV.head v) of
+        p' | null p'   → Bitstream (l-1) (SV.tail v)
+           | otherwise → Bitstream (l-1) (p' `SV.cons` SV.tail v)
+
+strictInit ∷ G.Bitstream (Packet d) ⇒ Bitstream d → Bitstream d
+{-# INLINEABLE strictInit #-}
+strictInit (Bitstream 0 _) = emptyStream
+strictInit (Bitstream l v)
+    = case init (SV.last v) of
+        p' | null p'   → Bitstream (l-1) (SV.init v)
+           | otherwise → Bitstream (l-1) (SV.init v `SV.snoc` p')
+
+strictMap ∷ G.Bitstream (Packet d) ⇒ (Bool → Bool) → Bitstream d → Bitstream d
+{-# INLINE strictMap #-}
+strictMap f (Bitstream l v)
+    = Bitstream l (SV.map (map f) v)
+
+strictReverse ∷ G.Bitstream (Packet d) ⇒ Bitstream d → Bitstream d
+{-# INLINE strictReverse #-}
+strictReverse (Bitstream l v)
+    = Bitstream l (SV.reverse (SV.map reverse v))
 
 strictHead ∷ G.Bitstream (Packet d) ⇒ Bitstream d → Bool
 {-# RULES "head → strictHead" [1]
