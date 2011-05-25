@@ -44,6 +44,8 @@ import Prelude.Unicode
 --
 --   * 10010100 => [False, False, True , False, True, False, False, True]
 --
+-- 'Bits' operations (like 'toBits') treat a 'Left' bitstream a
+-- little-endian integer.
 data Left
 
 -- | 'Right' bitstreams interpret an octet as a vector of bits whose
@@ -53,6 +55,8 @@ data Left
 --
 --   * 10010100 => [True, False, False, True, False, True , False, False]
 --
+-- 'Bits' operations (like 'toBits') treat a 'Right' bitstream a
+-- big-endian integer.
 data Right
 
 -- | 'Packet's are strict 'Bitstream's having at most 8 bits.

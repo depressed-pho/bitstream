@@ -33,12 +33,14 @@ uncons ∷ [α] → Maybe (α, [α])
 uncons []     = Nothing
 uncons (α:αs) = Just (α, αs)
 
-instance G.Bitstream (Packet d) ⇒ Arbitrary (SB.Bitstream d) where
+instance G.Bitstream (SB.Bitstream d) ⇒ Arbitrary (SB.Bitstream d) where
     arbitrary = sized $ \ n →
                 do xs ← replicateM n arbitrary
                    return (SB.pack xs)
 
-instance G.Bitstream (Packet d) ⇒ Arbitrary (LB.Bitstream d) where
+instance ( G.Bitstream (SB.Bitstream d)
+         , G.Bitstream (Packet d)
+         ) ⇒ Arbitrary (LB.Bitstream d) where
     arbitrary = sized $ \ n →
                 do xs ← replicateM n arbitrary
                    return (LB.pack xs)

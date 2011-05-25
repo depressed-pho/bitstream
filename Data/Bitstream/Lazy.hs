@@ -205,7 +205,9 @@ instance Show (Packet d) ⇒ Show (Bitstream d) where
           , " ]"
           ]
 
-instance G.Bitstream (Packet d) ⇒ Eq (Bitstream d) where
+instance ( G.Bitstream (SB.Bitstream d)
+         , G.Bitstream (Packet d)
+         ) ⇒ Eq (Bitstream d) where
     {-# INLINE (==) #-}
     x == y = stream x ≡ stream y
 
@@ -220,7 +222,9 @@ instance G.Bitstream (Packet d) ⇒ Eq (Bitstream d) where
 --   , 'compare' z y -- 'LT'
 --   ]
 -- @
-instance G.Bitstream (Packet d) ⇒ Ord (Bitstream d) where
+instance ( G.Bitstream (SB.Bitstream d)
+         , G.Bitstream (Packet d)
+         ) ⇒ Ord (Bitstream d) where
     {-# INLINE compare #-}
     x `compare` y = stream x `compare` stream y
 
@@ -231,12 +235,16 @@ instance G.Bitstream (Packet d) ⇒ Ord (Bitstream d) where
 -- 'mappend' = 'append'
 -- 'mconcat' = 'concat'
 -- @
-instance G.Bitstream (Packet d) ⇒ Monoid (Bitstream d) where
+instance ( G.Bitstream (SB.Bitstream d)
+         , G.Bitstream (Packet d)
+         ) ⇒ Monoid (Bitstream d) where
     mempty  = (∅)
     mappend = (⧺)
     mconcat = concat
 
-instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
+instance ( G.Bitstream (SB.Bitstream d)
+         , G.Bitstream (Packet d)
+         ) ⇒ G.Bitstream (Bitstream d) where
     {-# INLINE basicStream #-}
     basicStream
         = {-# CORE "Lazy Bitstream stream" #-}
@@ -348,17 +356,17 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
                                    x' | null x'   → filter f xs
                                       | otherwise → Chunk x' (filter f xs)
 
-lazyHead ∷ G.Bitstream (Packet d) ⇒ Bitstream d → Bool
+lazyHead ∷ G.Bitstream (SB.Bitstream d) ⇒ Bitstream d → Bool
 {-# RULES "head → lazyHead" [1]
-    ∀(v ∷ G.Bitstream (Packet d) ⇒ Bitstream d).
+    ∀(v ∷ G.Bitstream (SB.Bitstream d) ⇒ Bitstream d).
     head v = lazyHead v #-}
 {-# INLINE lazyHead #-}
 lazyHead Empty       = emptyStream
 lazyHead (Chunk x _) = head x
 
-lazyLast ∷ G.Bitstream (Packet d) ⇒ Bitstream d → Bool
+lazyLast ∷ G.Bitstream (SB.Bitstream d) ⇒ Bitstream d → Bool
 {-# RULES "last → lazyLast" [1]
-    ∀(v ∷ G.Bitstream (Packet d) ⇒ Bitstream d).
+    ∀(v ∷ G.Bitstream (SB.Bitstream d) ⇒ Bitstream d).
     last v = lazyLast v #-}
 {-# INLINE lazyLast #-}
 lazyLast Empty           = emptyStream
@@ -371,9 +379,9 @@ lazyNull ∷ Bitstream d → Bool
 lazyNull Empty = True
 lazyNull _     = False
 
-lazyLength ∷ (G.Bitstream (Packet d), Num n) ⇒ Bitstream d → n
+lazyLength ∷ (G.Bitstream (SB.Bitstream d), Num n) ⇒ Bitstream d → n
 {-# RULES "length → lazyLength" [1]
-    ∀(v ∷ G.Bitstream (Packet d) ⇒ Bitstream d).
+    ∀(v ∷ G.Bitstream (SB.Bitstream d) ⇒ Bitstream d).
     length v = lazyLength v #-}
 {-# INLINE lazyLength #-}
 lazyLength = go 0
@@ -382,9 +390,9 @@ lazyLength = go 0
       go !soFar Empty        = soFar
       go !soFar (Chunk x xs) = go (soFar + length x) xs
 
-lazyAnd ∷ G.Bitstream (Packet d) ⇒ Bitstream d → Bool
+lazyAnd ∷ G.Bitstream (SB.Bitstream d) ⇒ Bitstream d → Bool
 {-# RULES "and → lazyAnd" [1]
-    ∀(v ∷ G.Bitstream (Packet d) ⇒ Bitstream d).
+    ∀(v ∷ G.Bitstream (SB.Bitstream d) ⇒ Bitstream d).
     and v = lazyAnd v #-}
 {-# INLINEABLE lazyAnd #-}
 lazyAnd Empty        = False
@@ -392,9 +400,9 @@ lazyAnd (Chunk x xs)
     | and x          = lazyAnd xs
     | otherwise      = False
 
-lazyOr ∷ G.Bitstream (Packet d) ⇒ Bitstream d → Bool
+lazyOr ∷ G.Bitstream (SB.Bitstream d) ⇒ Bitstream d → Bool
 {-# RULES "or → lazyOr" [1]
-    ∀(v ∷ G.Bitstream (Packet d) ⇒ Bitstream d).
+    ∀(v ∷ G.Bitstream (SB.Bitstream d) ⇒ Bitstream d).
     or v = lazyOr v #-}
 {-# INLINEABLE lazyOr #-}
 lazyOr Empty        = True
@@ -402,9 +410,14 @@ lazyOr (Chunk x xs)
     | or x          = True
     | otherwise     = lazyOr xs
 
-lazyIndex ∷ (G.Bitstream (Packet d), Integral n) ⇒ Bitstream d → n → Bool
+lazyIndex ∷ ( G.Bitstream (SB.Bitstream d)
+            , Integral n
+            )
+          ⇒ Bitstream d
+          → n
+          → Bool
 {-# RULES "(!!) → lazyIndex" [1]
-    ∀(v ∷ G.Bitstream (Packet d) ⇒ Bitstream d) n.
+    ∀(v ∷ G.Bitstream (SB.Bitstream d) ⇒ Bitstream d) n.
     v !! n = lazyIndex v n #-}
 {-# INLINEABLE lazyIndex #-}
 lazyIndex ch0 i0
@@ -427,7 +440,7 @@ indexOutOfRange n = error ("Data.Bitstream.Lazy: index out of range: " L.++ show
 
 -- | /O(n)/ Convert a list of chunks, strict 'SB.Bitstream's, into a
 -- lazy 'Bitstream'.
-fromChunks ∷ G.Bitstream (Packet d) ⇒ [SB.Bitstream d] → Bitstream d
+fromChunks ∷ G.Bitstream (SB.Bitstream d) ⇒ [SB.Bitstream d] → Bitstream d
 {-# INLINE fromChunks #-}
 fromChunks []     = Empty
 fromChunks (x:xs)
@@ -442,7 +455,7 @@ toChunks Empty        = []
 toChunks (Chunk x xs) = x : toChunks xs
 
 -- | /O(n)/ Convert a lazy 'LS.ByteString' into a lazy 'Bitstream'.
-fromByteString ∷ G.Bitstream (Packet d) ⇒ LS.ByteString → Bitstream d
+fromByteString ∷ G.Bitstream (SB.Bitstream d) ⇒ LS.ByteString → Bitstream d
 {-# INLINE fromByteString #-}
 fromByteString = fromChunks ∘ L.map SB.fromByteString ∘ LS.toChunks
 
@@ -450,11 +463,19 @@ fromByteString = fromChunks ∘ L.map SB.fromByteString ∘ LS.toChunks
 -- into a lazy 'LS.ByteString'. The resulting octets will be padded
 -- with zeroes if @bs@ is finite and its 'length' is not multiple of
 -- 8.
-toByteString ∷ G.Bitstream (Packet d) ⇒ Bitstream d → LS.ByteString
+toByteString ∷ ( G.Bitstream (SB.Bitstream d)
+               , G.Bitstream (Packet d)
+               )
+             ⇒ Bitstream d
+             → LS.ByteString
 {-# INLINE toByteString #-}
 toByteString = LS.fromChunks ∘ L.map SB.toByteString ∘ toChunks
 
-streamChunks ∷ Monad m ⇒ Bitstream d → Stream m (SB.Bitstream d)
+streamChunks ∷ ( G.Bitstream (SB.Bitstream d)
+               , Monad m
+               )
+             ⇒ Bitstream d
+             → Stream m (SB.Bitstream d)
 {-# NOINLINE streamChunks #-}
 streamChunks ch0 = Stream step ch0 Unknown
     where
@@ -462,7 +483,9 @@ streamChunks ch0 = Stream step ch0 Unknown
       step Empty        = return Done
       step (Chunk x xs) = return $ Yield x xs
 
-unstreamChunks ∷ (G.Bitstream (Packet d), Monad m)
+unstreamChunks ∷ ( G.Bitstream (SB.Bitstream d)
+                 , Monad m
+                 )
                ⇒ Stream m (SB.Bitstream d)
                → m (Bitstream d)
 {-# NOINLINE unstreamChunks #-}
@@ -603,20 +626,28 @@ repeat b = xs
 -- | /O(n)/ 'cycle' ties a finite 'Bitstream' into a circular one, or
 -- equivalently, the infinite repetition of the original 'Bitstream'.
 -- It is the identity on infinite 'Bitstream's.
-cycle ∷ G.Bitstream (Packet d) ⇒ Bitstream d → Bitstream d
+cycle ∷ ( G.Bitstream (SB.Bitstream d)
+        , G.Bitstream (Packet d)
+        )
+      ⇒ Bitstream d
+      → Bitstream d
 {-# INLINE cycle #-}
 cycle Empty = emptyStream
 cycle ch    = ch ⧺ cycle ch
 
 -- | /O(n)/ 'getContents' is equivalent to 'hGetContents'
 -- @stdin@. Will read /lazily/.
-getContents ∷ G.Bitstream (Packet d) ⇒ IO (Bitstream d)
+getContents ∷ G.Bitstream (SB.Bitstream d) ⇒ IO (Bitstream d)
 {-# INLINE getContents #-}
 getContents = fmap fromByteString LS.getContents
 
 -- | /O(n)/ Write a 'Bitstream' to @stdout@, equivalent to 'hPut'
 -- @stdout@.
-putBits ∷ G.Bitstream (Packet d) ⇒ Bitstream d → IO ()
+putBits ∷ ( G.Bitstream (SB.Bitstream d)
+          , G.Bitstream (Packet d)
+          )
+        ⇒ Bitstream d
+        → IO ()
 {-# INLINE putBits #-}
 putBits = LS.putStr ∘ toByteString
 
@@ -624,7 +655,11 @@ putBits = LS.putStr ∘ toByteString
 -- -> 'Bitstream' d@ as its argument. The entire input from the stdin
 -- is lazily passed to this function as its argument, and the
 -- resulting 'Bitstream' is output on the stdout.
-interact ∷ G.Bitstream (Packet d) ⇒ (Bitstream d → Bitstream d) → IO ()
+interact ∷ ( G.Bitstream (SB.Bitstream d)
+           , G.Bitstream (Packet d)
+           )
+         ⇒ (Bitstream d → Bitstream d)
+         → IO ()
 {-# INLINE interact #-}
 interact = LS.interact ∘ lift'
     where
@@ -632,17 +667,27 @@ interact = LS.interact ∘ lift'
       lift' f = toByteString ∘ f ∘ fromByteString
 
 -- | /O(n)/ Read an entire file lazily into a 'Bitstream'.
-readFile ∷ G.Bitstream (Packet d) ⇒ FilePath → IO (Bitstream d)
+readFile ∷ G.Bitstream (SB.Bitstream d) ⇒ FilePath → IO (Bitstream d)
 {-# INLINE readFile #-}
 readFile = fmap fromByteString ∘ LS.readFile
 
 -- | /O(n)/ Write a 'Bitstream' to a file.
-writeFile ∷ G.Bitstream (Packet d) ⇒ FilePath → Bitstream d → IO ()
+writeFile ∷ ( G.Bitstream (SB.Bitstream d)
+            , G.Bitstream (Packet d)
+            )
+          ⇒ FilePath
+          → Bitstream d
+          → IO ()
 {-# INLINE writeFile #-}
 writeFile = (∘ toByteString) ∘ LS.writeFile
 
 -- | /O(n)/ Append a 'Bitstream' to a file.
-appendFile ∷ G.Bitstream (Packet d) ⇒ FilePath → Bitstream d → IO ()
+appendFile ∷ ( G.Bitstream (SB.Bitstream d)
+             , G.Bitstream (Packet d)
+             )
+           ⇒ FilePath
+           → Bitstream d
+           → IO ()
 {-# INLINE appendFile #-}
 appendFile = (∘ toByteString) ∘ LS.appendFile
 
@@ -651,7 +696,7 @@ appendFile = (∘ toByteString) ∘ LS.appendFile
 -- size.
 --
 -- Once EOF is encountered, the 'Handle' is closed.
-hGetContents ∷ G.Bitstream (Packet d) ⇒ Handle → IO (Bitstream d)
+hGetContents ∷ G.Bitstream (SB.Bitstream d) ⇒ Handle → IO (Bitstream d)
 {-# INLINE hGetContents #-}
 hGetContents = fmap fromByteString ∘ LS.hGetContents
 
@@ -665,17 +710,27 @@ hGetContents = fmap fromByteString ∘ LS.hGetContents
 -- 'hGet' will behave as if EOF was reached.
 --
 {-# INLINE hGet #-}
-hGet ∷ G.Bitstream (Packet d) ⇒ Handle → Int → IO (Bitstream d)
+hGet ∷ G.Bitstream (SB.Bitstream d) ⇒ Handle → Int → IO (Bitstream d)
 hGet = (fmap fromByteString ∘) ∘ LS.hGet
 
 -- | /O(n)/ 'hGetNonBlocking' is similar to 'hGet', except that it
 -- will never block waiting for data to become available, instead it
 -- returns only whatever data is available.
 {-# INLINE hGetNonBlocking #-}
-hGetNonBlocking ∷ G.Bitstream (Packet d) ⇒ Handle → Int → IO (Bitstream d)
+hGetNonBlocking ∷ ( G.Bitstream (SB.Bitstream d)
+                  , G.Bitstream (Packet d)
+                  )
+                ⇒ Handle
+                → Int
+                → IO (Bitstream d)
 hGetNonBlocking = (fmap fromByteString ∘) ∘ LS.hGetNonBlocking
 
 -- | /O(n)/ Write a 'Bitstream' to the given 'Handle'.
-hPut ∷ G.Bitstream (Packet d) ⇒ Handle → Bitstream d → IO ()
+hPut ∷ ( G.Bitstream (SB.Bitstream d)
+       , G.Bitstream (Packet d)
+       )
+     ⇒ Handle
+     → Bitstream d
+     → IO ()
 {-# INLINE hPut #-}
 hPut = (∘ toByteString) ∘ LS.hPut
