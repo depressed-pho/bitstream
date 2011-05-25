@@ -1,6 +1,7 @@
 {-# LANGUAGE
     BangPatterns
   , FlexibleContexts
+  , FlexibleInstances
   , ScopedTypeVariables
   , UnboxedTuples
   , UndecidableInstances
@@ -205,7 +206,7 @@ instance Show (Packet d) ⇒ Show (Bitstream d) where
           go v | SV.null v = Nothing
                | otherwise = Just (show (SV.head v), SV.tail v)
 
-instance G.Bitstream (Packet d) ⇒ Eq (Bitstream d) where
+instance G.Bitstream (Bitstream d) ⇒ Eq (Bitstream d) where
     {-# INLINE (==) #-}
     x == y = stream x ≡ stream y
 
@@ -220,7 +221,7 @@ instance G.Bitstream (Packet d) ⇒ Eq (Bitstream d) where
 --   , 'compare' z y -- 'LT'
 --   ]
 -- @
-instance G.Bitstream (Packet d) ⇒ Ord (Bitstream d) where
+instance G.Bitstream (Bitstream d) ⇒ Ord (Bitstream d) where
     {-# INLINE compare #-}
     x `compare` y = stream x `compare` stream y
 
@@ -231,12 +232,12 @@ instance G.Bitstream (Packet d) ⇒ Ord (Bitstream d) where
 -- 'mappend' = 'append'
 -- 'mconcat' = 'concat'
 -- @
-instance G.Bitstream (Packet d) ⇒ Monoid (Bitstream d) where
+instance G.Bitstream (Bitstream d) ⇒ Monoid (Bitstream d) where
     mempty  = (∅)
     mappend = (⧺)
     mconcat = concat
 
-instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
+instance G.Bitstream (Bitstream Left) where
     {-# INLINE basicStream #-}
     basicStream = strictStream
 
@@ -264,112 +265,75 @@ instance G.Bitstream (Packet d) ⇒ G.Bitstream (Bitstream d) where
     {-# INLINE basicReverse #-}
     basicReverse = strictReverse
 
-    {-# INLINEABLE basicConcat #-}
-    basicConcat xs
-        = let (!l, !vs) = L.mapAccumL (\n x → (n + length x, toPackets x)) 0 xs
-              !v        = SV.concat vs
-          in
-            Bitstream l v
+    {-# INLINE basicConcat #-}
+    basicConcat = strictConcat
 
     {-# INLINE basicScanl #-}
-    basicScanl f b
-        = unstream ∘ S.scanl f b ∘ stream
+    basicScanl = strictScanl
 
-    {-# INLINEABLE basicTake #-}
-    basicTake n0 (Bitstream l0 v0)
-        | l0 ≡ 0    = (∅)
-        | n0 ≤ 0    = (∅)
-        | otherwise = let !e = New.create (MVector.new (SV.length v0))
-                      in
-                        case go n0 v0 0 0 e of
-                          (# l, np, mv #)
-                              → let !mv' = New.apply (MVector.take np) mv
-                                    !v   = GV.new mv'
-                                in
-                                  Bitstream l v
-        where
-          {-# INLINE go #-}
-          go 0 _ l np mv  = (# l, np, mv #)
-          go n v l np mv
-              | SV.null v = (# l, np, mv #)
-              | otherwise = let !p   = SV.head v
-                                !p'  = take n p
-                                !n'  = n - length p'
-                                !v'  = SV.tail v
-                                !l'  = l + length p'
-                                !np' = np + 1
-                                !mv' = New.modify (\x → MVector.write x np p') mv
-                            in
-                              go n' v' l' np' mv'
+    {-# INLINE basicTake #-}
+    basicTake = strictTake
 
-    {-# INLINEABLE basicDrop #-}
-    basicDrop n0 (Bitstream l0 v0)
-        | n0 ≤ 0    = Bitstream l0 v0
-        | otherwise = case go n0 l0 v0 of
-                        (# l, v #) → Bitstream l v
-        where
-          {-# INLINE go #-}
-          go 0 l v = (# l, v #)
-          go _ 0 v = (# 0, v #)
-          go n l v = let !p = SV.head v
-                     in
-                       case drop n p of
-                         p' | null p'   → go (n - length p) (l - length p) (SV.tail v)
-                            | otherwise → (# l - length p + length p'
-                                           , p' `SV.cons` SV.tail v #)
+    {-# INLINE basicDrop #-}
+    basicDrop = strictDrop
 
-    {-# INLINEABLE basicTakeWhile #-}
-    basicTakeWhile f
-        = unstreamPackets ∘ takeWhilePS ∘ streamPackets
-        where
-          {-# INLINE takeWhilePS #-}
-          takeWhilePS (Stream step s0 sz) = Stream step' (Just s0) (toMax sz)
-              where
-                {-# INLINE step' #-}
-                step' Nothing  = return Done
-                step' (Just s)
-                    = do r ← step s
-                         case r of
-                           Yield p s'
-                               → case takeWhile f p of
-                                    p' | p ≡ p'    → return $ Yield p' (Just s')
-                                       | otherwise → return $ Yield p' Nothing
-                           Skip    s'
-                               → return $ Skip (Just s')
-                           Done
-                               → return Done
+    {-# INLINE basicTakeWhile #-}
+    basicTakeWhile = strictTakeWhile
 
-    {-# INLINEABLE basicDropWhile #-}
-    basicDropWhile _ (Bitstream 0  v0) = Bitstream 0 v0
-    basicDropWhile f (Bitstream l0 v0) = case go l0 v0 of
-                                           (# l, v #) → Bitstream l v
-        where
-          {-# INLINE go #-}
-          go 0 v = (# 0, v #)
-          go l v = let !p    = SV.head v
-                       !pLen = length p
-                   in
-                     case dropWhile f p of
-                       p' | null p'   → go (l - pLen) (SV.tail v)
-                          | otherwise → (# l - pLen + length p'
-                                         , p' `SV.cons` SV.tail v #)
+    {-# INLINE basicDropWhile #-}
+    basicDropWhile = strictDropWhile
 
-    {-# INLINEABLE basicFilter #-}
-    basicFilter f
-        = unstreamPackets ∘ filterPS ∘ streamPackets
-        where
-          {-# INLINE filterPS #-}
-          filterPS (Stream step s0 sz) = Stream step' s0 (toMax sz)
-              where
-                {-# INLINE step' #-}
-                step' s
-                    = do r ← step s
-                         case r of
-                           Yield p s' → case filter f p of
-                                           p' | null p'   → return $ Skip s'
-                                              | otherwise → return $ Yield p' s'
-                           Skip    s' → return $ Skip s'
-                           Done       → return Done
+    {-# INLINE basicFilter #-}
+    basicFilter = strictFilter
+
+instance G.Bitstream (Bitstream Right) where
+    {-# INLINE basicStream #-}
+    basicStream = strictStream
+
+    {-# INLINE basicUnstream #-}
+    basicUnstream = strictUnstream
+
+    {-# INLINE basicCons #-}
+    basicCons = strictCons
+
+    {-# INLINE basicSnoc #-}
+    basicSnoc = strictSnoc
+
+    {-# INLINE basicAppend #-}
+    basicAppend = strictAppend
+
+    {-# INLINE basicTail #-}
+    basicTail = strictTail
+
+    {-# INLINE basicInit #-}
+    basicInit = strictInit
+
+    {-# INLINE basicMap #-}
+    basicMap = strictMap
+
+    {-# INLINE basicReverse #-}
+    basicReverse = strictReverse
+
+    {-# INLINE basicConcat #-}
+    basicConcat = strictConcat
+
+    {-# INLINE basicScanl #-}
+    basicScanl = strictScanl
+
+    {-# INLINE basicTake #-}
+    basicTake = strictTake
+
+    {-# INLINE basicDrop #-}
+    basicDrop = strictDrop
+
+    {-# INLINE basicTakeWhile #-}
+    basicTakeWhile = strictTakeWhile
+
+    {-# INLINE basicDropWhile #-}
+    basicDropWhile = strictDropWhile
+
+    {-# INLINE basicFilter #-}
+    basicFilter = strictFilter
 
 strictStream ∷ G.Bitstream (Packet d) ⇒ Bitstream d → S.Stream Bool
 {-# INLINE strictStream #-}
@@ -435,6 +399,126 @@ strictReverse ∷ G.Bitstream (Packet d) ⇒ Bitstream d → Bitstream d
 {-# INLINE strictReverse #-}
 strictReverse (Bitstream l v)
     = Bitstream l (SV.reverse (SV.map reverse v))
+
+strictConcat ∷ G.Bitstream (Bitstream d) ⇒ [Bitstream d] → Bitstream d
+{-# INLINEABLE strictConcat #-}
+strictConcat xs
+    = let (!l, !vs) = L.mapAccumL (\n x → (n + length x, toPackets x)) 0 xs
+          !v        = SV.concat vs
+      in
+        Bitstream l v
+
+strictScanl ∷ G.Bitstream (Bitstream d) ⇒ (Bool → Bool → Bool) → Bool → Bitstream d → Bitstream d
+{-# INLINE strictScanl #-}
+strictScanl f b
+    = unstream ∘ S.scanl f b ∘ stream
+
+strictTake ∷ ( Integral n
+             , G.Bitstream (Bitstream d)
+             , G.Bitstream (Packet d)
+             )
+           ⇒ n
+           → Bitstream d
+           → Bitstream d
+{-# INLINEABLE strictTake #-}
+strictTake n0 (Bitstream l0 v0)
+    | l0 ≡ 0    = (∅)
+    | n0 ≤ 0    = (∅)
+    | otherwise = let !e = New.create (MVector.new (SV.length v0))
+                  in
+                    case go n0 v0 0 0 e of
+                      (# l, np, mv #)
+                          → let !mv' = New.apply (MVector.take np) mv
+                                !v   = GV.new mv'
+                            in
+                              Bitstream l v
+    where
+      {-# INLINE go #-}
+      go 0 _ l np mv  = (# l, np, mv #)
+      go n v l np mv
+          | SV.null v = (# l, np, mv #)
+          | otherwise = let !p   = SV.head v
+                            !p'  = take n p
+                            !n'  = n - length p'
+                            !v'  = SV.tail v
+                            !l'  = l + length p'
+                            !np' = np + 1
+                            !mv' = New.modify (\x → MVector.write x np p') mv
+                        in
+                          go n' v' l' np' mv'
+
+strictDrop ∷ (Integral n, G.Bitstream (Packet d)) ⇒ n → Bitstream d → Bitstream d
+{-# INLINEABLE strictDrop #-}
+strictDrop n0 (Bitstream l0 v0)
+    | n0 ≤ 0    = Bitstream l0 v0
+    | otherwise = case go n0 l0 v0 of
+                    (# l, v #) → Bitstream l v
+    where
+      {-# INLINE go #-}
+      go 0 l v = (# l, v #)
+      go _ 0 v = (# 0, v #)
+      go n l v = let !p = SV.head v
+                 in
+                   case drop n p of
+                     p' | null p'   → go (n - length p) (l - length p) (SV.tail v)
+                        | otherwise → (# l - length p + length p'
+                                       , p' `SV.cons` SV.tail v #)
+
+strictTakeWhile ∷ G.Bitstream (Packet d) ⇒ (Bool → Bool) → Bitstream d → Bitstream d
+{-# INLINEABLE strictTakeWhile #-}
+strictTakeWhile f
+    = unstreamPackets ∘ takeWhilePS ∘ streamPackets
+    where
+      {-# INLINE takeWhilePS #-}
+      takeWhilePS (Stream step s0 sz) = Stream step' (Just s0) (toMax sz)
+          where
+            {-# INLINE step' #-}
+            step' Nothing  = return Done
+            step' (Just s)
+                = do r ← step s
+                     case r of
+                       Yield p s'
+                           → case takeWhile f p of
+                                p' | p ≡ p'    → return $ Yield p' (Just s')
+                                   | otherwise → return $ Yield p' Nothing
+                       Skip    s'
+                           → return $ Skip (Just s')
+                       Done
+                           → return Done
+
+strictDropWhile ∷ G.Bitstream (Packet d) ⇒ (Bool → Bool) → Bitstream d → Bitstream d
+{-# INLINEABLE strictDropWhile #-}
+strictDropWhile _ (Bitstream 0  v0) = Bitstream 0 v0
+strictDropWhile f (Bitstream l0 v0) = case go l0 v0 of
+                                        (# l, v #) → Bitstream l v
+    where
+      {-# INLINE go #-}
+      go 0 v = (# 0, v #)
+      go l v = let !p    = SV.head v
+                   !pLen = length p
+               in
+                 case dropWhile f p of
+                   p' | null p'   → go (l - pLen) (SV.tail v)
+                      | otherwise → (# l - pLen + length p'
+                                     , p' `SV.cons` SV.tail v #)
+
+strictFilter ∷ G.Bitstream (Packet d) ⇒ (Bool → Bool) → Bitstream d → Bitstream d
+{-# INLINEABLE strictFilter #-}
+strictFilter f
+    = unstreamPackets ∘ filterPS ∘ streamPackets
+    where
+      {-# INLINE filterPS #-}
+      filterPS (Stream step s0 sz) = Stream step' s0 (toMax sz)
+          where
+            {-# INLINE step' #-}
+            step' s
+                = do r ← step s
+                     case r of
+                       Yield p s' → case filter f p of
+                                       p' | null p'   → return $ Skip s'
+                                          | otherwise → return $ Yield p' s'
+                       Skip    s' → return $ Skip s'
+                       Done       → return Done
 
 strictHead ∷ G.Bitstream (Packet d) ⇒ Bitstream d → Bool
 {-# RULES "head → strictHead" [1]
@@ -519,7 +603,9 @@ fromByteString bs0
 -- into a strict 'BS.ByteString'. The resulting octets will be padded
 -- with zeroes if the 'length' of @bs@ is not multiple of 8.
 {-# INLINEABLE toByteString #-}
-toByteString ∷ ∀d. G.Bitstream (Packet d) ⇒ Bitstream d → BS.ByteString
+toByteString ∷ ∀d. ( G.Bitstream (Bitstream d)
+                   , G.Bitstream (Packet d)
+                                     ) ⇒ Bitstream d → BS.ByteString
 toByteString = unstreamBS
              ∘ (packPackets ∷ Stream Id Bool → Stream Id (Packet d))
              ∘ stream
@@ -600,7 +686,11 @@ getContents = fmap fromByteString BS.getContents
 
 -- | /O(n)/ Write a 'Bitstream' to the stdout, equivalent to 'hPut'
 -- @stdout@.
-putBits ∷ G.Bitstream (Packet d) ⇒ Bitstream d → IO ()
+putBits ∷ ( G.Bitstream (Bitstream d)
+          , G.Bitstream (Packet d)
+          )
+        ⇒ Bitstream d
+        → IO ()
 {-# INLINE putBits #-}
 putBits = BS.putStr ∘ toByteString
 
@@ -608,7 +698,11 @@ putBits = BS.putStr ∘ toByteString
 -- -> 'Bitstream' d@ as its argument. The entire input from the stdin
 -- is passed to this function as its argument, and the resulting
 -- 'Bitstream' is output on the stdout.
-interact ∷ G.Bitstream (Packet d) ⇒ (Bitstream d → Bitstream d) → IO ()
+interact ∷ ( G.Bitstream (Bitstream d)
+           , G.Bitstream (Packet d)
+           )
+         ⇒ (Bitstream d → Bitstream d)
+         → IO ()
 {-# INLINE interact #-}
 interact = BS.interact ∘ lift'
     where
@@ -621,12 +715,22 @@ readFile ∷ G.Bitstream (Packet d) ⇒ FilePath → IO (Bitstream d)
 readFile = fmap fromByteString ∘ BS.readFile
 
 -- | /O(n)/ Write a 'Bitstream' to a file.
-writeFile ∷ G.Bitstream (Packet d) ⇒ FilePath → Bitstream d → IO ()
+writeFile ∷ ( G.Bitstream (Bitstream d)
+            , G.Bitstream (Packet d)
+            ) 
+          ⇒ FilePath
+          → Bitstream d
+          → IO ()
 {-# INLINE writeFile #-}
 writeFile = (∘ toByteString) ∘ BS.writeFile
 
 -- | /O(n)/ Append a 'Bitstream' to a file.
-appendFile ∷ G.Bitstream (Packet d) ⇒ FilePath → Bitstream d → IO ()
+appendFile ∷ ( G.Bitstream (Bitstream d)
+             , G.Bitstream (Packet d)
+             )
+           ⇒ FilePath
+           → Bitstream d
+           → IO ()
 {-# INLINE appendFile #-}
 appendFile = (∘ toByteString) ∘ BS.appendFile
 
@@ -671,6 +775,11 @@ hGetNonBlocking ∷ G.Bitstream (Packet d) ⇒ Handle → Int → IO (Bitstream 
 hGetNonBlocking = (fmap fromByteString ∘) ∘ BS.hGetNonBlocking
 
 -- | /O(n)/ Write a 'Bitstream' to the given 'Handle'.
-hPut ∷ G.Bitstream (Packet d) ⇒ Handle → Bitstream d → IO ()
+hPut ∷ ( G.Bitstream (Bitstream d)
+       , G.Bitstream (Packet d)
+       )
+     ⇒ Handle
+     → Bitstream d
+     → IO ()
 {-# INLINE hPut #-}
 hPut = (∘ toByteString) ∘ BS.hPut
