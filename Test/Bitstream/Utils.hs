@@ -10,7 +10,6 @@ import Control.Monad
 import qualified Data.Bitstream as SB
 import qualified Data.Bitstream.Generic as G
 import qualified Data.Bitstream.Lazy as LB
-import Data.Bitstream.Packet
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as LS
 import Prelude.Unicode
@@ -38,9 +37,7 @@ instance G.Bitstream (SB.Bitstream d) ⇒ Arbitrary (SB.Bitstream d) where
                 do xs ← replicateM n arbitrary
                    return (SB.pack xs)
 
-instance ( G.Bitstream (SB.Bitstream d)
-         , G.Bitstream (Packet d)
-         ) ⇒ Arbitrary (LB.Bitstream d) where
+instance G.Bitstream (LB.Bitstream d) ⇒ Arbitrary (LB.Bitstream d) where
     arbitrary = sized $ \ n →
                 do xs ← replicateM n arbitrary
                    return (LB.pack xs)
