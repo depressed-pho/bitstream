@@ -268,6 +268,27 @@ instance G.Bitstream (Bitstream Left) where
     {-# INLINE basicReverse #-}
     basicReverse = lazyReverse
 
+    {-# INLINE basicConcat #-}
+    basicConcat = lazyConcat
+
+    {-# INLINE basicScanl #-}
+    basicScanl = lazyScanl
+
+    {-# INLINE basicTake #-}
+    basicTake = lazyTake
+
+    {-# INLINE basicDrop #-}
+    basicDrop = lazyDrop
+
+    {-# INLINE basicTakeWhile #-}
+    basicTakeWhile = lazyTakeWhile
+
+    {-# INLINE basicDropWhile #-}
+    basicDropWhile = lazyDropWhile
+
+    {-# INLINE basicFilter #-}
+    basicFilter = lazyFilter
+
 instance G.Bitstream (Bitstream Right) where
     {-# INLINE basicStream #-}
     basicStream = lazyStream
@@ -298,6 +319,27 @@ instance G.Bitstream (Bitstream Right) where
 
     {-# INLINE basicReverse #-}
     basicReverse = lazyReverse
+
+    {-# INLINE basicConcat #-}
+    basicConcat = lazyConcat
+
+    {-# INLINE basicScanl #-}
+    basicScanl = lazyScanl
+
+    {-# INLINE basicTake #-}
+    basicTake = lazyTake
+
+    {-# INLINE basicDrop #-}
+    basicDrop = lazyDrop
+
+    {-# INLINE basicTakeWhile #-}
+    basicTakeWhile = lazyTakeWhile
+
+    {-# INLINE basicDropWhile #-}
+    basicDropWhile = lazyDropWhile
+
+    {-# INLINE basicFilter #-}
+    basicFilter = lazyFilter
 
 lazyStream ∷ G.Bitstream (SB.Bitstream d) ⇒ Bitstream d → S.Stream Bool
 {-# INLINE lazyStream #-}
@@ -388,57 +430,95 @@ lazyReverse ch0 = go ch0 Empty
       go Empty        ch = ch
       go (Chunk x xs) ch = go xs (Chunk (reverse x) ch)
 
-{-
-    {-# INLINE basicConcat #-}
-    basicConcat = fromChunks ∘ L.concatMap toChunks
+lazyConcat ∷ G.Bitstream (SB.Bitstream d) ⇒ [Bitstream d] → Bitstream d
+{-# INLINE lazyConcat #-}
+lazyConcat = fromChunks ∘ L.concatMap toChunks
 
-    {-# INLINEABLE basicScanl #-}
-    basicScanl f b ch
-        = Chunk (singleton b)
-                (case ch of
-                   Empty      → Empty
-                   Chunk x xs → let h   = head x
-                                    x'  = scanl f (f b h) (tail x)
-                                    l   = last x'
-                                    x'' = init x'
-                                    xs' = scanl f l xs
-                                in
-                                  if null x''
-                                  then xs'
-                                  else Chunk x'' xs')
+lazyScanl ∷ ( G.Bitstream (SB.Bitstream d)
+            , G.Bitstream (Bitstream d)
+            )
+          ⇒ (Bool → Bool → Bool)
+          → Bool
+          → Bitstream d
+          → Bitstream d
+{-# INLINEABLE lazyScanl #-}
+lazyScanl f b ch
+    = Chunk (singleton b)
+            (case ch of
+               Empty      → Empty
+               Chunk x xs → let h   = head x
+                                x'  = scanl f (f b h) (tail x)
+                                l   = last x'
+                                x'' = init x'
+                                xs' = scanl f l xs
+                            in
+                              if null x''
+                              then xs'
+                              else Chunk x'' xs')
 
-    {-# INLINEABLE basicTake #-}
-    basicTake _ Empty        = Empty
-    basicTake n (Chunk x xs)
-        | n ≤ 0              = Empty
-        | n ≥ length x       = Chunk x (take (n - length x) xs)
-        | otherwise          = Chunk (take n x) Empty
+lazyTake ∷ ( Integral n
+           , G.Bitstream (SB.Bitstream d)
+           , G.Bitstream (Bitstream d)
+           )
+         ⇒ n
+         → Bitstream d
+         → Bitstream d
+{-# INLINEABLE lazyTake #-}
+lazyTake _ Empty        = Empty
+lazyTake n (Chunk x xs)
+    | n ≤ 0              = Empty
+    | n ≥ length x       = Chunk x (take (n - length x) xs)
+    | otherwise          = Chunk (take n x) Empty
 
-    {-# INLINEABLE basicDrop #-}
-    basicDrop _ Empty        = Empty
-    basicDrop n (Chunk x xs)
-        | n ≤ 0              = Chunk x xs
-        | n ≥ length x       = drop (n - length x) xs
-        | otherwise          = Chunk (drop n x) xs
+lazyDrop ∷ ( Integral n
+           , G.Bitstream (SB.Bitstream d)
+           , G.Bitstream (Bitstream d)
+           )
+         ⇒ n
+         → Bitstream d
+         → Bitstream d
+{-# INLINEABLE lazyDrop #-}
+lazyDrop _ Empty        = Empty
+lazyDrop n (Chunk x xs)
+    | n ≤ 0              = Chunk x xs
+    | n ≥ length x       = drop (n - length x) xs
+    | otherwise          = Chunk (drop n x) xs
 
-    {-# INLINEABLE basicTakeWhile #-}
-    basicTakeWhile _ Empty        = Empty
-    basicTakeWhile f (Chunk x xs) = case takeWhile f x of
-                                      x' | x ≡ x'    → Chunk x' (takeWhile f xs)
-                                         | otherwise → Chunk x' Empty
+lazyTakeWhile ∷ ( G.Bitstream (SB.Bitstream d)
+                , G.Bitstream (Bitstream d)
+                )
+              ⇒ (Bool → Bool)
+              → Bitstream d
+              → Bitstream d
+{-# INLINEABLE lazyTakeWhile #-}
+lazyTakeWhile _ Empty        = Empty
+lazyTakeWhile f (Chunk x xs) = case takeWhile f x of
+                                 x' | x ≡ x'    → Chunk x' (takeWhile f xs)
+                                    | otherwise → Chunk x' Empty
 
-    {-# INLINEABLE basicDropWhile #-}
-    basicDropWhile _ Empty        = Empty
-    basicDropWhile f (Chunk x xs) = case dropWhile f x of
-                                      x' | null x'   → dropWhile f xs
-                                         | otherwise → Chunk x' xs
+lazyDropWhile ∷ ( G.Bitstream (SB.Bitstream d)
+                , G.Bitstream (Bitstream d)
+                )
+              ⇒ (Bool → Bool)
+              → Bitstream d
+              → Bitstream d
+{-# INLINEABLE lazyDropWhile #-}
+lazyDropWhile _ Empty        = Empty
+lazyDropWhile f (Chunk x xs) = case dropWhile f x of
+                                 x' | null x'   → dropWhile f xs
+                                    | otherwise → Chunk x' xs
 
-    {-# INLINEABLE basicFilter #-}
-    basicFilter _ Empty        = Empty
-    basicFilter f (Chunk x xs) = case filter f x of
-                                   x' | null x'   → filter f xs
-                                      | otherwise → Chunk x' (filter f xs)
--}
+lazyFilter ∷ ( G.Bitstream (SB.Bitstream d)
+             , G.Bitstream (Bitstream d)
+             )
+           ⇒ (Bool → Bool)
+           → Bitstream d
+           → Bitstream d
+{-# INLINEABLE lazyFilter #-}
+lazyFilter _ Empty        = Empty
+lazyFilter f (Chunk x xs) = case filter f x of
+                              x' | null x'   → filter f xs
+                                 | otherwise → Chunk x' (filter f xs)
 
 lazyHead ∷ G.Bitstream (SB.Bitstream d) ⇒ Bitstream d → Bool
 {-# RULES "head → lazyHead" [1]
