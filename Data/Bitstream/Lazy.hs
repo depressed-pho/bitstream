@@ -250,6 +250,24 @@ instance G.Bitstream (Bitstream Left) where
     {-# INLINE basicCons' #-}
     basicCons' = lazyCons'
 
+    {-# INLINE basicSnoc #-}
+    basicSnoc = lazySnoc
+
+    {-# INLINE basicAppend #-}
+    basicAppend = lazyAppend
+
+    {-# INLINE basicTail #-}
+    basicTail = lazyTail
+
+    {-# INLINE basicInit #-}
+    basicInit = lazyInit
+
+    {-# INLINE basicMap #-}
+    basicMap = lazyMap
+
+    {-# INLINE basicReverse #-}
+    basicReverse = lazyReverse
+
 instance G.Bitstream (Bitstream Right) where
     {-# INLINE basicStream #-}
     basicStream = lazyStream
@@ -263,14 +281,32 @@ instance G.Bitstream (Bitstream Right) where
     {-# INLINE basicCons' #-}
     basicCons' = lazyCons'
 
+    {-# INLINE basicSnoc #-}
+    basicSnoc = lazySnoc
+
+    {-# INLINE basicAppend #-}
+    basicAppend = lazyAppend
+
+    {-# INLINE basicTail #-}
+    basicTail = lazyTail
+
+    {-# INLINE basicInit #-}
+    basicInit = lazyInit
+
+    {-# INLINE basicMap #-}
+    basicMap = lazyMap
+
+    {-# INLINE basicReverse #-}
+    basicReverse = lazyReverse
+
 lazyStream ∷ G.Bitstream (SB.Bitstream d) ⇒ Bitstream d → S.Stream Bool
 {-# INLINE lazyStream #-}
 lazyStream
     = {-# CORE "Lazy Bitstream stream" #-}
       S.concatMap stream ∘ streamChunks
 
-lazyUnstream ∷ ( G.Bitstream (SB.Bitstream d),
-                 G.Bitstream (Packet d)
+lazyUnstream ∷ ( G.Bitstream (SB.Bitstream d)
+               , G.Bitstream (Packet d)
                )
              ⇒ S.Stream Bool
              → Bitstream d
@@ -293,46 +329,66 @@ lazyCons' b (Chunk x xs)
     | otherwise
         = Chunk (singleton b) (Chunk x xs)
 
+lazySnoc ∷ ( G.Bitstream (SB.Bitstream d)
+           , G.Bitstream (Bitstream d)
+           )
+         ⇒ Bitstream d
+         → Bool
+         → Bitstream d
+{-# INLINEABLE lazySnoc #-}
+lazySnoc Empty b
+    = Chunk (SB.singleton b) Empty
+lazySnoc (Chunk x Empty) b
+    | length x < (chunkBits ∷ Int)
+        = Chunk (x `snoc` b) Empty
+    | otherwise
+        = Chunk x (Chunk (singleton b) Empty)
+lazySnoc (Chunk x xs) b
+    = Chunk x (xs `snoc` b)
+
+lazyAppend ∷ G.Bitstream (Bitstream d) ⇒ Bitstream d → Bitstream d → Bitstream d
+{-# INLINE lazyAppend #-}
+lazyAppend Empty ch        = ch
+lazyAppend (Chunk x xs) ch = Chunk x (append xs ch)
+
+lazyTail ∷ G.Bitstream (SB.Bitstream d) ⇒ Bitstream d → Bitstream d
+{-# INLINEABLE lazyTail #-}
+lazyTail Empty        = emptyStream
+lazyTail (Chunk x xs) = case tail x of
+                          x' | null x'   → xs
+                             | otherwise → Chunk x' xs
+
+lazyInit ∷ ( G.Bitstream (SB.Bitstream d)
+           , G.Bitstream (Bitstream d)
+           )
+         ⇒ Bitstream d
+         → Bitstream d
+{-# INLINEABLE lazyInit #-}
+lazyInit Empty           = emptyStream
+lazyInit (Chunk x Empty) = case init x of
+                             x' | null x'   → Empty
+                                | otherwise → Chunk x' Empty
+lazyInit (Chunk x xs   ) = Chunk x (init xs)
+
+lazyMap ∷ ( G.Bitstream (SB.Bitstream d)
+          , G.Bitstream (Bitstream d)
+          )
+        ⇒ (Bool → Bool)
+        → Bitstream d
+        → Bitstream d
+{-# INLINE lazyMap #-}
+lazyMap _ Empty        = Empty
+lazyMap f (Chunk x xs) = Chunk (map f x) (map f xs)
+
+lazyReverse ∷ G.Bitstream (SB.Bitstream d) ⇒ Bitstream d → Bitstream d
+{-# INLINEABLE lazyReverse #-}
+lazyReverse ch0 = go ch0 Empty
+    where
+      {-# INLINE go #-}
+      go Empty        ch = ch
+      go (Chunk x xs) ch = go xs (Chunk (reverse x) ch)
+
 {-
-    {-# INLINEABLE basicSnoc #-}
-    basicSnoc Empty b
-        = Chunk (SB.singleton b) Empty
-    basicSnoc (Chunk x Empty) b
-        | length x < (chunkBits ∷ Int)
-            = Chunk (x `snoc` b) Empty
-        | otherwise
-            = Chunk x (Chunk (singleton b) Empty)
-    basicSnoc (Chunk x xs) b
-        = Chunk x (xs `snoc` b)
-
-    {-# INLINE basicAppend #-}
-    basicAppend Empty ch        = ch
-    basicAppend (Chunk x xs) ch = Chunk x (append xs ch)
-
-    {-# INLINEABLE basicTail #-}
-    basicTail Empty        = emptyStream
-    basicTail (Chunk x xs) = case tail x of
-                               x' | null x'   → xs
-                                  | otherwise → Chunk x' xs
-
-    {-# INLINEABLE basicInit #-}
-    basicInit Empty           = emptyStream
-    basicInit (Chunk x Empty) = case init x of
-                                  x' | null x'   → Empty
-                                     | otherwise → Chunk x' Empty
-    basicInit (Chunk x xs   ) = Chunk x (init xs)
-
-    {-# INLINE basicMap #-}
-    basicMap _ Empty        = Empty
-    basicMap f (Chunk x xs) = Chunk (map f x) (map f xs)
-
-    {-# INLINEABLE basicReverse #-}
-    basicReverse ch0 = go ch0 Empty
-        where
-          {-# INLINE go #-}
-          go Empty        ch = ch
-          go (Chunk x xs) ch = go xs (Chunk (reverse x) ch)
-
     {-# INLINE basicConcat #-}
     basicConcat = fromChunks ∘ L.concatMap toChunks
 
