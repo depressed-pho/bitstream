@@ -162,6 +162,7 @@ module Data.Bitstream
     , hPut
     )
     where
+import Data.Bits
 import Data.Bitstream.Generic hiding (Bitstream)
 import qualified Data.Bitstream.Generic as G
 import Data.Bitstream.Internal
@@ -178,7 +179,7 @@ import Data.Vector.Fusion.Stream.Monadic (Stream(..), Step(..))
 import Data.Vector.Fusion.Stream.Size
 import Data.Vector.Fusion.Util
 import Prelude ( Bool(..), Eq(..), Int, Integral, Maybe(..), Monad(..), Num(..)
-               , Ord(..), Show(..), ($), error, fmap, fromIntegral, fst
+               , Ord(..), Show(..), ($), div, error, fmap, fromIntegral, fst
                , otherwise
                )
 import Prelude.Unicode hiding ((⧺), (∈), (∉))
@@ -285,6 +286,25 @@ instance G.Bitstream (Bitstream Left) where
 
     {-# INLINE basicFilter #-}
     basicFilter = strictFilter
+
+    {-# INLINEABLE basicFromNBits #-}
+    basicFromNBits n0 β0
+        | n0 < 0    = (⊥)
+        | otherwise = Bitstream (fromIntegral n0)
+                                (SV.unfoldrN nOctets go (n0, β0))
+        where
+          nOctets ∷ Int
+          {-# INLINE nOctets #-}
+          nOctets = (fromIntegral n0) + 7 `div` 8
+          {-# INLINE go #-}
+          go (n, β)
+              | n > 0
+                  = let n'  = if n > 8 then 8 else n
+                        n'' = n - n'
+                    in
+                      Just (fromNBits n' β, (n'', β `shiftR` 8))
+              | otherwise
+                  = Nothing
 
 instance G.Bitstream (Bitstream Right) where
     {-# INLINE basicStream #-}
@@ -592,8 +612,8 @@ fromByteString ∷ BS.ByteString → Bitstream d
 fromByteString bs0
     = Bitstream (nOctets ⋅ 8) (SV.unfoldrN nOctets go bs0)
     where
-      {-# INLINE nOctets #-}
       nOctets ∷ Int
+      {-# INLINE nOctets #-}
       nOctets = BS.length bs0
       {-# INLINE go #-}
       go bs = do (o, bs') ← BS.uncons bs

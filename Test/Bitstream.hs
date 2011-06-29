@@ -84,6 +84,11 @@ tests = [ -- ∅
         , mapSize (⋅ 8) $ \bs → (B.length bs `rem` 8) ≡ (0 ∷ Int)
                                   ⟹ B.fromByteString (B.toByteString (bs ∷ BitR)) ≡ bs
 
+          -- from/toBits
+        , property $ (B.fromNBits (15 ∷ Int) (0xF0F0 ∷ Int) ∷ BitL)
+                       ≡ B.pack (map n2b [ 0, 0, 0, 0, 1, 1, 1, 1
+                                         , 0, 0, 0, 0, 1, 1, 1    ])
+
           -- stream/unstream
         , property $ \bl → B.unstream (S.fromList bl) ≡ (B.pack bl ∷ BitL)
         , property $ \bs → S.toList   (B.stream bs)   ≡ B.unpack (bs ∷ BitL)
