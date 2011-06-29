@@ -44,7 +44,7 @@ import Prelude.Unicode
 --
 --   * 10010100 => [False, False, True , False, True, False, False, True]
 --
--- 'Bits' operations (like 'toBits') treat a 'Left' bitstream a
+-- 'Bits' operations (like 'toBits') treat a 'Left' bitstream as a
 -- little-endian integer.
 data Left
 
@@ -55,7 +55,7 @@ data Left
 --
 --   * 10010100 => [True, False, False, True, False, True , False, False]
 --
--- 'Bits' operations (like 'toBits') treat a 'Right' bitstream a
+-- 'Bits' operations (like 'toBits') treat a 'Right' bitstream as a
 -- big-endian integer.
 data Right
 

@@ -1,6 +1,7 @@
 {-# LANGUAGE
     BangPatterns
   , FlexibleContexts
+  , FlexibleInstances
   , ScopedTypeVariables
   , UndecidableInstances
   , UnicodeSyntax
@@ -205,9 +206,7 @@ instance Show (Packet d) ⇒ Show (Bitstream d) where
           , " ]"
           ]
 
-instance ( G.Bitstream (SB.Bitstream d)
-         , G.Bitstream (Packet d)
-         ) ⇒ Eq (Bitstream d) where
+instance G.Bitstream (Bitstream d) ⇒ Eq (Bitstream d) where
     {-# INLINE (==) #-}
     x == y = stream x ≡ stream y
 
@@ -222,9 +221,7 @@ instance ( G.Bitstream (SB.Bitstream d)
 --   , 'compare' z y -- 'LT'
 --   ]
 -- @
-instance ( G.Bitstream (SB.Bitstream d)
-         , G.Bitstream (Packet d)
-         ) ⇒ Ord (Bitstream d) where
+instance G.Bitstream (Bitstream d) ⇒ Ord (Bitstream d) where
     {-# INLINE compare #-}
     x `compare` y = stream x `compare` stream y
 
@@ -235,38 +232,68 @@ instance ( G.Bitstream (SB.Bitstream d)
 -- 'mappend' = 'append'
 -- 'mconcat' = 'concat'
 -- @
-instance ( G.Bitstream (SB.Bitstream d)
-         , G.Bitstream (Packet d)
-         ) ⇒ Monoid (Bitstream d) where
+instance G.Bitstream (Bitstream d) ⇒ Monoid (Bitstream d) where
     mempty  = (∅)
     mappend = (⧺)
     mconcat = concat
 
-instance ( G.Bitstream (SB.Bitstream d)
-         , G.Bitstream (Packet d)
-         ) ⇒ G.Bitstream (Bitstream d) where
+instance G.Bitstream (Bitstream Left) where
     {-# INLINE basicStream #-}
-    basicStream
-        = {-# CORE "Lazy Bitstream stream" #-}
-          S.concatMap stream ∘ streamChunks
+    basicStream = lazyStream
 
     {-# INLINE basicUnstream #-}
-    basicUnstream
-        = {-# CORE "Lazy Bitstream unstream" #-}
-          unId ∘ unstreamChunks ∘ packChunks ∘ packPackets
+    basicUnstream = lazyUnstream
 
     {-# INLINE basicCons #-}
-    basicCons b = Chunk (singleton b)
+    basicCons = lazyCons
 
-    {-# INLINEABLE basicCons' #-}
-    basicCons' b Empty
-        = Chunk (SB.singleton b) Empty
-    basicCons' b (Chunk x xs)
-        | length x < (chunkBits ∷ Int)
-            = Chunk (b `cons` x) xs
-        | otherwise
-            = Chunk (singleton b) (Chunk x xs)
+    {-# INLINE basicCons' #-}
+    basicCons' = lazyCons'
 
+instance G.Bitstream (Bitstream Right) where
+    {-# INLINE basicStream #-}
+    basicStream = lazyStream
+
+    {-# INLINE basicUnstream #-}
+    basicUnstream = lazyUnstream
+
+    {-# INLINE basicCons #-}
+    basicCons = lazyCons
+
+    {-# INLINE basicCons' #-}
+    basicCons' = lazyCons'
+
+lazyStream ∷ G.Bitstream (SB.Bitstream d) ⇒ Bitstream d → S.Stream Bool
+{-# INLINE lazyStream #-}
+lazyStream
+    = {-# CORE "Lazy Bitstream stream" #-}
+      S.concatMap stream ∘ streamChunks
+
+lazyUnstream ∷ ( G.Bitstream (SB.Bitstream d),
+                 G.Bitstream (Packet d)
+               )
+             ⇒ S.Stream Bool
+             → Bitstream d
+{-# INLINE lazyUnstream #-}
+lazyUnstream
+    = {-# CORE "Lazy Bitstream unstream" #-}
+      unId ∘ unstreamChunks ∘ packChunks ∘ packPackets
+
+lazyCons ∷ G.Bitstream (SB.Bitstream d) ⇒ Bool → Bitstream d → Bitstream d
+{-# INLINE lazyCons #-}
+lazyCons = Chunk ∘ singleton
+
+lazyCons' ∷ G.Bitstream (SB.Bitstream d) ⇒ Bool → Bitstream d → Bitstream d
+{-# INLINEABLE lazyCons' #-}
+lazyCons' b Empty
+    = Chunk (SB.singleton b) Empty
+lazyCons' b (Chunk x xs)
+    | length x < (chunkBits ∷ Int)
+        = Chunk (b `cons` x) xs
+    | otherwise
+        = Chunk (singleton b) (Chunk x xs)
+
+{-
     {-# INLINEABLE basicSnoc #-}
     basicSnoc Empty b
         = Chunk (SB.singleton b) Empty
@@ -355,6 +382,7 @@ instance ( G.Bitstream (SB.Bitstream d)
     basicFilter f (Chunk x xs) = case filter f x of
                                    x' | null x'   → filter f xs
                                       | otherwise → Chunk x' (filter f xs)
+-}
 
 lazyHead ∷ G.Bitstream (SB.Bitstream d) ⇒ Bitstream d → Bool
 {-# RULES "head → lazyHead" [1]
@@ -626,11 +654,7 @@ repeat b = xs
 -- | /O(n)/ 'cycle' ties a finite 'Bitstream' into a circular one, or
 -- equivalently, the infinite repetition of the original 'Bitstream'.
 -- It is the identity on infinite 'Bitstream's.
-cycle ∷ ( G.Bitstream (SB.Bitstream d)
-        , G.Bitstream (Packet d)
-        )
-      ⇒ Bitstream d
-      → Bitstream d
+cycle ∷ G.Bitstream (Bitstream d) ⇒ Bitstream d → Bitstream d
 {-# INLINE cycle #-}
 cycle Empty = emptyStream
 cycle ch    = ch ⧺ cycle ch
