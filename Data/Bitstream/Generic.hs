@@ -296,8 +296,8 @@ unstream = basicUnstream
   #-}
 
 -- | /O(n)/ Convert a 'Bits' into a 'Bitstream'. Note that this
--- function is undefined for instances of 'Bits' which have no fixed
--- 'bitSize' (like 'Integer').
+-- function is usually undefined for instances of 'Bits' which have no
+-- fixed 'bitSize' (like 'Integer').
 fromBits ∷ (Integral β, Bits β, Bitstream α) ⇒ β → α
 {-# INLINE fromBits #-}
 fromBits = basicFromBits

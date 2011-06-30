@@ -299,12 +299,24 @@ instance G.Bitstream (Bitstream Left) where
           {-# INLINE go #-}
           go (n, β)
               | n > 0
-                  = let n'  = if n > 8 then 8 else n
-                        n'' = n - n'
+                  = let !n'  = if n > 8 then 8 else n
+                        !n'' = n - n'
+                        !p   = fromNBits n' β
+                        !β'  = β `shiftR` 8
                     in
-                      Just (fromNBits n' β, (n'', β `shiftR` 8))
+                      Just (p, (n'', β'))
               | otherwise
                   = Nothing
+
+    {-# INLINEABLE basicToBits #-}
+    basicToBits (Bitstream _ v) = SV.foldr go 0 v
+        where
+          {-# INLINE go #-}
+          go !p !n
+              = let !n'  = n `shiftL` length p
+                    !n'' = n' .|. toBits p
+                in
+                  n''
 
 instance G.Bitstream (Bitstream Right) where
     {-# INLINE basicStream #-}

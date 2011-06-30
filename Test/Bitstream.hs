@@ -6,6 +6,7 @@
   , UnicodeSyntax
   #-}
 module Main (main) where
+import Data.Bits hiding (xor)
 import Data.Bitstream (Bitstream, Left, Right)
 import qualified Data.Bitstream as B
 import qualified Data.ByteString as BS
@@ -17,7 +18,7 @@ import qualified Data.Monoid.Unicode as M
 import qualified Data.Vector.Fusion.Stream as S
 import Prelude.Unicode
 import Test.Bitstream.Utils
-import Test.QuickCheck
+import Test.QuickCheck hiding ((.&.))
 
 main ∷ IO ()
 main = mapM_ runTest tests
@@ -85,9 +86,15 @@ tests = [ -- ∅
                                   ⟹ B.fromByteString (B.toByteString (bs ∷ BitR)) ≡ bs
 
           -- from/toBits
-        , property $ (B.fromNBits (15 ∷ Int) (0xF0F0 ∷ Int) ∷ BitL)
-                       ≡ B.pack (map n2b [ 0, 0, 0, 0, 1, 1, 1, 1
-                                         , 0, 0, 0, 0, 1, 1, 1    ])
+        , property $ (B.fromNBits (15 ∷ Int) (0xB1C3 ∷ Int) ∷ BitL)
+                       ≡ B.pack (map n2b [ 1, 1, 0, 0, 0, 0, 1, 1
+                                         , 1, 0, 0, 0, 1, 1, 0    ])
+        , property $ let bs ∷ BitL
+                         bs = B.pack (map n2b [ 1, 1, 0, 0, 0, 0, 1, 1
+                                              , 1, 0, 0, 0, 1, 1, 0    ])
+                     in
+                       B.toBits bs ≡ (0x31C3 ∷ Int)
+        , property $ \n → (n ∷ Int) ≡ B.toBits (B.fromBits n ∷ BitL)
 
           -- stream/unstream
         , property $ \bl → B.unstream (S.fromList bl) ≡ (B.pack bl ∷ BitL)
