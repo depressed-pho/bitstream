@@ -297,7 +297,7 @@ instance G.Bitstream (Bitstream Left) where
         where
           nOctets ∷ Int
           {-# INLINE nOctets #-}
-          nOctets = (fromIntegral n0) + 7 `div` 8
+          nOctets = (fromIntegral n0 + 7) `div` 8
           {-# INLINE step #-}
           step (n, β)
               | n > 0
@@ -375,6 +375,44 @@ instance G.Bitstream (Bitstream Right) where
 
     {-# INLINE basicFilter #-}
     basicFilter = strictFilter
+
+    {-# INLINEABLE basicFromNBits #-}
+    basicFromNBits n0 β
+        | n0 < 0    = (⊥)
+        | otherwise = unstreamPackets
+                      $ Stream step (n0, nOctets ⋅ 8) (Exact nOctets)
+        where
+          nOctets ∷ Int
+          {-# INLINE nOctets #-}
+          nOctets = (fromIntegral n0 + 7) `div` 8
+          {-# INLINE step #-}
+          step (n, r)
+              | n > 0
+                  = let !r'  = r - 8
+                        !n'  = n - fromIntegral r'
+                        !n'' = n - n'
+                        !p   = fromNBits n' (β `shiftR` r')
+                    in
+                      return $ Yield p (n'', r')
+              | otherwise
+                  = return Done
+
+    {-# INLINEABLE basicToBits #-}
+    basicToBits = unId ∘ streamToBits ∘ streamPackets
+        where
+          {-# INLINE streamToBits #-}
+          streamToBits (Stream step s0 _) = go (s0, 0)
+              where
+                {-# INLINE go #-}
+                go (s, n)
+                    = do r ← step s
+                         case r of
+                           Yield p s' → let !o  = length p
+                                            !n' = (n `shiftL` o) .|. toBits p
+                                        in
+                                          go (s', n')
+                           Skip    s' → go (s', n)
+                           Done       → return $ n
 
 strictStream ∷ G.Bitstream (Packet d) ⇒ Bitstream d → S.Stream Bool
 {-# INLINE strictStream #-}

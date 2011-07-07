@@ -20,8 +20,8 @@ packPackets (Stream step s0 sz) = Stream step' ((∅), Just s0) sz'
       sz' ∷ Size
       {-# INLINE sz' #-}
       sz' = case sz of
-              Exact n → Exact (n+7 `div` 8)
-              Max   n → Max   (n+7 `div` 8)
+              Exact n → Exact ((n+7) `div` 8)
+              Max   n → Max   ((n+7) `div` 8)
               Unknown → Unknown
       {-# INLINE step' #-}
       step' (p, Just s)

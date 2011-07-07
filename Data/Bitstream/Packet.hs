@@ -366,7 +366,8 @@ instance Bitstream (Packet Right) where
                       in Packet n' o
 
     {-# INLINE basicToBits #-}
-    basicToBits = fromIntegral ∘ toOctet -- THINKME: Is this correct?
+    basicToBits (Packet n o)
+        = fromIntegral (o `shiftR` (8-n))
 
 packetHeadL ∷ Packet Left → Bool
 {-# RULES "head → packetHeadL" [1] head = packetHeadL #-}

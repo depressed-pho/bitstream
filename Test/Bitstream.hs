@@ -19,11 +19,11 @@ import Prelude.Unicode
 import Test.Bitstream.Utils
 import Test.QuickCheck hiding ((.&.))
 
-main ∷ IO ()
-main = mapM_ runTest tests
-
 type BitL = Bitstream Left
 type BitR = Bitstream Right
+
+main ∷ IO ()
+main = mapM_ runTest tests
 
 tests ∷ [Property]
 tests = [ -- ∅
@@ -94,6 +94,16 @@ tests = [ -- ∅
                      in
                        B.toBits bs ≡ (0x31C3 ∷ Int)
         , property $ \n → (n ∷ Int) ≡ B.toBits (B.fromBits n ∷ BitL)
+
+        , property $ (B.fromNBits (15 ∷ Int) (0xB1C3 ∷ Int) ∷ BitR)
+                       ≡ B.pack (map n2b [ 0, 1, 1, 0, 0, 0, 1
+                                         , 1, 1, 0, 0, 0, 0, 1, 1 ])
+        , property $ let bs ∷ BitR
+                         bs = B.pack (map n2b [ 0, 1, 1, 0, 0, 0, 1
+                                              , 1, 1, 0, 0, 0, 0, 1, 1 ])
+                     in
+                       B.toBits bs ≡ (0x31C3 ∷ Int)
+        , property $ \n → (n ∷ Int) ≡ B.toBits (B.fromBits n ∷ BitR)
 
           -- stream/unstream
         , property $ \bl → B.unstream (S.fromList bl) ≡ (B.pack bl ∷ BitL)
