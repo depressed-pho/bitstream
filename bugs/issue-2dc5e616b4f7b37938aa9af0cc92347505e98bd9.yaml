@@ -1,0 +1,21 @@
+--- !ditz.rubyforge.org,2008-03-06/issue 
+title: Strict Bitstreams' bit length should only be a hint, just like stream size.
+desc: |-
+  We don't always need the bit length so calculating it all the time can
+  be a waste of time.
+type: :task
+component: bitstream
+release: bitstream-0.2
+reporter: PHO <pho@cielonegro.org>
+status: :unstarted
+disposition: 
+creation_time: 2011-07-07 12:37:34.454515 Z
+references: []
+
+id: 2dc5e616b4f7b37938aa9af0cc92347505e98bd9
+log_events: 
+- - 2011-07-07 12:37:35.926384 Z
+  - PHO <pho@cielonegro.org>
+  - created
+  - ""
+git_branch: 

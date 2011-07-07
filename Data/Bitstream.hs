@@ -180,7 +180,7 @@ import Data.Vector.Fusion.Stream.Size
 import Data.Vector.Fusion.Util
 import Prelude ( Bool(..), Eq(..), Int, Integral, Maybe(..), Monad(..), Num(..)
                , Ord(..), Show(..), ($), div, error, fmap, fromIntegral, fst
-               , otherwise
+               , min, otherwise
                )
 import Prelude.Unicode hiding ((⧺), (∈), (∉))
 import System.IO (FilePath, Handle, IO)
@@ -193,6 +193,8 @@ import System.IO (FilePath, Handle, IO)
 data Bitstream d
     = Bitstream {-# UNPACK #-} !Int -- bit length
                 {-# UNPACK #-} !(SV.Vector (Packet d))
+-- THINKME: The bit length should only be a hint, just like stream
+-- size.
 
 instance Show (Packet d) ⇒ Show (Bitstream d) where
     {-# INLINEABLE show #-}
@@ -290,33 +292,40 @@ instance G.Bitstream (Bitstream Left) where
     {-# INLINEABLE basicFromNBits #-}
     basicFromNBits n0 β0
         | n0 < 0    = (⊥)
-        | otherwise = Bitstream (fromIntegral n0)
-                                (SV.unfoldrN nOctets go (n0, β0))
+        | otherwise = unstreamPackets
+                      $ Stream step (n0, β0) (Exact nOctets)
         where
           nOctets ∷ Int
           {-# INLINE nOctets #-}
           nOctets = (fromIntegral n0) + 7 `div` 8
-          {-# INLINE go #-}
-          go (n, β)
+          {-# INLINE step #-}
+          step (n, β)
               | n > 0
-                  = let !n'  = if n > 8 then 8 else n
+                  = let !n'  = min 8 n
                         !n'' = n - n'
                         !p   = fromNBits n' β
                         !β'  = β `shiftR` 8
                     in
-                      Just (p, (n'', β'))
+                      return $ Yield p (n'', β')
               | otherwise
-                  = Nothing
+                  = return Done
 
     {-# INLINEABLE basicToBits #-}
-    basicToBits (Bitstream _ v) = SV.foldr go 0 v
+    basicToBits = unId ∘ streamToBits ∘ streamPackets
         where
-          {-# INLINE go #-}
-          go !p !n
-              = let !n'  = n `shiftL` length p
-                    !n'' = n' .|. toBits p
-                in
-                  n''
+          {-# INLINE streamToBits #-}
+          streamToBits (Stream step s0 _) = go (s0, 0, 0)
+              where
+                {-# INLINE go #-}
+                go (s, o, n)
+                    = do r ← step s
+                         case r of
+                           Yield p s' → let !n' = (toBits p `shiftL` o) .|. n
+                                            !o' = o + length p
+                                        in
+                                          go (s', o', n')
+                           Skip    s' → go (s', o, n)
+                           Done       → return $ n
 
 instance G.Bitstream (Bitstream Right) where
     {-# INLINE basicStream #-}
@@ -679,11 +688,9 @@ streamPackets (Bitstream _ v) = GV.stream v
 -- | /O(n)/ Convert a 'S.Stream' of 'Packet's into 'Bitstream'.
 unstreamPackets ∷ G.Bitstream (Packet d) ⇒ S.Stream (Packet d) → Bitstream d
 {-# NOINLINE unstreamPackets #-}
-unstreamPackets s@(Stream _ _ sz)
+unstreamPackets s
     = let !v = GV.unstream s
-          !l = case sz of
-                 Exact n → n
-                 _       → countBits v
+          !l = countBits v
       in
         Bitstream l v
 

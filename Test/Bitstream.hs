@@ -6,7 +6,6 @@
   , UnicodeSyntax
   #-}
 module Main (main) where
-import Data.Bits hiding (xor)
 import Data.Bitstream (Bitstream, Left, Right)
 import qualified Data.Bitstream as B
 import qualified Data.ByteString as BS
