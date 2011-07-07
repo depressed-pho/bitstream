@@ -183,9 +183,6 @@ class Bitstream α where
     {-# INLINE basicPartition #-}
     basicPartition f α = (filter f α, filter ((¬) ∘ f) α)
 
-    basicFromBits  ∷ (Integral β, Bits β) ⇒ β → α
-    {-# INLINE basicFromBits #-}
-    basicFromBits β = basicFromNBits (bitSize β) β
     basicFromNBits ∷ (Integral n, Integral β, Bits β) ⇒ n → β → α
     basicToBits    ∷ Bits β ⇒ α → β
 
@@ -296,11 +293,11 @@ unstream = basicUnstream
   #-}
 
 -- | /O(n)/ Convert a 'Bits' into a 'Bitstream'. Note that this
--- function is usually undefined for instances of 'Bits' which have no
--- fixed 'bitSize' (like 'Integer').
+-- function is undefined for instances of 'Bits' which have no fixed
+-- 'bitSize' (like 'Integer').
 fromBits ∷ (Integral β, Bits β, Bitstream α) ⇒ β → α
 {-# INLINE fromBits #-}
-fromBits = basicFromBits
+fromBits β = basicFromNBits (bitSize β) β
 
 -- | /O(n)/ Convert the lower 'n' bits of the given 'Bits'. In the
 -- case that more bits are requested than the 'Bits' provides, this

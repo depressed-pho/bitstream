@@ -84,6 +84,27 @@ tests = [ -- ∅
         , mapSize (⋅ 8) $ \bs → (B.length bs `rem` 8) ≡ (0 ∷ Int)
                                   ⟹ B.fromByteString (B.toByteString (bs ∷ BitR)) ≡ bs
 
+          -- from/toBits
+        , property $ (B.fromNBits (15 ∷ Int) (0xB1C3 ∷ Int) ∷ BitL)
+                       ≡ B.pack (map n2b [ 1, 1, 0, 0, 0, 0, 1, 1
+                                         , 1, 0, 0, 0, 1, 1, 0    ])
+        , property $ let bs ∷ BitL
+                         bs = B.pack (map n2b [ 1, 1, 0, 0, 0, 0, 1, 1
+                                              , 1, 0, 0, 0, 1, 1, 0    ])
+                     in
+                       B.toBits bs ≡ (0x31C3 ∷ Int)
+        , property $ \n → (n ∷ Int) ≡ B.toBits (B.fromBits n ∷ BitL)
+
+        , property $ (B.fromNBits (15 ∷ Int) (0xB1C3 ∷ Int) ∷ BitR)
+                       ≡ B.pack (map n2b [ 0, 1, 1, 0, 0, 0, 1
+                                         , 1, 1, 0, 0, 0, 0, 1, 1 ])
+        , property $ let bs ∷ BitR
+                         bs = B.pack (map n2b [ 0, 1, 1, 0, 0, 0, 1
+                                              , 1, 1, 0, 0, 0, 0, 1, 1 ])
+                     in
+                       B.toBits bs ≡ (0x31C3 ∷ Int)
+        , property $ \n → (n ∷ Int) ≡ B.toBits (B.fromBits n ∷ BitR)
+
           -- stream/unstream
         , property $ \bl → B.unstream (S.fromList bl) ≡ (B.pack bl ∷ BitL)
         , property $ \bs → S.toList   (B.stream   bs) ≡ B.unpack (bs ∷ BitL)

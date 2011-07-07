@@ -231,7 +231,7 @@ instance Bitstream (Packet Left) where
 
     {-# INLINEABLE basicFromNBits #-}
     basicFromNBits n β
-        | n < 0     = (⊥)
+        | n < 0     = (∅)
         | n > 8     = packetOverflow
         | n ≡ 8     = Packet (fromIntegral n) (fromIntegral β)
         | otherwise = let n' ∷ Int
@@ -353,7 +353,7 @@ instance Bitstream (Packet Right) where
 
     {-# INLINEABLE basicFromNBits #-}
     basicFromNBits n β
-        | n < 0     = (⊥)
+        | n < 0     = (∅)
         | n > 8     = packetOverflow
         | n ≡ 8     = Packet (fromIntegral n) (fromIntegral β)
         | otherwise = let n' ∷ Int

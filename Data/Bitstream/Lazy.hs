@@ -35,6 +35,11 @@ module Data.Bitstream.Lazy
     , fromByteString
     , toByteString
 
+    -- ** Converting from\/to 'Bits''
+    , fromBits
+    , fromNBits
+    , toBits
+
       -- ** Converting from\/to 'S.Stream's
     , stream
     , unstream
@@ -289,6 +294,13 @@ instance G.Bitstream (Bitstream Left) where
     {-# INLINE basicFilter #-}
     basicFilter = lazyFilter
 
+    {-# INLINE basicFromNBits #-}
+    basicFromNBits
+        = ((unId ∘ unstreamChunks ∘ packChunks) ∘) ∘ lePacketsFromNBits
+
+    {-# INLINE basicToBits #-}
+    basicToBits = unId ∘ lePacketsToBits ∘ unpackChunks ∘ streamChunks
+
 instance G.Bitstream (Bitstream Right) where
     {-# INLINE basicStream #-}
     basicStream = lazyStream
@@ -340,6 +352,13 @@ instance G.Bitstream (Bitstream Right) where
 
     {-# INLINE basicFilter #-}
     basicFilter = lazyFilter
+
+    {-# INLINE basicFromNBits #-}
+    basicFromNBits
+        = ((unId ∘ unstreamChunks ∘ packChunks) ∘) ∘ bePacketsFromNBits
+
+    {-# INLINE basicToBits #-}
+    basicToBits = unId ∘ bePacketsToBits ∘ unpackChunks ∘ streamChunks
 
 lazyStream ∷ G.Bitstream (SB.Bitstream d) ⇒ Bitstream d → S.Stream Bool
 {-# INLINE lazyStream #-}
@@ -677,7 +696,7 @@ unstreamChunks (Stream step s0 _) = go s0
 packChunks ∷ ∀d m. (G.Bitstream (Packet d), Monad m)
            ⇒ Stream m (Packet d)
            → Stream m (SB.Bitstream d)
-{-# INLINE packChunks #-}
+{-# INLINEABLE packChunks #-}
 packChunks (Stream step s0 sz)
     = Stream step' (emptyChunk, 0, Just s0) sz'
     where
@@ -711,8 +730,8 @@ packChunks (Stream step s0 sz)
       sz' ∷ Size
       {-# INLINE sz' #-}
       sz' = case sz of
-              Exact n → Exact (n + chunkSize - 1 `div` chunkSize)
-              Max   n → Max   (n + chunkSize - 1 `div` chunkSize)
+              Exact n → Exact ((n + chunkSize - 1) `div` chunkSize)
+              Max   n → Max   ((n + chunkSize - 1) `div` chunkSize)
               Unknown → Unknown
 
       {-# INLINE step' #-}
@@ -734,6 +753,10 @@ packChunks (Stream step s0 sz)
                                             ((⊥), (⊥), Nothing)
       step' (_, _, Nothing)
           = return Done
+
+unpackChunks ∷ S.Stream (SB.Bitstream d) → S.Stream (Packet d)
+{-# INLINE unpackChunks #-}
+unpackChunks = S.concatMap SB.streamPackets
 
 -- | /O(n)/ Convert a @'Bitstream' 'Left'@ into a @'Bitstream'
 -- 'Right'@. Bit directions only affect octet-based operations such as
