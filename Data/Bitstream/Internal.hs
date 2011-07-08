@@ -44,6 +44,11 @@ packPackets (Stream step s0 sz) = Stream step' ((∅), Just s0) sz'
       step' (_, Nothing)
           = return Done
 
+nOctets ∷ Integral n ⇒ n → Int
+{-# INLINE nOctets #-}
+nOctets nBits
+    = (fromIntegral nBits + 7) `div` 8
+
 lePacketsFromNBits ∷ ( Integral n
                      , Integral β
                      , Bits β
@@ -53,11 +58,8 @@ lePacketsFromNBits ∷ ( Integral n
                    → β
                    → Stream m (Packet Left)
 {-# INLINEABLE lePacketsFromNBits #-}
-lePacketsFromNBits n0 β0 = Stream step (n0, β0) (Exact nOctets)
+lePacketsFromNBits n0 β0 = Stream step (n0, β0) (Exact (nOctets n0))
     where
-      nOctets ∷ Int
-      {-# INLINE nOctets #-}
-      nOctets = (fromIntegral n0 + 7) `div` 8
       {-# INLINE step #-}
       step (n, β)
           | n > 0
@@ -79,11 +81,8 @@ bePacketsFromNBits ∷ ( Integral n
                    → β
                    → Stream m (Packet Right)
 {-# INLINEABLE bePacketsFromNBits #-}
-bePacketsFromNBits n0 β = Stream step (n0, nOctets ⋅ 8) (Exact nOctets)
+bePacketsFromNBits n0 β = Stream step (n0, nOctets n0 ⋅ 8) (Exact (nOctets n0))
     where
-      nOctets ∷ Int
-      {-# INLINE nOctets #-}
-      nOctets = (fromIntegral n0 + 7) `div` 8
       {-# INLINE step #-}
       step (n, r)
           | n > 0
