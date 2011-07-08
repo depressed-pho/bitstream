@@ -20,6 +20,7 @@ Cabal-Version: >= 1.10
 Build-Type: Simple
 Extra-Source-Files:
     COPYING
+    ChangeLog
 
 Source-Repository head
     Type: git
