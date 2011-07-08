@@ -698,26 +698,16 @@ packChunks ∷ ∀d m. (G.Bitstream (Packet d), Monad m)
            → Stream m (SB.Bitstream d)
 {-# INLINEABLE packChunks #-}
 packChunks (Stream step s0 sz)
-    = Stream step' (emptyChunk, 0, Just s0) sz'
+    = Stream step' (emptyChunk, 0, 0, Just s0) sz'
     where
       emptyChunk ∷ New.New SV.Vector (Packet d)
       {-# INLINE emptyChunk #-}
       emptyChunk
-          = New.create (MVector.new chunkSize)
+          = New.create (MVector.unsafeNew chunkSize)
 
-      newChunk ∷ G.Bitstream (Packet d)
-               ⇒ New.New SV.Vector (Packet d)
-               → Int
-               → SB.Bitstream d
-      {-# INLINE newChunk #-}
-      newChunk ch len
-          -- THINKME: we'd better count the number of bits here and
-          -- don't let SB.fromPackets do it itself. Ideally we should
-          -- provide mutable vectors that can be destructively
-          -- modified in an ST monad, but that's rather tiring.
-          = SB.fromPackets
-            $ GV.new
-            $ New.apply (MVector.take len) ch
+      singletonChunk ∷ Packet d → New.New SV.Vector (Packet d)
+      {-# INLINE singletonChunk #-}
+      singletonChunk = writePacket emptyChunk 0
 
       writePacket ∷ New.New SV.Vector (Packet d)
                   → Int
@@ -727,6 +717,17 @@ packChunks (Stream step s0 sz)
       writePacket ch len p
           = New.modify (\mv → MVector.write mv len p) ch
 
+      newChunk ∷ G.Bitstream (Packet d)
+               ⇒ New.New SV.Vector (Packet d)
+               → Int
+               → Int
+               → SB.Bitstream d
+      {-# INLINE newChunk #-}
+      newChunk ch cLen bLen
+          = SB.unsafeFromPackets bLen
+            $ GV.new
+            $ New.apply (MVector.take cLen) ch
+
       sz' ∷ Size
       {-# INLINE sz' #-}
       sz' = case sz of
@@ -735,23 +736,23 @@ packChunks (Stream step s0 sz)
               Unknown → Unknown
 
       {-# INLINE step' #-}
-      step' (ch, len, Just s)
+      step' (ch, cLen, bLen, Just s)
           = do r ← step s
                case r of
                  Yield p s'
-                     | len ≡ chunkSize
-                           → return $ Yield (newChunk ch len)
-                                            (emptyChunk, 0, Just s')
+                     | cLen ≡ chunkSize
+                           → return $ Yield (newChunk ch cLen bLen)
+                                            (singletonChunk p, 1, length p, Just s')
                      | otherwise
-                           → return $ Skip  (writePacket ch len p, len+1, Just s')
-                 Skip s'   → return $ Skip  (ch                  , len  , Just s')
+                           → return $ Skip  (writePacket ch cLen p, cLen+1, bLen + length p, Just s')
+                 Skip s'   → return $ Skip  (ch                   , cLen  , bLen           , Just s')
                  Done
-                     | len ≡ 0
+                     | cLen ≡ 0
                            → return Done
                      | otherwise
-                           → return $ Yield (newChunk ch len)
-                                            ((⊥), (⊥), Nothing)
-      step' (_, _, Nothing)
+                           → return $ Yield (newChunk ch cLen bLen)
+                                            ((⊥), (⊥), (⊥), Nothing)
+      step' (_, _, _, Nothing)
           = return Done
 
 unpackChunks ∷ S.Stream (SB.Bitstream d) → S.Stream (Packet d)

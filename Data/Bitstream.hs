@@ -30,6 +30,7 @@ module Data.Bitstream
     , pack
     , unpack
     , fromPackets
+    , unsafeFromPackets
     , toPackets
 
       -- ** Converting from\/to strict 'BS.ByteString's
@@ -647,6 +648,14 @@ countBits = SV.foldl' (\n p → n + length p) 0
 fromPackets ∷ G.Bitstream (Packet d) ⇒ SV.Vector (Packet d) → Bitstream d
 {-# INLINE fromPackets #-}
 fromPackets v = Bitstream (countBits v) v
+
+-- | /O(1)/ Convert a 'SV.Vector' of 'Packet's into a 'Bitstream',
+-- with provided overall bit length. The correctness of the bit length
+-- isn't checked, so you MUST be sure your bit length is absolutely
+-- correct.
+unsafeFromPackets ∷ G.Bitstream (Packet d) ⇒ Int → SV.Vector (Packet d) → Bitstream d
+{-# INLINE unsafeFromPackets #-}
+unsafeFromPackets = Bitstream
 
 -- | /O(1)/ Convert a 'Bitstream' into a 'SV.Vector' of 'Packet's.
 toPackets ∷ Bitstream d → SV.Vector (Packet d)
