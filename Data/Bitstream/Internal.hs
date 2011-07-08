@@ -109,7 +109,7 @@ lePacketsToBits (Stream step s0 _) = go (s0, 0, 0)
                               in
                                 go (s', o', n')
                  Skip    s' → go (s', o, n)
-                 Done       → return $ n
+                 Done       → return n
 
 bePacketsToBits ∷ (Monad m, Bits β) ⇒ Stream m (Packet Right) → m β
 {-# INLINEABLE bePacketsToBits #-}
@@ -124,4 +124,4 @@ bePacketsToBits (Stream step s0 _) = go (s0, 0)
                               in
                                 go (s', n')
                  Skip    s' → go (s', n)
-                 Done       → return $ n
+                 Done       → return n
