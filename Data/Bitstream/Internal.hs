@@ -1,5 +1,6 @@
 {-# LANGUAGE
-    FlexibleContexts
+    BangPatterns
+  , FlexibleContexts
   , UnicodeSyntax
   #-}
 module Data.Bitstream.Internal
