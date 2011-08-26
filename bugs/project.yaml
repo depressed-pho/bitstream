@@ -35,10 +35,14 @@ releases:
     - Done.
 - !ditz.rubyforge.org,2008-03-06/release 
   name: bitstream-0.2.0.1
-  status: :unreleased
-  release_time: 
+  status: :released
+  release_time: 2011-08-26 09:41:10.812918 Z
   log_events: 
   - - 2011-08-26 09:35:21.213249 Z
     - PHO <pho@cielonegro.org>
     - created
+    - ""
+  - - 2011-08-26 09:41:10.812941 Z
+    - PHO <pho@cielonegro.org>
+    - released
     - ""

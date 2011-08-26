@@ -13,8 +13,8 @@ type: :bugfix
 component: bitstream
 release: bitstream-0.2.0.1
 reporter: Mark Wotton <mwotton@gmail.com>
-status: :unstarted
-disposition: 
+status: :closed
+disposition: :fixed
 creation_time: 2011-08-26 09:34:46.758990 Z
 references: []
 
@@ -28,4 +28,8 @@ log_events:
   - PHO <pho@cielonegro.org>
   - assigned to release bitstream-0.2.0.1 from unassigned
   - ""
+- - 2011-08-26 09:40:16.047139 Z
+  - PHO <pho@cielonegro.org>
+  - closed with disposition fixed
+  - Applied.
 git_branch: 
