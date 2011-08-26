@@ -21,6 +21,7 @@ CONFIGURE_ARGS ?= --disable-optimization
 
 SETUP_FILE := $(wildcard Setup.*hs)
 CABAL_FILE := $(wildcard *.cabal)
+PKG_NAME   := $(CABAL_FILE:.cabal=)
 
 ifeq ($(shell ls configure.ac 2>/dev/null),configure.ac)
   AUTOCONF_AC_FILE := configure.ac
@@ -110,8 +111,20 @@ fixme:
 
 lint:
 	$(HLINT) . --report
-#	$(HLINT) . --report \
-#		--ignore="Use string literal" \
-#		--ignore="Use concatMap"
 
-.PHONY: build build-hook setup-config setup-config-hook run clean clean-hook install doc sdist test lint
+push: doc ditz
+	if [ -d "_darcs" ]; then \
+		darcs push; \
+	elif [ -d ".git" ]; then \
+		git push --all && git push --tags; \
+	fi
+	if [ -d "dist/doc" ]; then \
+		rsync -av --delete \
+			dist/doc/html/$(PKG_NAME)/ \
+			www@nem.cielonegro.org:static.cielonegro.org/htdocs/doc/$(PKG_NAME); \
+	fi
+	rsync -av --delete \
+		dist/ditz/ \
+		www@nem.cielonegro.org:static.cielonegro.org/htdocs/ditz/$(PKG_NAME)
+
+.PHONY: build build-hook setup-config setup-config-hook run clean clean-hook install doc sdist test lint push
