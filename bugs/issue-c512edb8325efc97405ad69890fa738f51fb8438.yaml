@@ -1,0 +1,31 @@
+--- !ditz.rubyforge.org,2008-03-06/issue 
+title: build failure on GHC 7.2.1
+desc: |-
+  "Data/Bitstream/Internal.hs" 127L, 4086C
+  
+  {-# LANGUAGE
+  FlexibleContexts
+  , UnicodeSyntax
+  -- had to add this to build with ghc 7.2.1
+  , BangPatterns
+  #-}
+type: :bugfix
+component: bitstream
+release: bitstream-0.2.0.1
+reporter: Mark Wotton <mwotton@gmail.com>
+status: :unstarted
+disposition: 
+creation_time: 2011-08-26 09:34:46.758990 Z
+references: []
+
+id: c512edb8325efc97405ad69890fa738f51fb8438
+log_events: 
+- - 2011-08-26 09:34:54.953959 Z
+  - PHO <pho@cielonegro.org>
+  - created
+  - ""
+- - 2011-08-26 09:36:26.030287 Z
+  - PHO <pho@cielonegro.org>
+  - assigned to release bitstream-0.2.0.1 from unassigned
+  - ""
+git_branch: 
