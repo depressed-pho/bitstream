@@ -403,14 +403,14 @@ packetAndR ∷ Packet Right → Bool
 {-# INLINE packetAndR #-}
 packetAndR (Packet n o) = (0xFF `shiftL` (8-n)) ≡ o
 
-packetIndexL ∷ Integral n ⇒ Packet Left → n → Bool
+packetIndexL ∷ (Integral n, Show n) ⇒ Packet Left → n → Bool
 {-# RULES "(!!) → packetIndexL" [1] (!!) = packetIndexL #-}
 {-# INLINE packetIndexL #-}
 packetIndexL p i
     | i < 0 ∨ i ≥ length p = indexOutOfRange i
     | otherwise            = unsafePacketIndexL p i
 
-packetIndexR ∷ Integral n ⇒ Packet Right → n → Bool
+packetIndexR ∷ (Integral n, Show n) ⇒ Packet Right → n → Bool
 {-# RULES "(!!) → packetIndexR" [1] (!!) = packetIndexR #-}
 {-# INLINE packetIndexR #-}
 packetIndexR p i
@@ -452,7 +452,7 @@ packetOverflow ∷ α
 packetOverflow = error "Data.Bitstream.Packet: packet size overflow"
 
 {-# INLINE indexOutOfRange #-}
-indexOutOfRange ∷ Integral n ⇒ n → α
+indexOutOfRange ∷ (Integral n, Show n) ⇒ n → α
 indexOutOfRange n = error ("Data.Bitstream.Packet: index out of range: " L.++ show n)
 
 -- | /O(1)/ @'full' p == 'True'@ iff @'length' p == 8@, otherwise it

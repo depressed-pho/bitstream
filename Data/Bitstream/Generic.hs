@@ -123,7 +123,7 @@ import Data.Bitstream.Fusion
 import Data.Maybe
 import Data.Vector.Fusion.Stream (Stream)
 import qualified Data.Vector.Fusion.Stream as S
-import Prelude ( Bool(..), Integer, Integral(..), Num(..), ($)
+import Prelude ( Bool(..), Integer, Integral(..), Num(..), Show(..), ($)
                , fst, flip, otherwise, snd
                )
 import Prelude.Unicode hiding ((∈), (∉), (⧺))
@@ -771,7 +771,7 @@ partition ∷ Bitstream α ⇒ (Bool → Bool) → α → (α, α)
 partition = basicPartition
 
 -- | /O(n)/ 'Bitstream' index (subscript) operator, starting from 0.
-(!!) ∷ (Bitstream α, Integral n) ⇒ α → n → Bool
+(!!) ∷ (Bitstream α, Integral n, Show n) ⇒ α → n → Bool
 {-# RULES "Bitstream (!!)/unstream fusion"
     ∀s n. (unstream s) !! n = genericIndex s n
   #-}

@@ -595,6 +595,7 @@ lazyOr (Chunk x xs)
 
 lazyIndex ∷ ( G.Bitstream (SB.Bitstream d)
             , Integral n
+            , Show n
             )
           ⇒ Bitstream d
           → n
@@ -618,7 +619,7 @@ emptyStream
     = error "Data.Bitstream.Lazy: empty stream"
 
 {-# INLINE indexOutOfRange #-}
-indexOutOfRange ∷ Integral n ⇒ n → α
+indexOutOfRange ∷ (Integral n, Show n) ⇒ n → α
 indexOutOfRange n = error ("Data.Bitstream.Lazy: index out of range: " L.++ show n)
 
 -- | /O(n)/ Convert a list of chunks, strict 'SB.Bitstream's, into a

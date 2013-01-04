@@ -32,7 +32,7 @@ genericDrop ∷ Integral n ⇒ n → Stream α → Stream α
 {-# INLINE genericDrop #-}
 genericDrop = M.genericDrop
 
-genericIndex ∷ Integral n ⇒ Stream α → n → α
+genericIndex ∷ (Integral n, Show n) ⇒ Stream α → n → α
 {-# INLINE genericIndex #-}
 genericIndex s = unId ∘ M.genericIndex s
 

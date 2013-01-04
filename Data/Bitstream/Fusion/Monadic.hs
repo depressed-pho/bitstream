@@ -66,7 +66,7 @@ genericDrop n0 (Stream step s0 sz) = Stream step' (s0, Just n0) (toMax sz)
                  Skip    s' → return $ Skip    (s', Nothing)
                  Done       → return Done
 
-genericIndex ∷ (Monad m, Integral n) ⇒ Stream m α → n → m α
+genericIndex ∷ (Monad m, Integral n, Show n) ⇒ Stream m α → n → m α
 {-# INLINE [0] genericIndex #-}
 {-# RULES "genericIndex → (!!)" genericIndex = (!!) #-}
 genericIndex (Stream step s0 _) i0

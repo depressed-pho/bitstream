@@ -576,7 +576,7 @@ strictOr ∷ G.Bitstream (Packet d) ⇒ Bitstream d → Bool
 strictOr (Bitstream _ v)
     = SV.any or v
 
-strictIndex ∷ (G.Bitstream (Packet d), Integral n) ⇒ Bitstream d → n → Bool
+strictIndex ∷ (G.Bitstream (Packet d), Integral n, Show n) ⇒ Bitstream d → n → Bool
 {-# RULES "(!!) → strictIndex" [1]
     ∀(v ∷ G.Bitstream (Packet d) ⇒ Bitstream d) n.
     v !! n = strictIndex v n #-}
@@ -597,7 +597,7 @@ emptyStream
     = error "Data.Bitstream: empty stream"
 
 {-# INLINE indexOutOfRange #-}
-indexOutOfRange ∷ Integral n ⇒ n → α
+indexOutOfRange ∷ (Integral n, Show n) ⇒ n → α
 indexOutOfRange n = error ("Data.Bitstream: index out of range: " L.++ show n)
 
 -- | /O(n)/ Convert a strict 'BS.ByteString' into a strict
