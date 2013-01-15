@@ -1,0 +1,23 @@
+# -*- org -*-
+#+STARTUP: indent
+#+STARTUP: fnprompt
+#+STARTUP: logdone
+#+OPTIONS: ^:nil
+#+TODO: UNRELEASED(u) | RELEASED(r)
+
+* UNRELEASED 0.2.0.2
+- Applied a patch by Jaap ter Woerds:
+  Fix the compilation on GHC 7.4 by adding Show constraint where appropriate.
+
+* RELEASED bitstream-0.2.0.1
+CLOSED: [2011-08-26]
+- Applied a patch by Mark Wotton:
+  Fix the compilation on GHC 7.2.1 by adding ={-# LANGUAGE BangPatterns #-}=.
+
+* RELEASED bistream-0.2
+CLOSED: [2011-07-08]
+- bugfix: Make stream fusion actually work
+- Implement fromBits / toBits
+- Strict Bitstreams' bit length should only be a hint, just like stream size.
+- Strict Bitstream should keep bit-length maintained
+- Strict bitstrems should use unstreamPackets instead of hand-written unfoldr-based unstreamers.

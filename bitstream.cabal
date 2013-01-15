@@ -6,7 +6,7 @@ Description:
         fusion. This is like @bytestring@ but stores bits instead of
         bytes.
 
-Version: 0.2.0.1
+Version: 0.2.0.2
 License: PublicDomain
 License-File: COPYING
 Author: PHO <pho at cielonegro dot org>
@@ -15,12 +15,13 @@ Stability: experimental
 Homepage: http://cielonegro.org/Bitstream.html
 Bug-Reports: http://static.cielonegro.org/ditz/bitstream/
 Category: Data
-Tested-With: GHC == 7.0.1
+Tested-With: GHC == 7.4.1
 Cabal-Version: >= 1.10
 Build-Type: Simple
 Extra-Source-Files:
+    AUTHORS
     COPYING
-    ChangeLog
+    NEWS
 
 Source-Repository head
     Type: git
