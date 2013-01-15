@@ -12,7 +12,7 @@ License-File: COPYING
 Author: PHO <pho at cielonegro dot org>
 Maintainer: PHO <pho at cielonegro dot org>
 Stability: experimental
-Homepage: http://cielonegro.org/Bitstream.html
+Homepage: https://github.com/phonohawk/bitstream
 Bug-Reports: https://github.com/phonohawk/bitstream/issues
 Category: Data
 Tested-With: GHC == 7.4.1
