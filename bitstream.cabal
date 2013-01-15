@@ -32,7 +32,7 @@ Library
         base                 == 4.*,
         base-unicode-symbols == 0.2.*,
         bytestring           == 0.9.*,
-        vector               == 0.7.*
+        vector               == 0.10.*
 
     Exposed-Modules:
         Data.Bitstream
@@ -57,11 +57,11 @@ Test-Suite test-strict-bitstream
     Other-Modules:
         Test.Bitstream.Utils
     Build-Depends:
-        QuickCheck           == 2.4.*,
+        QuickCheck           == 2.5.*,
         base                 == 4.*,
         base-unicode-symbols == 0.2.*,
         bytestring           == 0.9.*,
-        vector               == 0.7.*
+        vector               == 0.10.*
     Default-Language: Haskell2010
     GHC-Options:
         -Wall -fno-warn-orphans
@@ -72,11 +72,11 @@ Test-Suite test-lazy-bitstream
     Other-Modules:
         Test.Bitstream.Utils
     Build-Depends:
-        QuickCheck           == 2.4.*,
+        QuickCheck           == 2.5.*,
         base                 == 4.*,
         base-unicode-symbols == 0.2.*,
         bytestring           == 0.9.*,
-        vector               == 0.7.*
+        vector               == 0.10.*
     Default-Language: Haskell2010
     GHC-Options:
         -Wall -fno-warn-orphans
