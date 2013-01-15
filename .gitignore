@@ -1,9 +1,7 @@
 *.hi
 *.o
 
-.ditz-config
 .hpc
 *.tix
 Setup
 dist
-report.html
