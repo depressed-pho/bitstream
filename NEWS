@@ -5,17 +5,19 @@
 #+OPTIONS: ^:nil
 #+TODO: UNRELEASED(u) | RELEASED(r)
 
-* UNRELEASED 0.2.0.2
+* RELEASED 0.2.0.2
+CLOSED: [2013-01-15 Tue 18:55]
 - Applied a patch by Jaap ter Woerds:
   Fix the compilation on GHC 7.4 by adding Show constraint where appropriate.
+- Migrate the repository to GitHub.
 
 * RELEASED bitstream-0.2.0.1
-CLOSED: [2011-08-26]
+CLOSED: [2011-08-26 Aug 18:44]
 - Applied a patch by Mark Wotton:
   Fix the compilation on GHC 7.2.1 by adding ={-# LANGUAGE BangPatterns #-}=.
 
 * RELEASED bistream-0.2
-CLOSED: [2011-07-08]
+CLOSED: [2011-07-08 Jul 13:48]
 - bugfix: Make stream fusion actually work
 - Implement fromBits / toBits
 - Strict Bitstreams' bit length should only be a hint, just like stream size.

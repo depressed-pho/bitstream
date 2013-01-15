@@ -13,7 +13,7 @@ Author: PHO <pho at cielonegro dot org>
 Maintainer: PHO <pho at cielonegro dot org>
 Stability: experimental
 Homepage: http://cielonegro.org/Bitstream.html
-Bug-Reports: http://static.cielonegro.org/ditz/bitstream/
+Bug-Reports: https://github.com/phonohawk/bitstream/issues
 Category: Data
 Tested-With: GHC == 7.4.1
 Cabal-Version: >= 1.10
@@ -25,7 +25,7 @@ Extra-Source-Files:
 
 Source-Repository head
     Type: git
-    Location: git://git.cielonegro.org/bitstream.git
+    Location: git://github.com/phonohawk/bitstream.git
 
 Library
     Build-Depends:
