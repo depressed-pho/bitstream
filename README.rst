@@ -1,6 +1,6 @@
-======
-README
-======
+===========================
+About the bitstream package
+===========================
 
 Fast, packed, strict and lazy bit vectors with stream fusion. This is
 like `bytestring`_ but stores bits instead of bytes.
