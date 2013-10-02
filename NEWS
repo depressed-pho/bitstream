@@ -5,6 +5,11 @@
 #+OPTIONS: ^:nil
 #+TODO: UNRELEASED(u) | RELEASED(r)
 
+* RELEASED 0.2.0.3
+CLOSED: [2013-10-02 水 21:22]
+- Fix compilation on GHC 7.6 by adding (Integral α) for each (Bits
+  α), reported by Luca Molari.
+
 * RELEASED 0.2.0.2
 CLOSED: [2013-01-15 Tue 18:55]
 - Applied a patch by Jaap ter Woerds:

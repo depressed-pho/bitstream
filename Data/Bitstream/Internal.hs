@@ -96,7 +96,7 @@ bePacketsFromNBits n0 β = Stream step (n0, nOctets n0 ⋅ 8) (Exact (nOctets n0
           | otherwise
               = return Done
 
-lePacketsToBits ∷ (Monad m, Bits β) ⇒ Stream m (Packet Left) → m β
+lePacketsToBits ∷ (Monad m, Integral β, Bits β) ⇒ Stream m (Packet Left) → m β
 {-# INLINEABLE lePacketsToBits #-}
 lePacketsToBits (Stream step s0 _) = go (s0, 0, 0)
     where
@@ -111,7 +111,7 @@ lePacketsToBits (Stream step s0 _) = go (s0, 0, 0)
                  Skip    s' → go (s', o, n)
                  Done       → return n
 
-bePacketsToBits ∷ (Monad m, Bits β) ⇒ Stream m (Packet Right) → m β
+bePacketsToBits ∷ (Monad m, Integral β, Bits β) ⇒ Stream m (Packet Right) → m β
 {-# INLINEABLE bePacketsToBits #-}
 bePacketsToBits (Stream step s0 _) = go (s0, 0)
     where

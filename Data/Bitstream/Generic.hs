@@ -184,7 +184,7 @@ class Bitstream α where
     basicPartition f α = (filter f α, filter ((¬) ∘ f) α)
 
     basicFromNBits ∷ (Integral n, Integral β, Bits β) ⇒ n → β → α
-    basicToBits    ∷ Bits β ⇒ α → β
+    basicToBits    ∷ (Integral β, Bits β) ⇒ α → β
 
 
 -- | /O(1)/ The empty 'Bitstream'.
@@ -307,7 +307,7 @@ fromNBits ∷ (Integral n, Integral β, Bits β, Bitstream α) ⇒ n → β → 
 fromNBits = basicFromNBits
 
 -- | /O(n)/ Convert a 'Bitstream' into a 'Bits'.
-toBits ∷ (Bitstream α, Bits β) ⇒ α → β
+toBits ∷ (Bitstream α, Integral β, Bits β) ⇒ α → β
 {-# INLINE [0] toBits #-}
 toBits = basicToBits
 
