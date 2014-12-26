@@ -292,12 +292,10 @@ unstream = basicUnstream
     ∀v. unstream (stream v) = v
   #-}
 
--- | /O(n)/ Convert a 'Bits' into a 'Bitstream'. Note that this
--- function is undefined for instances of 'Bits' which have no fixed
--- 'bitSize' (like 'Integer').
-fromBits ∷ (Integral β, Bits β, Bitstream α) ⇒ β → α
+-- | /O(n)/ Convert a 'FiniteBits' into a 'Bitstream'.
+fromBits ∷ (Integral β, FiniteBits β, Bitstream α) ⇒ β → α
 {-# INLINE fromBits #-}
-fromBits β = basicFromNBits (bitSize β) β
+fromBits β = basicFromNBits (finiteBitSize β) β
 
 -- | /O(n)/ Convert the lower 'n' bits of the given 'Bits'. In the
 -- case that more bits are requested than the 'Bits' provides, this
