@@ -29,7 +29,7 @@ Source-Repository head
 
 Library
     Build-Depends:
-        base                 == 4.*,
+        base                 >= 4.7 && < 5,
         base-unicode-symbols == 0.2.*,
         bytestring           >= 0.9 && < 0.11,
         vector               == 0.10.*
@@ -57,7 +57,7 @@ Test-Suite test-strict-bitstream
     Other-Modules:
         Test.Bitstream.Utils
     Build-Depends:
-        QuickCheck           == 2.5.*,
+        QuickCheck           >= 2.5,
         base                 == 4.*,
         base-unicode-symbols == 0.2.*,
         bytestring           >= 0.9 && < 0.11,
@@ -72,7 +72,7 @@ Test-Suite test-lazy-bitstream
     Other-Modules:
         Test.Bitstream.Utils
     Build-Depends:
-        QuickCheck           == 2.5.*,
+        QuickCheck           >= 2.5,
         base                 == 4.*,
         base-unicode-symbols == 0.2.*,
         bytestring           >= 0.9 && < 0.11,

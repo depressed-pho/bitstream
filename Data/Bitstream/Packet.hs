@@ -31,7 +31,7 @@ import Data.Vector.Fusion.Stream.Size
 import Data.Vector.Fusion.Util
 import Data.Word
 import Foreign.Storable
-import Prelude ( Bool(..), Eq(..), Int, Integral, Ord(..), Maybe(..)
+import Prelude ( Bool(..), Eq(..), Int, Integral, Maybe(..)
                , Monad(..), Num(..), Show(..), ($!), error, fromIntegral
                , otherwise
                )
