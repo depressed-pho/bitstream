@@ -1,0 +1,51 @@
+2015-01-15  PHO  <pho@cielonegro.org>
+
+	* bitstream.cabal: Bump version to 0.2.0.4
+
+	* Data/Bitstream/Generic.hs (fromBits) [base >= 4.7]: Require
+	FiniteBits not just Bits,  Patch by Liyang HU (#2). This is a
+	signature change only for those who with base >= 4.7. base-4.6
+	users will not see any changes.
+
+	* Data/Bitstream/Packet.hs: Remove redundant import of Ord(..),
+	Patch by Liyang HU (#2).
+
+	* bitstream.cabal (Build-Depends): Relax version constraint on
+	QuickCheck from == 2.5.* to >= 2.5,  Patch by Liyang HU (#2).
+
+2015-10-02  PHO  <pho@cielonegro.org>
+
+	* bitstream.cabal: Bump version to 0.2.0.3
+
+	* Unknown: Fix compilation on GHC 7.6 by adding (Integral α) for
+	each (Bits α),  Reported by Luca Molari.
+
+2013-01-15  PHO  <pho@cielonegro.org>
+
+	* bitstream.cabal: Bump version to 0.2.0.2
+
+	* Unknown: Fix the compilation on GHC 7.4 by adding Show
+	constraint where appropriate,  Patch by Jaap ter Woerds.
+
+2011-08-26  PHO  <pho@cielonegro.org>
+
+	* bitstream.cabal: Bump version to 0.2.0.1
+
+	* Unknown: Fix the compilation on GHC 7.2.1 by adding {-# LANGUAGE
+	BangPatterns #-},  Patch by Mark Wotton.
+
+2011-07-08  PHO  <pho@cielonegro.org>
+
+	* bitstream.cabal: Bump version to 0.2
+
+	* Unknown: Make stream fusion actually work.
+
+	* Unknown: Implement fromBits / toBits
+
+	* Unknown: Strict Bitstreams' bit length should only be a hint,
+	just like stream size.
+
+	* Unknown: Strict Bitstreams should keep bit-length maintained.
+
+	* Unknown: Strict bitstrems should use unstreamPackets instead of
+	hand-written unfoldr-based unstreamers.

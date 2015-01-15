@@ -1,5 +1,6 @@
 {-# LANGUAGE
     BangPatterns
+  , CPP
   , RankNTypes
   , UnicodeSyntax
   #-}
@@ -292,10 +293,19 @@ unstream = basicUnstream
     ∀v. unstream (stream v) = v
   #-}
 
+#if MIN_VERSION_base(4,7,0)
 -- | /O(n)/ Convert a 'FiniteBits' into a 'Bitstream'.
 fromBits ∷ (Integral β, FiniteBits β, Bitstream α) ⇒ β → α
 {-# INLINE fromBits #-}
 fromBits β = basicFromNBits (finiteBitSize β) β
+#else
+-- | /O(n)/ Convert a 'Bits' into a 'Bitstream'. Note that this
+-- function is undefined for instances of 'Bits' which have no fixed
+-- 'bitSize' (like 'Integer').
+fromBits ∷ (Integral β, Bits β, Bitstream α) ⇒ β → α
+{-# INLINE fromBits #-}
+fromBits β = basicFromNBits (bitSize β) β
+#endif
 
 -- | /O(n)/ Convert the lower 'n' bits of the given 'Bits'. In the
 -- case that more bits are requested than the 'Bits' provides, this
