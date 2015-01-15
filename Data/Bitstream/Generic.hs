@@ -147,10 +147,6 @@ infixl 9 !!
 -- Methods of this class are functions of 'Bitstream's that are either
 -- basic functions to implement other ones, or have to preserve their
 -- packet/chunk structure for efficiency and strictness behaviour.
---
--- Minimum complete implementation: /All but/ 'basicCons'',
--- 'basicConcat', 'basicReplicate', 'basicPartition' and
--- 'basicFromBits'.
 class Bitstream α where
     basicStream   ∷ α → Stream Bool
     basicUnstream ∷ Stream Bool → α
