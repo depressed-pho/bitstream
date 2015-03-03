@@ -1,3 +1,8 @@
+2015-03-04  PHO  <pho@cielonegro.org>
+
+	* Data/Bitstream.hs, Data/Bitstream/Lazy.hs: Fix Haddock comments
+	mentioning a wrong module name,  Reported by sebastianv89 (#3).
+
 2015-01-15  PHO  <pho@cielonegro.org>
 
 	* bitstream.cabal: Bump version to 0.2.0.4

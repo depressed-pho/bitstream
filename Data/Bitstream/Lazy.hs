@@ -12,7 +12,7 @@
 -- This module is intended to be imported @qualified@, to avoid name
 -- clashes with "Prelude" functions. e.g.
 --
--- > import qualified Data.BitStream.Lazy as LS
+-- > import qualified Data.Bitstream.Lazy as LS
 --
 -- Lazy 'Bitstream's are made of possibly infinite list of strict
 -- 'SB.Bitstream's as chunks, and each chunks have at least 1 bit.

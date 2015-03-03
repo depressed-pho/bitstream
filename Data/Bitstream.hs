@@ -13,7 +13,7 @@
 -- This module is intended to be imported @qualified@, to avoid name
 -- clashes with "Prelude" functions. e.g.
 --
--- > import qualified Data.BitStream as BS
+-- > import qualified Data.Bitstream as BS
 --
 -- Strict 'Bitstream's are made of strict 'SV.Vector' of 'Packet's,
 -- and each 'Packet's have at least 1 bit.
