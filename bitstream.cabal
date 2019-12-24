@@ -6,7 +6,7 @@ Description:
         fusion. This is like @bytestring@ but stores bits instead of
         bytes.
 
-Version: 0.2.0.4
+Version: 0.3.0.0
 License: PublicDomain
 License-File: COPYING
 Author: PHO <pho at cielonegro dot org>
