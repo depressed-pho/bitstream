@@ -1,5 +1,6 @@
 {-# LANGUAGE
-    FlexibleContexts
+    CPP
+  , FlexibleContexts
   , OverloadedStrings
   , ScopedTypeVariables
   , UndecidableInstances
@@ -52,6 +53,8 @@ instance Arbitrary LS.ByteString where
                 do xs ← replicateM n arbitrary
                    return (LS.unfoldr uncons xs)
 
+#if MIN_VERSION_QuickCheck(2,9,0)
+#else
 instance ( Arbitrary α, Arbitrary β, Arbitrary γ
          , Arbitrary δ, Arbitrary ε, Arbitrary ζ
          )
@@ -77,6 +80,7 @@ instance ( Arbitrary α, Arbitrary β, Arbitrary γ
                    ζ ← arbitrary
                    η ← arbitrary
                    return (α, β, γ, δ, ε, ζ, η)
+#endif
 
 runTest ∷ Property → IO ()
 runTest prop
