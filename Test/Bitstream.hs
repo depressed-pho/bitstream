@@ -1,5 +1,6 @@
 {-# LANGUAGE
-    FlexibleContexts
+    CPP
+  , FlexibleContexts
   , OverloadedStrings
   , ScopedTypeVariables
   , UndecidableInstances
@@ -14,7 +15,11 @@ import Data.List
 import Data.List.Unicode
 import qualified Data.Monoid as M
 import qualified Data.Monoid.Unicode as M
+#if MIN_VERSION_vector(0,11,0)
+import qualified Data.Vector.Fusion.Bundle as S
+#else
 import qualified Data.Vector.Fusion.Stream as S
+#endif
 import Prelude.Unicode
 import Test.Bitstream.Utils
 import Test.QuickCheck hiding ((.&.))

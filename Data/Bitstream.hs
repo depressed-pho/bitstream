@@ -1,5 +1,6 @@
 {-# LANGUAGE
     BangPatterns
+  , CPP
   , FlexibleContexts
   , FlexibleInstances
   , ScopedTypeVariables
@@ -42,7 +43,7 @@ module Data.Bitstream
     , fromNBits
     , toBits
 
-      -- ** Converting from\/to 'S.Stream's
+      -- ** Converting from\/to 'Stream's
     , stream
     , unstream
     , streamPackets
@@ -174,9 +175,18 @@ import qualified Data.Vector.Generic as GV
 import qualified Data.Vector.Generic.New as New
 import qualified Data.Vector.Generic.Mutable as MVector
 import qualified Data.Vector.Storable as SV
-import qualified Data.Vector.Fusion.Stream as S
-import Data.Vector.Fusion.Stream.Monadic (Stream(..), Step(..))
+#if MIN_VERSION_vector(0,11,0)
+import qualified Data.Vector.Fusion.Bundle as S
+import qualified Data.Vector.Fusion.Bundle.Monadic as B
+import Data.Vector.Fusion.Bundle (Bundle)
+import Data.Vector.Fusion.Bundle.Size
+#else
 import Data.Vector.Fusion.Stream.Size
+#endif
+#if MIN_VERSION_base(4,9,0)
+import Prelude (Semigroup(..))
+#endif
+import Data.Vector.Fusion.Stream.Monadic (Stream(..), Step(..))
 import Data.Vector.Fusion.Util
 import Prelude ( Bool(..), Eq(..), Int, Integral, Maybe(..), Monad(..), Num(..)
                , Ord(..), Show(..), ($), error, fmap, fromIntegral, fst
@@ -227,6 +237,16 @@ instance G.Bitstream (Bitstream d) ⇒ Eq (Bitstream d) where
 instance G.Bitstream (Bitstream d) ⇒ Ord (Bitstream d) where
     {-# INLINE compare #-}
     x `compare` y = stream x `compare` stream y
+
+#if MIN_VERSION_base(4,9,0)
+-- | 'Bitstream' forms 'Semigroup' in the same way as ordinary lists:
+--
+-- @
+-- '(<>)' = 'append'
+-- @
+instance G.Bitstream (Bitstream d) ⇒ Semigroup (Bitstream d) where
+    (<>) = (⧺)
+#endif
 
 -- | 'Bitstream' forms 'Monoid' in the same way as ordinary lists:
 --
@@ -350,7 +370,11 @@ instance G.Bitstream (Bitstream Right) where
     {-# INLINEABLE basicToBits #-}
     basicToBits = unId ∘ bePacketsToBits ∘ streamPackets
 
-strictStream ∷ G.Bitstream (Packet d) ⇒ Bitstream d → S.Stream Bool
+#if MIN_VERSION_vector(0,11,0)
+strictStream ∷ G.Bitstream (Packet d) ⇒ Bitstream d → Bundle SV.Vector Bool
+#else
+strictStream ∷ G.Bitstream (Packet d) ⇒ Bitstream d → Stream Bool
+#endif
 {-# INLINE strictStream #-}
 strictStream (Bitstream l v)
     = {-# CORE "Strict Bitstream stream" #-}
@@ -358,7 +382,11 @@ strictStream (Bitstream l v)
       `S.sized`
       Exact l
 
-strictUnstream ∷ G.Bitstream (Packet d) ⇒ S.Stream Bool → Bitstream d
+#if MIN_VERSION_vector(0,11,0)
+strictUnstream ∷ G.Bitstream (Packet d) ⇒ Bundle SV.Vector Bool → Bitstream d
+#else
+strictUnstream ∷ G.Bitstream (Packet d) ⇒ Stream Bool → Bitstream d
+#endif
 {-# INLINE strictUnstream #-}
 strictUnstream
     = {-# CORE "Strict Bitstream unstream" #-}
@@ -485,7 +513,11 @@ strictTakeWhile f
     = unstreamPackets ∘ takeWhilePS ∘ streamPackets
     where
       {-# INLINE takeWhilePS #-}
+#if MIN_VERSION_vector(0,11,0)
+      takeWhilePS (B.Bundle (Stream step s0) _ _ sz) = B.fromStream (Stream step' (Just s0)) (toMax sz)
+#else
       takeWhilePS (Stream step s0 sz) = Stream step' (Just s0) (toMax sz)
+#endif
           where
             {-# INLINE step' #-}
             step' Nothing  = return Done
@@ -523,7 +555,11 @@ strictFilter f
     = unstreamPackets ∘ filterPS ∘ streamPackets
     where
       {-# INLINE filterPS #-}
+#if MIN_VERSION_vector(0,11,0)
+      filterPS (B.Bundle (Stream step s0) _ _ sz) = B.fromStream (Stream step' s0) (toMax sz)
+#else
       filterPS (Stream step s0 sz) = Stream step' s0 (toMax sz)
+#endif
           where
             {-# INLINE step' #-}
             step' s
@@ -622,12 +658,21 @@ toByteString ∷ ∀d. ( G.Bitstream (Bitstream d)
                    , G.Bitstream (Packet d)
                                      ) ⇒ Bitstream d → BS.ByteString
 toByteString = unstreamBS
+#if MIN_VERSION_vector(0,11,0)
+             ∘ (packPackets ∷ B.Bundle Id SV.Vector Bool → B.Bundle Id SV.Vector (Packet d))
+#else
              ∘ (packPackets ∷ Stream Id Bool → Stream Id (Packet d))
+#endif
              ∘ stream
 
-unstreamBS ∷ Stream Id (Packet d) → BS.ByteString
 {-# INLINE unstreamBS #-}
+#if MIN_VERSION_vector(0,11,0)
+unstreamBS ∷ B.Bundle Id SV.Vector (Packet d) → BS.ByteString
+unstreamBS (B.Bundle (Stream step s0) _ _ sz)
+#else
+unstreamBS ∷ Stream Id (Packet d) → BS.ByteString
 unstreamBS (Stream step s0 sz)
+#endif
     = case upperBound sz of
         Just n  → fst $ BS.unfoldrN n (unId ∘ go) s0
         Nothing → BS.unfoldr (unId ∘ go) s0
@@ -662,13 +707,21 @@ toPackets ∷ Bitstream d → SV.Vector (Packet d)
 {-# INLINE toPackets #-}
 toPackets (Bitstream _ d) = d
 
--- | /O(1)/ Convert a 'Bitstream' into a 'S.Stream' of 'Packet's.
-streamPackets ∷ Bitstream d → S.Stream (Packet d)
+-- | /O(1)/ Convert a 'Bitstream' into a 'Stream' of 'Packet's.
+#if MIN_VERSION_vector(0,11,0)
+streamPackets ∷ Bitstream d → Bundle SV.Vector (Packet d)
+#else
+streamPackets ∷ Bitstream d → Stream (Packet d)
+#endif
 {-# NOINLINE streamPackets #-}
 streamPackets (Bitstream _ v) = GV.stream v
 
--- | /O(n)/ Convert a 'S.Stream' of 'Packet's into 'Bitstream'.
-unstreamPackets ∷ G.Bitstream (Packet d) ⇒ S.Stream (Packet d) → Bitstream d
+-- | /O(n)/ Convert a 'Stream' of 'Packet's into 'Bitstream'.
+#if MIN_VERSION_vector(0,11,0)
+unstreamPackets ∷ G.Bitstream (Packet d) ⇒ Bundle SV.Vector (Packet d) → Bitstream d
+#else
+unstreamPackets ∷ G.Bitstream (Packet d) ⇒ Stream (Packet d) → Bitstream d
+#endif
 {-# NOINLINE unstreamPackets #-}
 unstreamPackets s
     = let !v = GV.unstream s
@@ -738,7 +791,7 @@ readFile = fmap fromByteString ∘ BS.readFile
 -- | /O(n)/ Write a 'Bitstream' to a file.
 writeFile ∷ ( G.Bitstream (Bitstream d)
             , G.Bitstream (Packet d)
-            ) 
+            )
           ⇒ FilePath
           → Bitstream d
           → IO ()

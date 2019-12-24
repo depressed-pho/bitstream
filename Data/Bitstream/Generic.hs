@@ -122,8 +122,14 @@ import qualified Data.List as L
 import Data.Bits
 import Data.Bitstream.Fusion
 import Data.Maybe
+#if MIN_VERSION_vector(0,11,0)
+import Data.Vector.Fusion.Bundle (Bundle)
+import qualified Data.Vector.Fusion.Bundle as S
+import qualified Data.Vector.Storable as SV
+#else
 import Data.Vector.Fusion.Stream (Stream)
 import qualified Data.Vector.Fusion.Stream as S
+#endif
 import Prelude ( Bool(..), Integer, Integral(..), Num(..), Show(..), ($)
                , fst, flip, otherwise, snd
                )
@@ -148,8 +154,13 @@ infixl 9 !!
 -- basic functions to implement other ones, or have to preserve their
 -- packet/chunk structure for efficiency and strictness behaviour.
 class Bitstream α where
+#if MIN_VERSION_vector(0,11,0)
+    basicStream   ∷ α → Bundle SV.Vector Bool
+    basicUnstream ∷ Bundle SV.Vector Bool → α
+#else
     basicStream   ∷ α → Stream Bool
     basicUnstream ∷ Stream Bool → α
+#endif
 
     basicCons   ∷ Bool → α → α
     basicCons'  ∷ Bool → α → α
@@ -272,12 +283,20 @@ unpack = S.toList ∘ stream
 -- The automatic fusion rules are carefully designed to fire only when
 -- there aren't any reason to preserve the original packet / chunk
 -- structure.
+#if MIN_VERSION_vector(0,11,0)
+stream ∷ Bitstream α ⇒ α → Bundle SV.Vector Bool
+#else
 stream ∷ Bitstream α ⇒ α → Stream Bool
+#endif
 {-# NOINLINE stream #-}
 stream = basicStream
 
 -- | /O(n)/ Convert a 'S.Stream' of 'Bool' into a 'Bitstream'.
+#if MIN_VERSION_vector(0,11,0)
+unstream ∷ Bitstream α ⇒ Bundle SV.Vector Bool → α
+#else
 unstream ∷ Bitstream α ⇒ Stream Bool → α
+#endif
 {-# NOINLINE unstream #-}
 unstream = basicUnstream
 
@@ -677,7 +696,7 @@ dropWhile = basicDropWhile
 -- returns a tuple where first element is longest prefix (possibly
 -- 'empty') of @xs@ of bits that satisfy @p@ and second element is the
 -- remainder of the 'Bitstream'.
--- 
+--
 -- 'span' @p xs@ is equivalent to @('takeWhile' p xs, 'dropWhile' p
 -- xs)@
 span ∷ Bitstream α ⇒ (Bool → Bool) → α → (α, α)

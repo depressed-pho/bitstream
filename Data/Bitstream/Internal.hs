@@ -1,13 +1,16 @@
 {-# LANGUAGE
     BangPatterns
+  , CPP
   , FlexibleContexts
   , UnicodeSyntax
   #-}
 module Data.Bitstream.Internal
     ( packPackets
+    , packPacketsSize
 
     , lePacketsFromNBits
     , bePacketsFromNBits
+    , packetsFromNBitsSize
 
     , lePacketsToBits
     , bePacketsToBits
@@ -17,22 +20,40 @@ import Data.Bits
 import Data.Bitstream.Generic
 import Data.Bitstream.Packet
 import Data.Vector.Fusion.Stream.Monadic (Stream(..), Step(..))
+#if MIN_VERSION_vector(0,11,0)
+import qualified Data.Vector.Fusion.Bundle.Monadic as B
+import Data.Vector.Fusion.Bundle.Monadic (Bundle)
+import Data.Vector.Fusion.Bundle.Size
+#else
 import Data.Vector.Fusion.Stream.Size
+#endif
 import Prelude hiding (length, null)
 import Prelude.Unicode
 
-packPackets ∷ (Bitstream (Packet d), Monad m) ⇒ Stream m Bool → Stream m (Packet d)
+packPacketsSize ∷ Size -> Size
+{-# INLINE packPacketsSize #-}
+packPacketsSize sz = case sz of
+    Exact n → Exact ((n+7) `div` 8)
+    Max   n → Max   ((n+7) `div` 8)
+    Unknown → Unknown
+
+#if MIN_VERSION_vector(0,11,0)
+inplace :: Monad m => (Stream m a -> Stream m b)
+        -> (Size -> Size) -> Bundle m v a -> Bundle m v b
+inplace f g b = b `seq` B.fromStream (f (B.elements b)) (g (B.size b))
+#endif
+
 {-# INLINEABLE packPackets #-}
-packPackets (Stream step s0 sz) = Stream step' ((∅), Just s0) sz'
+#if MIN_VERSION_vector(0,11,0)
+packPackets ∷ (Bitstream (Packet d), Monad m) ⇒ Bundle m v Bool → Bundle m v (Packet d)
+packPackets = inplace (\(Stream s s0) -> Stream (step' s) ((∅), Just s0)) packPacketsSize
+#else
+packPackets ∷ (Bitstream (Packet d), Monad m) ⇒ Stream m Bool → Stream m (Packet d)
+packPackets (Stream s s0 sz) = Stream (step' s) ((∅), Just s0) (packPacketsSize sz)
+#endif
     where
-      sz' ∷ Size
-      {-# INLINE sz' #-}
-      sz' = case sz of
-              Exact n → Exact ((n+7) `div` 8)
-              Max   n → Max   ((n+7) `div` 8)
-              Unknown → Unknown
       {-# INLINE step' #-}
-      step' (p, Just s)
+      step' step (p, Just s)
           = do r ← step s
                case r of
                  Yield b s'
@@ -42,7 +63,7 @@ packPackets (Stream step s0 sz) = Stream step' ((∅), Just s0) sz'
                  Done
                      | null p    → return Done
                      | otherwise → return $ Yield p ((⊥)       , Nothing)
-      step' (_, Nothing)
+      step' _ (_, Nothing)
           = return Done
 
 nOctets ∷ Integral n ⇒ n → Int
@@ -50,6 +71,21 @@ nOctets ∷ Integral n ⇒ n → Int
 nOctets nBits
     = (fromIntegral nBits + 7) `div` 8
 
+packetsFromNBitsSize ∷ Integral n ⇒ n → Size
+packetsFromNBitsSize = Exact . nOctets
+
+{-# INLINEABLE lePacketsFromNBits #-}
+#if MIN_VERSION_vector(0,11,0)
+lePacketsFromNBits ∷ ( Integral n
+                     , Integral β
+                     , Bits β
+                     , Monad m
+                     )
+                   ⇒ n
+                   → β
+                   → Bundle m v (Packet Left)
+lePacketsFromNBits n0 β0 = B.fromStream (Stream step (n0, β0)) (packetsFromNBitsSize n0)
+#else
 lePacketsFromNBits ∷ ( Integral n
                      , Integral β
                      , Bits β
@@ -58,8 +94,8 @@ lePacketsFromNBits ∷ ( Integral n
                    ⇒ n
                    → β
                    → Stream m (Packet Left)
-{-# INLINEABLE lePacketsFromNBits #-}
-lePacketsFromNBits n0 β0 = Stream step (n0, β0) (Exact (nOctets n0))
+lePacketsFromNBits n0 β0 = Stream step (n0, β0) (packetsFromNBitsSize n0)
+#endif
     where
       {-# INLINE step #-}
       step (n, β)
@@ -73,6 +109,18 @@ lePacketsFromNBits n0 β0 = Stream step (n0, β0) (Exact (nOctets n0))
           | otherwise
               = return Done
 
+{-# INLINEABLE bePacketsFromNBits #-}
+#if MIN_VERSION_vector(0,11,0)
+bePacketsFromNBits ∷ ( Integral n
+                   , Integral β
+                   , Bits β
+                   , Monad m
+                   )
+                 ⇒ n
+                 → β
+                 → Bundle m v (Packet Right)
+bePacketsFromNBits n0 β = B.fromStream (Stream step (n0, nOctets n0 ⋅ 8)) (packetsFromNBitsSize n0)
+#else
 bePacketsFromNBits ∷ ( Integral n
                      , Integral β
                      , Bits β
@@ -81,8 +129,8 @@ bePacketsFromNBits ∷ ( Integral n
                    ⇒ n
                    → β
                    → Stream m (Packet Right)
-{-# INLINEABLE bePacketsFromNBits #-}
-bePacketsFromNBits n0 β = Stream step (n0, nOctets n0 ⋅ 8) (Exact (nOctets n0))
+bePacketsFromNBits n0 β = Stream step (n0, nOctets n0 ⋅ 8) (bePacketsFromNBitsSize n0)
+#endif
     where
       {-# INLINE step #-}
       step (n, r)
@@ -96,9 +144,14 @@ bePacketsFromNBits n0 β = Stream step (n0, nOctets n0 ⋅ 8) (Exact (nOctets n0
           | otherwise
               = return Done
 
-lePacketsToBits ∷ (Monad m, Integral β, Bits β) ⇒ Stream m (Packet Left) → m β
 {-# INLINEABLE lePacketsToBits #-}
+#if MIN_VERSION_vector(0,11,0)
+lePacketsToBits ∷ (Monad m, Integral β, Bits β) ⇒ Bundle m v (Packet Left) → m β
+lePacketsToBits (B.Bundle (Stream step s0) _ _ _) = go (s0, 0, 0)
+#else
+lePacketsToBits ∷ (Monad m, Integral β, Bits β) ⇒ Stream m (Packet Left) → m β
 lePacketsToBits (Stream step s0 _) = go (s0, 0, 0)
+#endif
     where
       {-# INLINE go #-}
       go (s, o, n)
@@ -111,9 +164,14 @@ lePacketsToBits (Stream step s0 _) = go (s0, 0, 0)
                  Skip    s' → go (s', o, n)
                  Done       → return n
 
-bePacketsToBits ∷ (Monad m, Integral β, Bits β) ⇒ Stream m (Packet Right) → m β
 {-# INLINEABLE bePacketsToBits #-}
+#if MIN_VERSION_vector(0,11,0)
+bePacketsToBits ∷ (Monad m, Integral β, Bits β) ⇒ Bundle m v (Packet Right) → m β
+bePacketsToBits (B.Bundle (Stream step s0) _ _ _) = go (s0, 0)
+#else
+bePacketsToBits ∷ (Monad m, Integral β, Bits β) ⇒ Stream m (Packet Right) → m β
 bePacketsToBits (Stream step s0 _) = go (s0, 0)
+#endif
     where
       {-# INLINE go #-}
       go (s, n)

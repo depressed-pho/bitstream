@@ -1,5 +1,6 @@
 {-# LANGUAGE
     BangPatterns
+  , CPP
   , EmptyDataDecls
   , FlexibleContexts
   , FlexibleInstances
@@ -25,9 +26,16 @@ import Data.Bitstream.Generic
 import Data.Bits
 import qualified Data.List as L
 import Data.Ord
+#if MIN_VERSION_vector(0,11,0)
+import qualified Data.Vector.Fusion.Bundle as S
+import qualified Data.Vector.Fusion.Bundle.Monadic as B
+import Data.Vector.Fusion.Bundle.Monadic (Bundle(..))
+import Data.Vector.Fusion.Bundle.Size
+#else
 import qualified Data.Vector.Fusion.Stream as S
-import Data.Vector.Fusion.Stream.Monadic (Stream(..), Step(..))
 import Data.Vector.Fusion.Stream.Size
+#endif
+import Data.Vector.Fusion.Stream.Monadic (Stream(..), Step(..))
 import Data.Vector.Fusion.Util
 import Data.Word
 import Foreign.Storable
@@ -126,7 +134,11 @@ instance Bitstream (Packet Left) where
     {-# INLINE basicStream #-}
     basicStream (Packet n o)
         = {-# CORE "Packet Left stream" #-}
+#if MIN_VERSION_vector(0,11,0)
+          B.fromStream (Stream step 0) (Exact n)
+#else
           Stream step 0 (Exact n)
+#endif
         where
           {-# INLINE step #-}
           step !i
@@ -134,6 +146,15 @@ instance Bitstream (Packet Left) where
               | otherwise = return $! Yield (o `testBit` i) (i+1)
 
     {-# INLINE basicUnstream #-}
+#if MIN_VERSION_vector(0,11,0)
+    basicUnstream (Bundle (Stream step s0) _ _ sz)
+        = {-# CORE "Packet Left unstream" #-}
+        case upperBound sz of
+          Just n
+              | n ≤ 8     → unId (unsafeConsume s0 0 0)
+              | otherwise → packetOverflow
+          Nothing         → unId (safeConsume   s0 0 0)
+#else
     basicUnstream (Stream step s0 sz)
         = {-# CORE "Packet Left unstream" #-}
           case upperBound sz of
@@ -141,6 +162,7 @@ instance Bitstream (Packet Left) where
                 | n ≤ 8     → unId (unsafeConsume s0 0 0)
                 | otherwise → packetOverflow
             Nothing         → unId (safeConsume   s0 0 0)
+#endif
         where
           {-# INLINE unsafeConsume #-}
           unsafeConsume s !i !o
@@ -248,7 +270,11 @@ instance Bitstream (Packet Right) where
     {-# INLINE basicStream #-}
     basicStream (Packet n o)
         = {-# CORE "Packet Right stream" #-}
+#if MIN_VERSION_vector(0,11,0)
+          B.fromStream (Stream step 0) (Exact n)
+#else
           Stream step 0 (Exact n)
+#endif
         where
           {-# INLINE step #-}
           step !i
@@ -256,6 +282,15 @@ instance Bitstream (Packet Right) where
               | otherwise = return $! Yield (o `testBit` (7-i)) (i+1)
 
     {-# INLINE basicUnstream #-}
+#if MIN_VERSION_vector(0,11,0)
+    basicUnstream (Bundle (Stream step s0) _ _ sz)
+        = {-# CORE "Packet Right unstream" #-}
+        case upperBound sz of
+          Just n
+              | n ≤ 8     → unId (unsafeConsume s0 0 0)
+              | otherwise → packetOverflow
+          Nothing         → unId (safeConsume   s0 0 0)
+#else
     basicUnstream (Stream step s0 sz)
         = {-# CORE "Packet Right unstream" #-}
           case upperBound sz of
@@ -263,6 +298,7 @@ instance Bitstream (Packet Right) where
                 | n ≤ 8     → unId (unsafeConsume s0 0 0)
                 | otherwise → packetOverflow
             Nothing         → unId (safeConsume   s0 0 0)
+#endif
         where
           {-# INLINE unsafeConsume #-}
           unsafeConsume s i o
