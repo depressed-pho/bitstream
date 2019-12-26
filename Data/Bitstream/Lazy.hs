@@ -1,5 +1,6 @@
 {-# LANGUAGE
     BangPatterns
+  , CPP
   , FlexibleContexts
   , FlexibleInstances
   , ScopedTypeVariables
@@ -170,9 +171,20 @@ import Data.Bitstream.Packet
 import qualified Data.ByteString.Lazy as LS
 import qualified Data.List as L
 import Data.Monoid
+#if MIN_VERSION_vector(0,11,0)
+import qualified Data.Vector.Fusion.Bundle as S
+import qualified Data.Vector.Fusion.Bundle.Monadic as B
+import Data.Vector.Fusion.Bundle (Bundle)
+import Data.Vector.Fusion.Bundle.Size
+#else
 import qualified Data.Vector.Fusion.Stream as S
-import Data.Vector.Fusion.Stream.Monadic (Stream(..), Step(..))
 import Data.Vector.Fusion.Stream.Size
+#endif
+#if MIN_VERSION_base(4,9,0)
+import Prelude (Semigroup(..))
+#endif
+import Prelude (seq)
+import Data.Vector.Fusion.Stream.Monadic (Stream(..), Step(..))
 import Data.Vector.Fusion.Util
 import qualified Data.Vector.Generic as GV
 import qualified Data.Vector.Generic.New as New
@@ -229,6 +241,16 @@ instance G.Bitstream (Bitstream d) ⇒ Eq (Bitstream d) where
 instance G.Bitstream (Bitstream d) ⇒ Ord (Bitstream d) where
     {-# INLINE compare #-}
     x `compare` y = stream x `compare` stream y
+
+#if MIN_VERSION_base(4,9,0)
+-- | 'Bitstream' forms 'Semigroup' in the same way as ordinary lists:
+--
+-- @
+-- '(<>)' = 'append'
+-- @
+instance G.Bitstream (Bitstream d) ⇒ Semigroup (Bitstream d) where
+    (<>) = (⧺)
+#endif
 
 -- | 'Bitstream' forms 'Monoid' in the same way as ordinary lists:
 --
@@ -360,18 +382,30 @@ instance G.Bitstream (Bitstream Right) where
     {-# INLINE basicToBits #-}
     basicToBits = unId ∘ bePacketsToBits ∘ unpackChunks ∘ streamChunks
 
-lazyStream ∷ G.Bitstream (SB.Bitstream d) ⇒ Bitstream d → S.Stream Bool
 {-# INLINE lazyStream #-}
+#if MIN_VERSION_vector(0,11,0)
+lazyStream ∷ G.Bitstream (SB.Bitstream d) ⇒ Bitstream d → Bundle SV.Vector Bool
+#else
+lazyStream ∷ G.Bitstream (SB.Bitstream d) ⇒ Bitstream d → S.Stream Bool
+#endif
 lazyStream
     = {-# CORE "Lazy Bitstream stream" #-}
       S.concatMap stream ∘ streamChunks
 
+{-# INLINE lazyUnstream #-}
+#if MIN_VERSION_vector(0,11,0)
+lazyUnstream ∷ ( G.Bitstream (SB.Bitstream d)
+               , G.Bitstream (Packet d)
+               )
+             ⇒ Bundle v Bool
+             → Bitstream d
+#else
 lazyUnstream ∷ ( G.Bitstream (SB.Bitstream d)
                , G.Bitstream (Packet d)
                )
              ⇒ S.Stream Bool
              → Bitstream d
-{-# INLINE lazyUnstream #-}
+#endif
 lazyUnstream
     = {-# CORE "Lazy Bitstream unstream" #-}
       unId ∘ unstreamChunks ∘ packChunks ∘ packPackets
@@ -655,25 +689,43 @@ toByteString ∷ ( G.Bitstream (SB.Bitstream d)
 {-# INLINE toByteString #-}
 toByteString = LS.fromChunks ∘ L.map SB.toByteString ∘ toChunks
 
+{-# NOINLINE streamChunks #-}
+#if MIN_VERSION_vector(0,11,0)
+streamChunks ∷ ( G.Bitstream (SB.Bitstream d)
+               , Monad m
+               )
+             ⇒ Bitstream d
+             → B.Bundle m v (SB.Bitstream d)
+streamChunks ch0 = B.fromStream (Stream step ch0) Unknown
+#else
 streamChunks ∷ ( G.Bitstream (SB.Bitstream d)
                , Monad m
                )
              ⇒ Bitstream d
              → Stream m (SB.Bitstream d)
-{-# NOINLINE streamChunks #-}
 streamChunks ch0 = Stream step ch0 Unknown
+#endif
     where
       {-# INLINE step #-}
       step Empty        = return Done
       step (Chunk x xs) = return $ Yield x xs
 
+{-# NOINLINE unstreamChunks #-}
+#if MIN_VERSION_vector(0,11,0)
+unstreamChunks ∷ ( G.Bitstream (SB.Bitstream d)
+                 , Monad m
+                 )
+               ⇒ B.Bundle m v (SB.Bitstream d)
+               → m (Bitstream d)
+unstreamChunks (B.Bundle (Stream step s0) _ _ _) = go s0
+#else
 unstreamChunks ∷ ( G.Bitstream (SB.Bitstream d)
                  , Monad m
                  )
                ⇒ Stream m (SB.Bitstream d)
                → m (Bitstream d)
-{-# NOINLINE unstreamChunks #-}
 unstreamChunks (Stream step s0 _) = go s0
+#endif
     where
       {-# INLINE go #-}
       go s = do r ← step s
@@ -688,18 +740,34 @@ unstreamChunks (Stream step s0 _) = go s0
 {-# RULES
 "Lazy Bitstream streamChunks/unstreamChunks fusion"
     ∀s. streamChunks (unId (unstreamChunks s)) = s
-
+#if MIN_VERSION_base(4,9,0)
+#else
 "Lazy Bitstream unstreamChunks/streamChunks fusion"
     ∀v. unId (unstreamChunks (streamChunks v)) = v
+#endif
   #-}
 
+#if MIN_VERSION_vector(0,11,0)
+inplace :: Monad m => (Stream m a -> Stream m b)
+        -> (Size -> Size) -> B.Bundle m v a -> B.Bundle m v b
+inplace f g b = b `seq` B.fromStream (f (B.elements b)) (g (B.size b))
+#endif
+
 -- Awful implementation to gain speed...
+{-# INLINEABLE packChunks #-}
+#if MIN_VERSION_vector(0,11,0)
+packChunks ∷ ∀d m v . (G.Bitstream (Packet d), Monad m)
+           ⇒ B.Bundle m v (Packet d)
+           → B.Bundle m v (SB.Bitstream d)
+packChunks = inplace (\(Stream st s0)
+    -> Stream (step' st) (emptyChunk, 0, 0, Just s0)) sz'
+#else
 packChunks ∷ ∀d m. (G.Bitstream (Packet d), Monad m)
            ⇒ Stream m (Packet d)
            → Stream m (SB.Bitstream d)
-{-# INLINEABLE packChunks #-}
-packChunks (Stream step s0 sz)
-    = Stream step' (emptyChunk, 0, 0, Just s0) sz'
+packChunks (Stream st s0 sz)
+    = Stream (step' st) (emptyChunk, 0, 0, Just s0) (sz' sz)
+#endif
     where
       emptyChunk ∷ New.New SV.Vector (Packet d)
       {-# INLINE emptyChunk #-}
@@ -729,15 +797,15 @@ packChunks (Stream step s0 sz)
             $ GV.new
             $ New.apply (MVector.take cLen) ch
 
-      sz' ∷ Size
+      sz' ∷ Size -> Size
       {-# INLINE sz' #-}
-      sz' = case sz of
+      sz' v = case v of
               Exact n → Exact ((n + chunkSize - 1) `div` chunkSize)
               Max   n → Max   ((n + chunkSize - 1) `div` chunkSize)
               Unknown → Unknown
 
       {-# INLINE step' #-}
-      step' (ch, cLen, bLen, Just s)
+      step' step (ch, cLen, bLen, Just s)
           = do r ← step s
                case r of
                  Yield p s'
@@ -753,11 +821,15 @@ packChunks (Stream step s0 sz)
                      | otherwise
                            → return $ Yield (newChunk ch cLen bLen)
                                             ((⊥), (⊥), (⊥), Nothing)
-      step' (_, _, _, Nothing)
+      step' _ (_, _, _, Nothing)
           = return Done
 
-unpackChunks ∷ S.Stream (SB.Bitstream d) → S.Stream (Packet d)
 {-# INLINE unpackChunks #-}
+#if MIN_VERSION_vector(0,11,0)
+unpackChunks ∷ Bundle SV.Vector (SB.Bitstream d) → Bundle SV.Vector (Packet d)
+#else
+unpackChunks ∷ S.Stream (SB.Bitstream d) → S.Stream (Packet d)
+#endif
 unpackChunks = S.concatMap SB.streamPackets
 
 -- | /O(n)/ Convert a @'Bitstream' 'Left'@ into a @'Bitstream'
