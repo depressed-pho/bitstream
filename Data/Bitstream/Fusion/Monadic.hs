@@ -78,7 +78,11 @@ genericDrop n0 (Stream step s0 sz) = Stream step' (s0, Just n0) (toMax sz)
                  Skip    s' → return $ Skip    (s', Nothing)
                  Done       → return Done
 
+#if __GLASGOW_HASKELL__ >= 808
+genericIndex ∷ (MonadFail m, Monad m, Integral n, Show n) ⇒ Stream m α → n → m α
+#else
 genericIndex ∷ (Monad m, Integral n, Show n) ⇒ Stream m α → n → m α
+#endif
 {-# INLINE [0] genericIndex #-}
 {-# RULES "genericIndex → (!!)" genericIndex = (!!) #-}
 #if MIN_VERSION_vector(0,11,0)

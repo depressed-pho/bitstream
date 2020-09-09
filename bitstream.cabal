@@ -6,7 +6,7 @@ Description:
         fusion. This is like @bytestring@ but stores bits instead of
         bytes.
 
-Version: 0.3.0.0
+Version: 0.3.0.1
 License: PublicDomain
 License-File: COPYING
 Author: PHO <pho at cielonegro dot org>
@@ -15,7 +15,7 @@ Stability: experimental
 Homepage: https://github.com/phonohawk/bitstream
 Bug-Reports: https://github.com/phonohawk/bitstream/issues
 Category: Data
-Tested-With: GHC == 7.6.2
+Tested-With: GHC == 7.6.2, GHC == 8.4.4, GHC == 8.6.5, GHC == 8.8.4, GHC == 8.10.2
 Cabal-Version: >= 1.10
 Build-Type: Simple
 Extra-Source-Files:
@@ -64,6 +64,7 @@ Test-Suite test-strict-bitstream
         QuickCheck           >= 2.5,
         base                 == 4.*,
         base-unicode-symbols == 0.2.*,
+        bitstream,
         bytestring           >= 0.9 && < 0.11,
         vector               >= 0.10 && < 0.13
     if !impl(ghc >= 8.0)
@@ -82,6 +83,7 @@ Test-Suite test-lazy-bitstream
         QuickCheck           >= 2.5,
         base                 == 4.*,
         base-unicode-symbols == 0.2.*,
+        bitstream,
         bytestring           >= 0.9 && < 0.11,
         vector               >= 0.10 && < 0.13
     if !impl(ghc >= 8.0)
