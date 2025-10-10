@@ -31,8 +31,8 @@ Library
     Build-Depends:
         base                 == 4.*,
         base-unicode-symbols == 0.2.*,
-        bytestring           >= 0.9 && < 0.11,
-        vector               >= 0.10 && < 0.13
+        bytestring           >= 0.9 && < 0.13,
+        vector               >= 0.10 && < 0.14
 
     if !impl(ghc >= 8.0)
         Build-Depends:
@@ -65,8 +65,8 @@ Test-Suite test-strict-bitstream
         base                 == 4.*,
         base-unicode-symbols == 0.2.*,
         bitstream,
-        bytestring           >= 0.9 && < 0.11,
-        vector               >= 0.10 && < 0.13
+        bytestring           >= 0.9 && < 0.13,
+        vector               >= 0.10 && < 0.14
     if !impl(ghc >= 8.0)
         Build-Depends:
             bifunctors >= 4.1
@@ -84,8 +84,8 @@ Test-Suite test-lazy-bitstream
         base                 == 4.*,
         base-unicode-symbols == 0.2.*,
         bitstream,
-        bytestring           >= 0.9 && < 0.11,
-        vector               >= 0.10 && < 0.13
+        bytestring           >= 0.9 && < 0.13,
+        vector               >= 0.10 && < 0.14
     if !impl(ghc >= 8.0)
         Build-Depends:
             bifunctors >= 4.1
