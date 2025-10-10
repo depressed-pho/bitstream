@@ -1,3 +1,4 @@
+cabal-version: 3.0
 Name: bitstream
 Synopsis: Fast, packed, strict and lazy bit streams with stream fusion
 Description:
@@ -7,7 +8,7 @@ Description:
         bytes.
 
 Version: 0.3.0.1
-License: PublicDomain
+License: CC0-1.0
 License-File: COPYING
 Author: PHO <pho at cielonegro dot org>
 Maintainer: PHO <pho at cielonegro dot org>
@@ -16,7 +17,6 @@ Homepage: https://github.com/phonohawk/bitstream
 Bug-Reports: https://github.com/phonohawk/bitstream/issues
 Category: Data
 Tested-With: GHC == 7.6.2, GHC == 8.4.4, GHC == 8.6.5, GHC == 8.8.4, GHC == 8.10.2
-Cabal-Version: >= 1.10
 Build-Type: Simple
 Extra-Source-Files:
     AUTHORS
