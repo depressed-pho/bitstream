@@ -24,7 +24,7 @@ import Data.Vector.Fusion.Stream.Monadic
 #else
 import Data.Vector.Fusion.Stream.Size
 #endif
-import Prelude hiding ((!!), drop, replicate, take)
+import Prelude hiding ((!!), drop, replicate, take, foldl')
 import Prelude.Unicode
 
 genericLength ∷ (Monad m, Num n) ⇒ Stream m α → m n

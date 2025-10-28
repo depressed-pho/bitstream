@@ -1,3 +1,4 @@
+cabal-version: 3.0
 Name: bitstream
 Synopsis: Fast, packed, strict and lazy bit streams with stream fusion
 Description:
@@ -7,7 +8,7 @@ Description:
         bytes.
 
 Version: 0.3.0.1
-License: PublicDomain
+License: CC0-1.0
 License-File: COPYING
 Author: PHO <pho at cielonegro dot org>
 Maintainer: PHO <pho at cielonegro dot org>
@@ -16,27 +17,32 @@ Homepage: https://github.com/phonohawk/bitstream
 Bug-Reports: https://github.com/phonohawk/bitstream/issues
 Category: Data
 Tested-With: GHC == 7.6.2, GHC == 8.4.4, GHC == 8.6.5, GHC == 8.8.4, GHC == 8.10.2
-Cabal-Version: >= 1.10
 Build-Type: Simple
 Extra-Source-Files:
     AUTHORS
     COPYING
     ChangeLog
 
-Source-Repository head
-    Type: git
-    Location: git://github.com/phonohawk/bitstream.git
-
-Library
+common shared
     Build-Depends:
         base                 == 4.*,
         base-unicode-symbols == 0.2.*,
-        bytestring           >= 0.9 && < 0.11,
-        vector               >= 0.10 && < 0.13
-
+        bytestring           >= 0.9 && < 0.13,
+        vector               >= 0.10 && < 0.14
     if !impl(ghc >= 8.0)
         Build-Depends:
             bifunctors >= 4.1
+    GHC-Options:
+        -Wall
+    Default-Language: Haskell2010
+
+Source-Repository head
+    Type: git
+    Location: https://github.com/phonohawk/bitstream.git
+
+Library
+    import:
+      shared
 
     Exposed-Modules:
         Data.Bitstream
@@ -49,46 +55,30 @@ Library
     Other-Modules:
         Data.Bitstream.Internal
 
-    Default-Language:
-         Haskell2010
-
-    GHC-Options:
-        -Wall
-
 Test-Suite test-strict-bitstream
+    import:
+      shared
+
     Type:    exitcode-stdio-1.0
     Main-Is: Test/Bitstream.hs
     Other-Modules:
         Test.Bitstream.Utils
     Build-Depends:
         QuickCheck           >= 2.5,
-        base                 == 4.*,
-        base-unicode-symbols == 0.2.*,
-        bitstream,
-        bytestring           >= 0.9 && < 0.11,
-        vector               >= 0.10 && < 0.13
-    if !impl(ghc >= 8.0)
-        Build-Depends:
-            bifunctors >= 4.1
-    Default-Language: Haskell2010
+        bitstream
     GHC-Options:
-        -Wall -fno-warn-orphans
+        -fno-warn-orphans
 
 Test-Suite test-lazy-bitstream
+    import:
+      shared
+
     Type:    exitcode-stdio-1.0
     Main-Is: Test/Bitstream/Lazy.hs
     Other-Modules:
         Test.Bitstream.Utils
     Build-Depends:
         QuickCheck           >= 2.5,
-        base                 == 4.*,
-        base-unicode-symbols == 0.2.*,
-        bitstream,
-        bytestring           >= 0.9 && < 0.11,
-        vector               >= 0.10 && < 0.13
-    if !impl(ghc >= 8.0)
-        Build-Depends:
-            bifunctors >= 4.1
-    Default-Language: Haskell2010
+        bitstream
     GHC-Options:
-        -Wall -fno-warn-orphans
+        -fno-warn-orphans
